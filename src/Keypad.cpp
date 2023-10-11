@@ -6,12 +6,9 @@ void CapsuleChordKeypad::begin() {
 }
 
 void CapsuleChordKeypad::update() {
-    Serial.println("Keypad::update 1");
     Wire1.requestFrom(KEYPAD_I2C_ADDR,1);//TODO:4とか試してみる
-    Serial.println("Keypad::update 2");
     while(Wire1.available()) {
         int val = Wire1.read();
-        Serial.println("Keypad::update 3");
         if(val != 0) {
             // Update keys
             int state = val & 0b10000000;

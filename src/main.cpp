@@ -7,6 +7,7 @@
 #include "Keypad.h"
 #include "KeyMap/KeyMap.h"
 #include "Context.h"
+#include "Sampler.h"
 
 #define DEVICE_NAME "CapsuleChord2"
 
@@ -96,13 +97,13 @@ void _changeScene_raw() {
 void sendNotes(bool isNoteOn, std::vector<uint8_t> notes, int vel) {
   if(isNoteOn) {
     for(uint8_t n : notes) {
-      Midi.sendNote(0x90, n, vel);
+      Sampler.SendNoteOn(n, vel, 1);
     }
     playingNotes.insert(playingNotes.end(),notes.begin(),notes.end());
   }
   else {
     for(uint8_t n : playingNotes) {
-      Midi.sendNote(0x80, n, 0);
+      Sampler.SendNoteOff(n, 0, 1);
     }
     playingNotes.clear();
   }
@@ -132,8 +133,6 @@ class ServerCallbacks: public BLEMidiServerCallbacks {
 
 void setup() {
   M5.begin();
-  Serial.begin(9600);
-
   Keypad.begin();
 
   // Load settings
@@ -160,10 +159,11 @@ void setup() {
   Context::setContext(&context);
 
   // Scene initialization
-  changeScene(Scene::Connection);
+  changeScene(Scene::Play);
   _changeScene_raw();
 
-  Midi.begin(DEVICE_NAME, new ServerCallbacks(), NULL);
+  // Midi.begin(DEVICE_NAME, new ServerCallbacks(), NULL);
+  Sampler.begin();
 }
 
 void loop() {
