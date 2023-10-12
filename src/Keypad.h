@@ -62,7 +62,7 @@ public:
     class Key {
         private:
             int id;
-            bool mIsPressed;
+            bool mIsPressed = false;
         public:
             void press();
             void release();
