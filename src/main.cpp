@@ -174,12 +174,32 @@ void loop() {
     break;
     case Scene::Play:
       M5.update();
-      if(M5.BtnC.pressedFor(100)) { //Go to Menu Scene
-        sendNotes(false,std::vector<uint8_t>(),120);
-        changeScene(Scene::FunctionMenu);
-        break;
+      if (M5.BtnA.wasPressed())
+      {
+        if(scale->key > 0) scale->key--;
+        else scale->key = 11;
+        M5.Lcd.clear();
+        M5.Lcd.setCursor(0, 0);
+        M5.Lcd.setTextSize(2);
+        M5.Lcd.println(scale->toString());
       }
-      if(M5.BtnB.wasReleased()) sendNotes(false,std::vector<uint8_t>(),120);
+      if (M5.BtnB.wasPressed())
+      {
+        Sampler.SendNoteOn(60 + scale->key, 100, 1);
+      }
+      else if (M5.BtnB.wasReleased())
+      {
+        Sampler.SendNoteOff(60 + scale->key, 100, 1);
+      }
+      if (M5.BtnC.wasPressed())
+      {
+        if(scale->key < 11) scale->key++;
+        else scale->key = 0;
+        M5.Lcd.clear();
+        M5.Lcd.setCursor(0, 0);
+        M5.Lcd.setTextSize(2);
+        M5.Lcd.println(scale->toString());
+      }
 
       Keypad.update();
       KeyMap::getAvailableKeyMaps()[0].get()->update();
