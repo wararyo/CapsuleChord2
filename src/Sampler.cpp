@@ -23,25 +23,27 @@ inline float MidiSampler::PitchFromNoteNo(float noteNo, float root)
 inline void MidiSampler::UpdateAdsr(MidiSampler::SamplePlayer *player)
 {
     Sample *sample = player->sample;
+    float goal;
     if (player->released)
         player->adsrState = release;
 
     switch (player->adsrState)
     {
     case attack:
-        player->adsrGain += sample->attack;
-        if (player->adsrGain >= 1.0f)
+        player->adsrGain += sample->attack * player->volume;
+        if (player->adsrGain >= player->volume)
         {
-            player->adsrGain = 1.0f;
+            player->adsrGain = player->volume;
             player->adsrState = decay;
         }
         break;
     case decay:
-        player->adsrGain = (player->adsrGain - sample->sustain) * sample->decay + sample->sustain;
+        goal = sample->sustain * player->volume;
+        player->adsrGain = (player->adsrGain - goal) * sample->decay + goal;
         if ((player->adsrGain - sample->sustain) < 0.01f)
         {
             player->adsrState = sustain;
-            player->adsrGain = sample->sustain;
+            player->adsrGain = goal;
         }
         break;
     case sustain:
@@ -109,19 +111,41 @@ void MidiSampler::AudioLoop()
 
             float pitch = PitchFromNoteNo(player->noteNo, player->sample->root);
 
-            for (int n = 0; n < SAMPLE_BUFFER_SIZE; n++)
+            if (sample->adsrEnabled) // adsrEnabledによる場合分けが多いので、まずadsrEnabledで分ける
             {
-                if (player->pos >= sample->length)
-                {
-                    player->playing = false;
-                    break;
-                }
-                else
+                for (int n = 0; n < SAMPLE_BUFFER_SIZE; n++)
                 {
                     // 波形を読み込む
+                    float val = (sample->sample[player->pos] * player->pos_f) + (sample->sample[player->pos] * (1.0f-player->pos_f));
+                    val *= player->adsrGain;
+                    data[n] += val;
+
+                    // 次のサンプルへ移動
+                    int32_t pitch_u = pitch;
+                    player->pos_f += pitch - pitch_u;
+                    player->pos += pitch_u;
+                    if(player->pos_f >= 1.0f) {
+                        int posI = player->pos_f;
+                        player->pos += posI;
+                        player->pos_f -= posI;
+                    }
+
+                    // ループポイントが設定されている場合はループする
+                    while (player->pos >= sample->loopEnd)
+                        player->pos -= (sample->loopEnd - sample->loopStart);
+                }
+            }
+            else
+            {
+                for (int n = 0; n < SAMPLE_BUFFER_SIZE; n++)
+                {
+                    if (player->pos >= sample->length)
+                    {
+                        player->playing = false;
+                        break;
+                    }
+                    // 波形を読み込む
                     float val = sample->sample[player->pos];
-                    if (sample->adsrEnabled)
-                        val *= player->adsrGain;
                     val *= player->volume;
                     data[n] += val;
 
@@ -132,10 +156,6 @@ void MidiSampler::AudioLoop()
                     int posI = player->pos_f;
                     player->pos += posI;
                     player->pos_f -= posI;
-
-                    // ループポイントが設定されている場合はループする
-                    if (sample->adsrEnabled && player->pos >= sample->loopEnd)
-                        player->pos -= (sample->loopEnd - sample->loopStart);
                 }
             }
         }
