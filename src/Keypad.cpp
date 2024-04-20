@@ -1,14 +1,19 @@
 #include "Keypad.h"
 #include <M5Unified.h>
 
+#define EXT_I2C_PORT 0
+
+#define PORTA_SCL  1
+#define PORTA_SDA  2
+
 void CapsuleChordKeypad::begin() {
-    Wire1.begin();
+    M5.Ex_I2C.begin(EXT_I2C_PORT, PORTA_SDA, PORTA_SCL);
 }
 
 void CapsuleChordKeypad::update() {
-    Wire1.requestFrom(KEYPAD_I2C_ADDR,1);//TODO:4とか試してみる
-    while(Wire1.available()) {
-        int val = Wire1.read();
+    Wire.requestFrom(KEYPAD_I2C_ADDR,1);//TODO:4とか試してみる
+    while(Wire.available()) {
+        int val = Wire.read();
         if(val != 0) {
             // Update keys
             int state = val & 0b10000000;
