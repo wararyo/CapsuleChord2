@@ -152,7 +152,12 @@ void MidiSampler::AudioLoop()
         audioProcessTime = endTime - startTime;
 
         static size_t bytes_written = 0;
-        i2s_write(Speak_I2S_NUMBER, (const unsigned char *)dataI, 2 * SAMPLE_BUFFER_SIZE, &bytes_written, portMAX_DELAY);
+
+#ifdef USE_HEADPHONE
+        i2s_write(I2S_NUM_HP, (const unsigned char *)dataI, 2 * SAMPLE_BUFFER_SIZE, &bytes_written, portMAX_DELAY);
+#else
+        i2s_write(I2S_NUM_SPK, (const unsigned char *)dataI, 2 * SAMPLE_BUFFER_SIZE, &bytes_written, portMAX_DELAY);
+#endif
     }
 }
 
@@ -174,11 +179,23 @@ void MidiSampler::HandleMidiMessage(uint8_t *message)
     }
 }
 
+static constexpr uint8_t aw88298_i2c_addr = 0x36;
+
+void aw88298_write_reg(uint8_t reg, uint16_t value)
+{
+  value = __builtin_bswap16(value);
+  M5.In_I2C.writeRegister(aw88298_i2c_addr, reg, (const uint8_t *)&value, 2, 400000);
+}
+
 void MidiSampler::begin()
 {
     esp_err_t err = ESP_OK;
 
-    i2s_driver_uninstall(Speak_I2S_NUMBER);
+#ifdef USE_HEADPHONE
+    i2s_driver_uninstall(I2S_NUM_HP);
+#else
+    i2s_driver_uninstall(I2S_NUM_SPK);
+#endif
 
     i2s_config_t i2s_config = {
         .mode = (i2s_mode_t)(I2S_MODE_MASTER),
@@ -194,15 +211,30 @@ void MidiSampler::begin()
     i2s_config.use_apll = false;
     i2s_config.tx_desc_auto_clear = true;
 
-    err += i2s_driver_install(Speak_I2S_NUMBER, &i2s_config, 0, NULL);
 
+#ifdef USE_HEADPHONE
+    err += i2s_driver_install(I2S_NUM_HP, &i2s_config, 0, NULL);
+#else
+    err += i2s_driver_install(I2S_NUM_SPK, &i2s_config, 0, NULL);
+#endif
+
+#ifdef USE_HEADPHONE
     i2s_pin_config_t tx_pin_config;
-    tx_pin_config.bck_io_num = CONFIG_I2S_BCK_PIN;
-    tx_pin_config.ws_io_num = CONFIG_I2S_LRCK_PIN;
-    tx_pin_config.data_out_num = CONFIG_I2S_DATA_PIN;
-    tx_pin_config.data_in_num = CONFIG_I2S_DATA_IN_PIN;
+    tx_pin_config.bck_io_num = PIN_I2S_BCK_HP;
+    tx_pin_config.ws_io_num = PIN_I2S_LRCK_HP;
+    tx_pin_config.data_out_num = PIN_I2S_DATA;
+    tx_pin_config.data_in_num = PIN_I2S_DATA_IN;
     tx_pin_config.mck_io_num = GPIO_NUM_0;
-    err += i2s_set_pin(Speak_I2S_NUMBER, &tx_pin_config);
+    err += i2s_set_pin(I2S_NUM_HP, &tx_pin_config);
+#else
+    i2s_pin_config_t tx_pin_config;
+    tx_pin_config.bck_io_num = PIN_I2S_BCK_SPK;
+    tx_pin_config.ws_io_num = PIN_I2S_LRCK_SPK;
+    tx_pin_config.data_out_num = PIN_I2S_DATA;
+    tx_pin_config.data_in_num = PIN_I2S_DATA_IN;
+    tx_pin_config.mck_io_num = GPIO_NUM_0;
+    err += i2s_set_pin(I2S_NUM_SPK, &tx_pin_config);
+#endif
 
     if (err == ESP_OK)
     {
@@ -213,12 +245,45 @@ void MidiSampler::begin()
         Serial.printf("i2s ng");
     }
 
-    i2s_zero_dma_buffer(Speak_I2S_NUMBER);
+#ifdef USE_HEADPHONE
+    pinMode(PIN_EN_HP, OUTPUT);
+    digitalWrite(PIN_EN_HP, 1);
+#else
+    // M5Unified::_speaker_enabled_cb()
+    M5.In_I2C.bitOn(aw88298_i2c_addr, 0x02, 0b00000100, 400000);
+    /// サンプリングレートに応じてAW88298のレジスタの設定値を変える;
+    static constexpr uint8_t rate_tbl[] = {4, 5, 6, 8, 10, 11, 15, 20, 22, 44};
+    size_t reg0x06_value = 0;
+    size_t rate = (48000 + 1102) / 2205;
+    while (rate > rate_tbl[reg0x06_value] && ++reg0x06_value < sizeof(rate_tbl))
+    {
+    }
+
+    reg0x06_value |= 0x14C0;         // I2SBCK=0 (BCK mode 16*2)
+    aw88298_write_reg(0x61, 0x0673); // boost mode disabled
+    aw88298_write_reg(0x04, 0x4040); // I2SEN=1 AMPPD=0 PWDN=0
+    aw88298_write_reg(0x05, 0x0008); // RMSE=0 HAGCE=0 HDCCE=0 HMUTE=0
+    aw88298_write_reg(0x06, reg0x06_value);
+    // aw88298_write_reg(0x0C, 0x0064);  // volume setting (full volume)
+    aw88298_write_reg(0x0C, 0x2064); // volume setting (-6db)
+    pinMode(PIN_EN_HP, OUTPUT);
+    digitalWrite(PIN_EN_HP, 0);
+#endif
+
+#ifdef USE_HEADPHONE
+    i2s_zero_dma_buffer(I2S_NUM_HP);
+#else
+    i2s_zero_dma_buffer(I2S_NUM_SPK);
+#endif
 
     delay(100);
 
     size_t bytes_written = 0;
-    i2s_write(Speak_I2S_NUMBER, (const unsigned char *)piano_sample, 64000, &bytes_written, portMAX_DELAY);
+#ifdef USE_HEADPHONE
+    i2s_write(I2S_NUM_HP, (const unsigned char *)piano_sample, 64000, &bytes_written, portMAX_DELAY);
+#else
+    i2s_write(I2S_NUM_SPK, (const unsigned char *)piano_sample, 64000, &bytes_written, portMAX_DELAY);
+#endif
     Serial.printf("bytes_written: %d ", bytes_written);
     
     delay(100);

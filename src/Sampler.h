@@ -5,19 +5,26 @@
 #include <driver/i2s.h>
 #include <ml_reverb.h>
 
-#define CONFIG_I2S_BCK_PIN 12
-#define CONFIG_I2S_LRCK_PIN 0
-#define CONFIG_I2S_DATA_PIN 2
-#define CONFIG_I2S_DATA_IN_PIN 34
+// #define USE_HEADPHONE
 
-#define Speak_I2S_NUMBER I2S_NUM_0
+#define PIN_I2S_BCK_SPK GPIO_NUM_34
+#define PIN_I2S_BCK_HP GPIO_NUM_6
+#define PIN_I2S_LRCK_SPK GPIO_NUM_33
+#define PIN_I2S_LRCK_HP GPIO_NUM_0
+#define PIN_I2S_DATA GPIO_NUM_13
+#define PIN_I2S_DATA_IN GPIO_NUM_14
+
+#define I2S_NUM_SPK I2S_NUM_1
+#define I2S_NUM_HP I2S_NUM_0
+
+#define PIN_EN_HP GPIO_NUM_9
 
 #define MODE_MIC 0
 #define MODE_SPK 1
 #define DATA_SIZE 1024
 
 #define SAMPLE_BUFFER_SIZE 64
-#define SAMPLE_RATE 44100
+#define SAMPLE_RATE 48000
 
 #define MAX_SOUND 12 // 最大同時発音数
 
