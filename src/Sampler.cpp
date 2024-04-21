@@ -5,8 +5,8 @@ struct MidiSampler::Sample MidiSampler::piano = MidiSampler::Sample{
     piano_sample,
     32000,
     60,
-    24120,
-    24288,
+    26253,
+    26436,
     true,
     1.0f,
     0.998887f,
@@ -299,11 +299,11 @@ void MidiSampler::begin(AudioOutput output)
 
     delay(100);
 
-    size_t bytes_written = 0;
-    i2s_write(output == AudioOutput::headphone ? I2S_NUM_HP : I2S_NUM_SPK, (const unsigned char *)piano_sample, 96000, &bytes_written, portMAX_DELAY);
-    Serial.printf("bytes_written: %d ", bytes_written);
+    // size_t bytes_written = 0;
+    // i2s_write(output == AudioOutput::headphone ? I2S_NUM_HP : I2S_NUM_SPK, (const unsigned char *)piano_sample, 64000, &bytes_written, portMAX_DELAY);
+    // Serial.printf("bytes_written: %d ", bytes_written);
     
-    delay(100);
+    // delay(100);
 
     Reverb_Setup(revBuffer);
     Reverb_SetLevel(0, 0.2f);
