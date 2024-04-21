@@ -112,10 +112,10 @@ void sendNotes(bool isNoteOn, std::vector<uint8_t> notes, int vel) {
 void playChord(Chord chord) {
   sendNotes(true,chord.toMidiNoteNumbers(*centerNoteNo,16),120);
   M5.Lcd.setTextSize(4);
-  M5.Lcd.fillRect(0,60,320,120,BLACK);
+  M5.Lcd.fillRect(0,130,240,120,BLACK);
   M5.Lcd.setTextDatum(CC_DATUM);
   M5.Lcd.setTextSize(5);
-  M5.Lcd.drawString(chord.toString(), 160, 120, 2);
+  M5.Lcd.drawString(chord.toString(), 120, 160, 2);
   M5.Lcd.setTextDatum(TL_DATUM);
 }
 
@@ -133,6 +133,8 @@ class ServerCallbacks: public BLEMidiServerCallbacks {
 
 void setup() {
   M5.begin();
+  M5.Display.setRotation(M5.Display.getRotation() ^ 1);
+  
   Keypad.begin();
 
   // Load settings
