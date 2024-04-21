@@ -16,7 +16,7 @@ void CapsuleChordKeypad::update() {
         int val = Wire.read();
         if(val != 0) {
             // Update keys
-            int state = val & 0b10000000;
+            int state = (val & 0b10000000) >> 7;
             int key   = val & 0b01111111;
             if(keys.find(key) != keys.end()) {
                 if(state == Key_State_Pressed) keys[key].press();

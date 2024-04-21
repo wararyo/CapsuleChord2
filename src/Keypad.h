@@ -16,8 +16,8 @@
 /*** Buttons ***/
 // Group(3bit) | Button(4bit)
 
-#define Key_State_Pressed 0
-#define Key_State_Released 1
+#define Key_State_Pressed 1
+#define Key_State_Released 0
 
 // Numbers (Group 1)
 #define Key_Custom1 1
