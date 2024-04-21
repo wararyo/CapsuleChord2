@@ -162,8 +162,12 @@ void setup() {
   changeScene(Scene::Play);
   _changeScene_raw();
 
+  // イヤホン端子スイッチ
+  pinMode(GPIO_NUM_18, INPUT_PULLUP);
+
   // Midi.begin(DEVICE_NAME, new ServerCallbacks(), NULL);
-  Sampler.begin();
+  bool isHeadphone = digitalRead(GPIO_NUM_18);
+  Sampler.begin(isHeadphone ? MidiSampler::AudioOutput::headphone : MidiSampler::AudioOutput::speaker);
 }
 
 void loop() {
@@ -208,6 +212,15 @@ void loop() {
 
     break;
   }
+
+  // ヘッドフォン抜き差し
+  static bool isHeadphonePreviously = digitalRead(GPIO_NUM_18);
+  bool isHeadphone = digitalRead(GPIO_NUM_18);
+  if(isHeadphonePreviously != isHeadphone) {
+    Sampler.begin(isHeadphone ? MidiSampler::AudioOutput::headphone : MidiSampler::AudioOutput::speaker);
+    isHeadphonePreviously = isHeadphone;
+  }
+
   if(currentScene != requiredToChangeScene) _changeScene_raw();
   while(millis() - lastLoopMillis < 33); // Keep 60fps
   lastLoopMillis = millis();

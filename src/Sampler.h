@@ -5,8 +5,6 @@
 #include <driver/i2s.h>
 #include <ml_reverb.h>
 
-// #define USE_HEADPHONE
-
 #define PIN_I2S_BCK_SPK GPIO_NUM_34
 #define PIN_I2S_BCK_HP GPIO_NUM_6
 #define PIN_I2S_LRCK_SPK GPIO_NUM_33
@@ -26,7 +24,7 @@
 #define SAMPLE_BUFFER_SIZE 64
 #define SAMPLE_RATE 48000
 
-#define MAX_SOUND 12 // 最大同時発音数
+#define MAX_SOUND 8 // 最大同時発音数
 
 class MidiSampler
 {
@@ -37,6 +35,11 @@ public:
         decay,
         sustain,
         release,
+    };
+    enum AudioOutput
+    {
+        headphone = 0,
+        speaker
     };
     struct Sample
     {
@@ -75,7 +78,7 @@ public:
     void SendNoteOn(uint8_t noteNo, uint8_t velocity, uint8_t channnel);
     void SendNoteOff(uint8_t noteNo,  uint8_t velocity, uint8_t channnel);
     void HandleMidiMessage(uint8_t *message);
-    void begin();
+    void begin(AudioOutput output);
     void terminate();
 
 private:
@@ -83,10 +86,13 @@ private:
     static const int16_t piano_sample[32000];
     static struct Sample piano;
 
+    AudioOutput audioOutput = AudioOutput::headphone;
+
     float revBuffer[REV_BUFF_SIZE];
     SamplePlayer players[MAX_SOUND] = {SamplePlayer()};
     unsigned long nextAudioLoop = 0;
     uint32_t audioProcessTime = 0; // プロファイリング用 一回のオーディオ処理にかかる時間
+    TaskHandle_t audioLoopHandler = nullptr;
 
     inline float PitchFromNoteNo(float noteNo, float root);
     inline void UpdateAdsr(SamplePlayer *player);
