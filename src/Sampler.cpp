@@ -115,8 +115,8 @@ void MidiSampler::AudioLoop()
             {
                 for (int n = 0; n < SAMPLE_BUFFER_SIZE; n++)
                 {
-                    // 波形を読み込む
-                    float val = (sample->sample[player->pos] * player->pos_f) + (sample->sample[player->pos] * (1.0f-player->pos_f));
+                    // 波形を読み込む&線形補完
+                    float val = (sample->sample[player->pos+1] * player->pos_f) + (sample->sample[player->pos] * (1.0f-player->pos_f));
                     val *= player->adsrGain;
                     data[n] += val;
 
@@ -125,9 +125,8 @@ void MidiSampler::AudioLoop()
                     player->pos_f += pitch - pitch_u;
                     player->pos += pitch_u;
                     if(player->pos_f >= 1.0f) {
-                        int posI = player->pos_f;
-                        player->pos += posI;
-                        player->pos_f -= posI;
+                        player->pos++;
+                        player->pos_f--;
                     }
 
                     // ループポイントが設定されている場合はループする
