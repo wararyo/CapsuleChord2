@@ -11,6 +11,10 @@
 
 #define DEVICE_NAME "CapsuleChord2"
 
+#define GPIO_NUM_BACK GPIO_NUM_7
+#define GPIO_NUM_HOME GPIO_NUM_5
+#define GPIO_NUM_MENU GPIO_NUM_8
+
 std::vector<uint8_t> playingNotes;
 bool seventh = false;
 int option = 0;
@@ -18,6 +22,10 @@ int option = 0;
 float expression = 64;
 
 unsigned long lastLoopMillis = 0;
+
+m5::Button_Class BtnBack;
+m5::Button_Class BtnHome;
+m5::Button_Class BtnMenu;
 
 // Initialize at setup()
 Scale *scale;
@@ -167,20 +175,29 @@ void setup() {
   // イヤホン端子スイッチ
   pinMode(GPIO_NUM_18, INPUT_PULLUP);
 
+  // 3ボタン
+  pinMode(GPIO_NUM_BACK, INPUT_PULLUP);
+  pinMode(GPIO_NUM_HOME, INPUT_PULLUP);
+  pinMode(GPIO_NUM_MENU, INPUT_PULLUP);
+
   // Midi.begin(DEVICE_NAME, new ServerCallbacks(), NULL);
   bool isHeadphone = digitalRead(GPIO_NUM_18);
   Sampler.begin(isHeadphone ? MidiSampler::AudioOutput::headphone : MidiSampler::AudioOutput::speaker);
 }
 
 void loop() {
+  M5.update();
+  unsigned long ms = millis();
+  BtnBack.setRawState(ms, digitalRead(GPIO_NUM_BACK) == 0);
+  BtnHome.setRawState(ms, digitalRead(GPIO_NUM_HOME) == 0);
+  BtnMenu.setRawState(ms, digitalRead(GPIO_NUM_MENU) == 0);
+
   switch(currentScene) {
     case Scene::Connection:
-      M5.update();
       if(M5.BtnA.wasPressed()) M5.Power.deepSleep();
     break;
     case Scene::Play:
-      M5.update();
-      if (M5.BtnA.wasPressed())
+      if (BtnBack.wasPressed())
       {
         if(scale->key > 0) scale->key--;
         else scale->key = 11;
@@ -189,15 +206,15 @@ void loop() {
         M5.Lcd.setTextSize(2);
         M5.Lcd.println(scale->toString());
       }
-      if (M5.BtnB.wasPressed())
+      if (BtnHome.wasPressed())
       {
         Sampler.SendNoteOn(60 + scale->key, 100, 1);
       }
-      else if (M5.BtnB.wasReleased())
+      else if (BtnHome.wasReleased())
       {
         Sampler.SendNoteOff(60 + scale->key, 100, 1);
       }
-      if (M5.BtnC.wasPressed())
+      if (BtnMenu.wasPressed())
       {
         if(scale->key < 11) scale->key++;
         else scale->key = 0;
