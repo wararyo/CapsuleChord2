@@ -240,6 +240,20 @@ void loop() {
     isHeadphonePreviously = isHeadphone;
   }
 
+  // 仮でホームボタンを押したらバッテリー残量が表示されるようにする
+  if (BtnHome.wasPressed()) {
+    // バッテリー残量を取得
+    int32_t level = M5.Power.getBatteryLevel();
+    char str[16] = {'\0'};
+    sprintf(str, "%d%%", level);
+    Serial.print(str);
+    M5.Lcd.fillRect(0,300,240,20,BLACK);
+    M5.Lcd.setTextDatum(BR_DATUM);
+    M5.Lcd.setTextSize(2);
+    M5.Lcd.drawString(str, 240, 320, 1);
+    M5.Lcd.setTextDatum(TL_DATUM);
+  }
+
   if(currentScene != requiredToChangeScene) _changeScene_raw();
   while(millis() - lastLoopMillis < 33); // Keep 60fps
   lastLoopMillis = millis();
