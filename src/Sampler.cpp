@@ -228,20 +228,6 @@ void MidiSampler::begin(AudioOutput output)
     i2s_config.use_apll = false;
     i2s_config.tx_desc_auto_clear = true;
 
-    /**
-     * setup()
-     *   M5Unified::begin()
-     *     M5Unified::_begin_spk()
-     *       Speaker_Class::setCallback()
-     *       Speaker_Class::config()
-     *   Speaker_Class::tone()
-     *     Speaker_Class::begin()
-     *       M5Unified::_speaker_enabled_cb()
-     *         aw88298_write_reg()
-     *       M5Unified::_setup_i2s()
-     *         i2s_driver_install()
-    */
-
     if (output == AudioOutput::headphone) err += i2s_driver_install(I2S_NUM_HP, &i2s_config, 0, NULL);
     else err += i2s_driver_install(I2S_NUM_SPK, &i2s_config, 0, NULL);
 
@@ -263,20 +249,13 @@ void MidiSampler::begin(AudioOutput output)
         err += i2s_set_pin(I2S_NUM_SPK, &tx_pin_config);
     }
 
-    if (err == ESP_OK)
-    {
-        Serial.printf("i2s ok");
-    }
-    else
-    {
-        Serial.printf("i2s ng");
-    }
+    if (err == ESP_OK) Serial.printf("i2s ok");
+    else Serial.printf("i2s ng");
 
     if (output == AudioOutput::headphone) {
         pinMode(PIN_EN_HP, OUTPUT);
         digitalWrite(PIN_EN_HP, 1);
     } else {
-        // M5Unified::_speaker_enabled_cb()
         M5.In_I2C.bitOn(aw88298_i2c_addr, 0x02, 0b00000100, 400000);
         /// サンプリングレートに応じてAW88298のレジスタの設定値を変える;
         static constexpr uint8_t rate_tbl[] = {4, 5, 6, 8, 10, 11, 15, 20, 22, 44};
@@ -290,19 +269,18 @@ void MidiSampler::begin(AudioOutput output)
         aw88298_write_reg(0x05, 0x0008); // RMSE=0 HAGCE=0 HDCCE=0 HMUTE=0
         aw88298_write_reg(0x06, reg0x06_value);
         // aw88298_write_reg(0x0C, 0x0064);  // volume setting (full volume)
-        aw88298_write_reg(0x0C, 0x2064); // volume setting (-6db)
+        aw88298_write_reg(0x0C, 0x1064); // volume setting (-6db)
+        // aw88298_write_reg(0x0C, 0x2064); // volume setting (-12db)
         pinMode(PIN_EN_HP, OUTPUT);
         digitalWrite(PIN_EN_HP, 0);
     }
 
     i2s_zero_dma_buffer(output == AudioOutput::headphone ? I2S_NUM_HP : I2S_NUM_SPK);
-
     delay(100);
 
     // size_t bytes_written = 0;
     // i2s_write(output == AudioOutput::headphone ? I2S_NUM_HP : I2S_NUM_SPK, (const unsigned char *)piano_sample, 64000, &bytes_written, portMAX_DELAY);
     // Serial.printf("bytes_written: %d ", bytes_written);
-    
     // delay(100);
 
     Reverb_Setup(revBuffer);

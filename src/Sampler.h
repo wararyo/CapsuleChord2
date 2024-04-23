@@ -73,7 +73,7 @@ public:
         enum SampleAdsr adsrState = SampleAdsr::attack;
     };
 
-    float masterVolume = 0.5f;
+    float masterVolume = 0.25f;
 
     void SendNoteOn(uint8_t noteNo, uint8_t velocity, uint8_t channnel);
     void SendNoteOff(uint8_t noteNo,  uint8_t velocity, uint8_t channnel);
