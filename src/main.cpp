@@ -31,6 +31,7 @@ m5::Button_Class BtnMenu;
 Scale *scale;
 int *centerNoteNo;
 Context context;
+KeyMapBase *currentKeyMap;
 
 typedef std::vector<SettingItem*> si;
 typedef std::vector<const char *> strs;
@@ -142,8 +143,11 @@ class ServerCallbacks: public BLEMidiServerCallbacks {
 void setup() {
   M5.begin();
   M5.Display.setRotation(M5.Display.getRotation() ^ 1);
+  BtnHome.setHoldThresh(1000);
   
   Keypad.begin();
+
+  Serial.println("Hello.");
 
   // Load settings
   if(!settings.load()){
@@ -167,6 +171,9 @@ void setup() {
   context.playChord = playChord;
   context.sendNotes = sendNotes;
   Context::setContext(&context);
+
+  // Keymap initialization
+  currentKeyMap = KeyMap::getAvailableKeyMaps()[0].get();
 
   // Scene initialization
   changeScene(Scene::Play);
@@ -225,7 +232,7 @@ void loop() {
       }
 
       Keypad.update();
-      KeyMap::getAvailableKeyMaps()[0].get()->update();
+      currentKeyMap->update();
     break;
     case Scene::FunctionMenu:
 
@@ -251,6 +258,21 @@ void loop() {
     M5.Lcd.setTextDatum(BR_DATUM);
     M5.Lcd.setTextSize(2);
     M5.Lcd.drawString(str, 240, 320, 1);
+    M5.Lcd.setTextDatum(TL_DATUM);
+  }
+
+  // 仮でホームボタン長押ししたらKantanChordと切り替えるようにする
+  if (BtnHome.wasHold()) {
+    M5.Lcd.fillRect(0,300,240,20,BLACK);
+    M5.Lcd.setTextDatum(BL_DATUM);
+    M5.Lcd.setTextSize(2);
+    if (currentKeyMap == KeyMap::getAvailableKeyMaps()[0].get()) {
+      currentKeyMap = KeyMap::getAvailableKeyMaps()[1].get();
+      M5.Lcd.drawString("KeyMap: Kantan", 0, 320, 1);
+    } else {
+      currentKeyMap = KeyMap::getAvailableKeyMaps()[0].get();
+      M5.Lcd.drawString("KeyMap: Capsule", 0, 320, 1);
+    }
     M5.Lcd.setTextDatum(TL_DATUM);
   }
 
