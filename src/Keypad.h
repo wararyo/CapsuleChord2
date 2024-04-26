@@ -30,8 +30,8 @@
 #define Key_VIm 8
 #define Key_IIIm 9
 // Modifiers (Group 2)
-#define Key_Ninth         0x10 | 1
-#define Key_Thirteenth    0x10 | 2
+#define Key_Ninth         0x10 | 2
+#define Key_Thirteenth    0x10 | 1
 #define Key_Sus4          0x10 | 9
 #define Key_Augment       0x10 | 6
 #define Key_SeventhInvert 0x10 | 4
