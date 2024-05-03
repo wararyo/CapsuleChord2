@@ -30,19 +30,19 @@
 #define Key_VIm 8
 #define Key_IIIm 9
 // Modifiers (Group 2)
-#define Key_Ninth         0x10 | 2
-#define Key_Thirteenth    0x10 | 1
-#define Key_Sus4          0x10 | 9
-#define Key_Augment       0x10 | 6
-#define Key_SeventhInvert 0x10 | 4
-#define Key_Seventh       0x10 | 5
-#define Key_FlatFive      0x10 | 7
-#define Key_ThirdInvert   0x10 | 8
+#define Key_Ninth         0x12
+#define Key_Thirteenth    0x11
+#define Key_Sus4          0x19
+#define Key_Augment       0x16
+#define Key_SeventhInvert 0x14
+#define Key_Seventh       0x15
+#define Key_FlatFive      0x17
+#define Key_ThirdInvert   0x18
 // Other (Group 3)
-#define Key_PitchUp       0x20 | 2
-#define Key_PitchDown     0x20 | 1
-#define Key_InversionUp   0x20 | 4
-#define Key_InversionDown 0x20 | 3
+#define Key_PitchUp       0x22
+#define Key_PitchDown     0x21
+#define Key_InversionUp   0x24
+#define Key_InversionDown 0x23
 
 class CapsuleChordKeypad {
 public: class Key;

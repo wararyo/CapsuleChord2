@@ -8,12 +8,14 @@ class Context {
 public:
     Settings* settings;
     Scale* scale;
+    int* centerNoteNo;
     void (*playChord)(Chord);
     void (*sendNotes)(bool,std::vector<uint8_t>,int);
 
     Context(){}
     Context(Settings* settings):settings(settings){
         scale = &((SettingItemScale*)settings->findSettingByKey(String("Scale")))->content;
+        centerNoteNo = &((SettingItemNumeric*)settings->findSettingByKey(String("CenterNoteNo")))->number;
     }
 
     static Context *getContext(){

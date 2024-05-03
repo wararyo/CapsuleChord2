@@ -36,10 +36,9 @@ void KantanChordKeyMap::update() {
               context->playChord(c);
             }
           } break;
-          case 3: {// Function Keys Pressed
-            if((event & 0b1111) == 2) {// Sustain Key
-              Midi.sendNote(0x91,60,100);
-            }
+          case 2: {// Other Keys Pressed
+            if((event & 0b1111111) == Key_InversionUp) *(context->centerNoteNo) += 4;
+            if((event & 0b1111111) == Key_InversionDown) *(context->centerNoteNo) -= 4;
           } break;
         }
       break;
@@ -48,11 +47,10 @@ void KantanChordKeyMap::update() {
           case 0: {
             context->sendNotes(false,std::vector<uint8_t>(),120);
           } break;
-          case 3: {
-            if((event & 0b1111) == 2) {// Sustain Key
-              Midi.sendNote(0x81,60,100);
-            }
-          }
+          case 2: {
+            if((event & 0b1111111) == Key_InversionUp) *(context->centerNoteNo) -= 4;
+            if((event & 0b1111111) == Key_InversionDown) *(context->centerNoteNo) += 4;
+          } break;
         }
       break;
     }

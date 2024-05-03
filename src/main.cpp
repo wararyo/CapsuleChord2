@@ -120,6 +120,7 @@ void sendNotes(bool isNoteOn, std::vector<uint8_t> notes, int vel) {
 
 void playChord(Chord chord) {
   sendNotes(true,chord.toMidiNoteNumbers(*centerNoteNo,16),120);
+  Serial.printf("playChord %d ", *centerNoteNo);
   M5.Lcd.setTextSize(4);
   M5.Lcd.fillRect(0,130,240,120,BLACK);
   M5.Lcd.setTextDatum(CC_DATUM);
@@ -274,6 +275,9 @@ void loop() {
       M5.Lcd.drawString("KeyMap: Capsule", 0, 320, 1);
     }
     M5.Lcd.setTextDatum(TL_DATUM);
+
+    // 一応、centerNoteNoを戻す
+    *centerNoteNo = 60;
   }
 
   if(currentScene != requiredToChangeScene) _changeScene_raw();
