@@ -59,7 +59,7 @@ ScaleBase *Scale::getScaleFromName(String scaleStr) {
 //****
 
 Chord ScaleBase::degreeToChord(uint8_t key, DegreeChord degree) {
-    Chord c = Chord(0,degree.option);
+    Chord c = Chord(0,degree.option,degree.inversion);
     c.root = key + degree.root;
 
     //0から12の範囲内に収める
@@ -93,7 +93,7 @@ const uint16_t MajorScale::diatonicSeventhOptions[] = {
 
 Chord MajorScale::getDiatonic(uint8_t key, uint8_t number, bool seventh, Chord base) {
     // return degreeToChord(key,degree,0, Chord(0,seventh?diatonicSeventhOptions[degree]:diatonicOptions[degree]));
-    return degreeToChord(key,DegreeChord(pitch[number], base.option | seventh?diatonicSeventhOptions[number]:diatonicOptions[number]));
+    return degreeToChord(key,DegreeChord(pitch[number], base.option | seventh?diatonicSeventhOptions[number]:diatonicOptions[number],base.inversion));
 }
 
 //****

@@ -1,10 +1,16 @@
 #include <Chord.h>
 
 Chord::Chord()
-: Chord(C,0) {}
+: Chord(C,0,0,3) {}
 
 Chord::Chord(uint8_t root, uint16_t option)
-: root(root) , option(option) {}
+: Chord(root,option,0,3) {}
+
+Chord::Chord(uint8_t root, uint16_t option, uint8_t inversion)
+: Chord(root,option,inversion,3) {}
+
+Chord::Chord(uint8_t root, uint16_t option, uint8_t inversion, uint8_t octave)
+: root(root) , option(option), inversion(inversion), octave(octave) {}
 
 String Chord::toString() {
     String str = "";
@@ -17,47 +23,82 @@ String Chord::toString() {
     return str;
 }
 
-std::vector<uint8_t> Chord::toMidiNoteNumbers(uint8_t centerNoteNo, uint8_t region) {
-    maxNoteNo = centerNoteNo + region/2;
-    minNoteNo = centerNoteNo - region/2;
-    uint8_t baseNoteNo = root;
-    while(baseNoteNo < minNoteNo) baseNoteNo += 12;
+std::vector<uint8_t> Chord::toMidiNoteNumbers() {
+    uint8_t baseNoteNo = (octave * 12) + root;
 
     std::vector<uint8_t> notes = std::vector<uint8_t>();
 
     //Root
-    addMidiNote(&notes, baseNoteNo);
+    notes.push_back(baseNoteNo);
 
     //Third
-    if(option & Sus4) addMidiNote(&notes, baseNoteNo + 5);
-    else if(option & Minor) addMidiNote(&notes, baseNoteNo + 3);
-    else addMidiNote(&notes, baseNoteNo + 4); //Major
+    if(option & Sus4) notes.push_back(baseNoteNo + 5);
+    else if(option & Minor) notes.push_back(baseNoteNo + 3);
+    else notes.push_back(baseNoteNo + 4); //Major
 
     //Fifth
-    if(option & FifthFlat) addMidiNote(&notes, baseNoteNo + 6);
-    else if(option & Aug) addMidiNote(&notes, baseNoteNo + 8);
-    else addMidiNote(&notes, baseNoteNo + 7);
+    if(option & FifthFlat) notes.push_back(baseNoteNo + 6);
+    else if(option & Aug) notes.push_back(baseNoteNo + 8);
+    else notes.push_back(baseNoteNo + 7);
+
+    //Thirteenth
+    if(option & Thirteenth) notes.push_back(baseNoteNo + 9);
 
     //Seventh
-    if(option & Seventh) addMidiNote(&notes, baseNoteNo + 10);
-    else if(option & MajorSeventh) addMidiNote(&notes, baseNoteNo + 11);
+    if(option & Seventh) notes.push_back(baseNoteNo + 10);
+    else if(option & MajorSeventh) notes.push_back(baseNoteNo + 11);
 
     //Ninth
-    if(option & Ninth) addMidiNote(&notes, baseNoteNo + 14);
+    if(option & Ninth) notes.push_back(baseNoteNo + 14);
 
     //Eleventh
-    if(option & Eleventh) addMidiNote(&notes, baseNoteNo + 17);
+    if(option & Eleventh) notes.push_back(baseNoteNo + 17);
 
-    //Eleventh
-    if(option & Thirteenth) addMidiNote(&notes, baseNoteNo + 21);
+    // 転回
+    for(uint8_t i = 0;i < inversion;i++) {
+        if(notes.size() > i) notes[i] += 12;
+    }
 
     return notes;
 }
 
-void Chord::addMidiNote(std::vector<uint8_t>* notes,uint8_t noteNo) {
-    while(noteNo > maxNoteNo) noteNo -= 12;
-    while(noteNo < minNoteNo) noteNo += 12;
-    notes->push_back(noteNo);
+void Chord::calcInversion(uint8_t centerNoteNo) {
+    inversion = 0;
+    octave = 3;
+    std::vector<uint8_t> notes = toMidiNoteNumbers();
+    float previousScore = getScore(centerNoteNo);
+    Serial.printf("\ncalcInversion 0 %f\n", previousScore);
+    for(uint8_t o = 3; o < 6; o++) {
+        octave = o;
+        for(uint8_t i = 1; i <= notes.size(); i++) {
+            inversion = i;
+            float score = getScore(centerNoteNo);
+            Serial.printf("calcInversion %d %f\n", i, score);
+            if(score > previousScore) {
+                if(inversion == 0) {
+                    octave--;
+                    inversion = notes.size();
+                }
+                else inversion--;
+                return;
+            }
+            previousScore = score;
+        }
+    }
+}
+
+float Chord::getScore(uint8_t centerNoteNo) {
+    std::vector<uint8_t> notes = toMidiNoteNumbers();
+    uint8_t bottom = notes.size() > inversion ? notes[inversion] : notes[0];
+    uint8_t top = inversion == 0 ? notes.back() : (notes.size() >= inversion ? notes[inversion - 1] : notes.back());
+
+    // 構成音の中央がcenterNoteNoと近いほど低スコア
+    float mid = (bottom + top) / 2.0f;
+    float result = std::abs(centerNoteNo - mid);
+
+    // TODO: 短2度の音程を含むと高スコア
+
+    return result;
 }
 
 const std::vector<String> Chord::rootStrings = {"C","C#","D","D#","E","F","F#","G","G#","A","A#","B"};
@@ -82,10 +123,13 @@ const std::map<uint16_t,String> Chord::optionStrings = {
     };
 
 DegreeChord::DegreeChord()
-: DegreeChord(I,0) {}
+: DegreeChord(I,0,0) {}
 
 DegreeChord::DegreeChord(uint8_t root, uint16_t option)
-: root(root) , option(option) {}
+: DegreeChord(root,option,0) {}
+
+DegreeChord::DegreeChord(uint8_t root, uint16_t option, uint8_t inversion)
+: root(root) , option(option), inversion(inversion) {}
 
 String DegreeChord::toString() {
     String str = "";

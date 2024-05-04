@@ -33,12 +33,15 @@ void CapsuleChordKeyMap::update() {
               if(Keypad[Key_Thirteenth].isPressed())    thirteenth(&c);
               if(Keypad[Key_PitchUp].isPressed()) pitchUp(&c);
               if(Keypad[Key_PitchDown].isPressed()) pitchDown(&c);
+              c.calcInversion(*(uint8_t *)context->centerNoteNo);
+              if(Keypad[Key_InversionUp].isPressed()) c.inversion++;
+              if(Keypad[Key_InversionDown].isPressed()) c.inversion = c.inversion > 0 ? (c.inversion-1) : 0;
               context->playChord(c);
             }
           } break;
           case 2: {// Other Keys Pressed
-            if((event & 0b1111111) == Key_InversionUp) *(context->centerNoteNo) += 4;
-            if((event & 0b1111111) == Key_InversionDown) *(context->centerNoteNo) -= 4;
+            // if((event & 0b1111111) == Key_InversionUp) *(context->centerNoteNo) += 4;
+            // if((event & 0b1111111) == Key_InversionDown) *(context->centerNoteNo) -= 4;
           } break;
         }
       break;
@@ -48,8 +51,8 @@ void CapsuleChordKeyMap::update() {
             context->sendNotes(false,std::vector<uint8_t>(),120);
           } break;
           case 2: {
-            if((event & 0b1111111) == Key_InversionUp) *(context->centerNoteNo) -= 4;
-            if((event & 0b1111111) == Key_InversionDown) *(context->centerNoteNo) += 4;
+            // if((event & 0b1111111) == Key_InversionUp) *(context->centerNoteNo) -= 4;
+            // if((event & 0b1111111) == Key_InversionDown) *(context->centerNoteNo) += 4;
           } break;
         }
       break;

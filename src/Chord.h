@@ -50,11 +50,16 @@ public:
 
     uint8_t root;
     uint16_t option;
+    uint8_t inversion;
+    uint8_t octave;
 
     Chord();
     Chord(uint8_t root, uint16_t option);
+    Chord(uint8_t root, uint16_t option, uint8_t inversion);
+    Chord(uint8_t root, uint16_t option, uint8_t inversion, uint8_t octave);
     
-    std::vector<uint8_t> toMidiNoteNumbers(uint8_t centerNoteNo, uint8_t region);
+    std::vector<uint8_t> toMidiNoteNumbers();
+    void calcInversion(uint8_t centerNoteNo);
     String toString();
 
     void serialize(OutputArchive &archive,const char *key) {
@@ -71,9 +76,7 @@ public:
     }
 
 protected:
-    uint8_t maxNoteNo;
-    uint8_t minNoteNo;
-    void addMidiNote(std::vector<uint8_t>* notes,uint8_t noteNo);
+    float getScore(uint8_t centerNoteNo);
 };
 
 class DegreeChord {
@@ -96,9 +99,11 @@ public:
 
     uint8_t root;
     uint16_t option;
+    uint8_t inversion;
 
     DegreeChord();
     DegreeChord(uint8_t root, uint16_t option);
+    DegreeChord(uint8_t root, uint16_t option, uint8_t inversion);
 
     String toString();
 
