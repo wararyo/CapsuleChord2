@@ -1,4 +1,5 @@
 #include <Chord.h>
+#include <cfloat>
 
 Chord::Chord()
 : Chord(C,0,0,3) {}
@@ -66,27 +67,36 @@ void Chord::calcInversion(uint8_t centerNoteNo) {
     inversion = 0;
     octave = 3;
     std::vector<uint8_t> notes = toMidiNoteNumbers();
-    float previousScore = getScore(centerNoteNo);
-    Serial.printf("\ncalcInversion 0 %f\n", previousScore);
+    float previousScore[2] = {FLT_MAX, FLT_MAX}; // 0: 1つ前, 1: 2つ前
+    // Serial.printf("\ncalcInversion 0 %f\n", previousScore);
     for(uint8_t o = 3; o < 6; o++) {
         octave = o;
-        for(uint8_t i = 1; i <= notes.size(); i++) {
+        for(uint8_t i = 0; i < notes.size(); i++) {
             inversion = i;
             float score = getScore(centerNoteNo);
-            Serial.printf("calcInversion %d %f\n", i, score);
-            if(score > previousScore) {
+            // Serial.printf("calcInversion %d %d %f\n", o, i, score);
+            if(previousScore[1] < 6 && previousScore[1] < previousScore[0] && previousScore[1] < score) {
+                // スコアが2回連続で増加してしまったので、2つ前の転回で確定
                 if(inversion == 0) {
                     octave--;
-                    inversion = notes.size();
+                    inversion = notes.size() - 2;
                 }
-                else inversion--;
+                else if(inversion == 1) {
+                    octave--;
+                    inversion = notes.size() - 1;
+                }
+                else inversion -= 2;
+                Serial.printf("calcInversion %d %d %f\n", octave, inversion, previousScore[1]);
                 return;
             }
-            previousScore = score;
+            previousScore[1] = previousScore[0];
+            previousScore[0] = score;
         }
     }
 }
 
+// コードのボイシングを評価する
+// 評価値が低いほど良いボイシング
 float Chord::getScore(uint8_t centerNoteNo) {
     std::vector<uint8_t> notes = toMidiNoteNumbers();
     uint8_t bottom = notes.size() > inversion ? notes[inversion] : notes[0];
@@ -96,7 +106,10 @@ float Chord::getScore(uint8_t centerNoteNo) {
     float mid = (bottom + top) / 2.0f;
     float result = std::abs(centerNoteNo - mid);
 
-    // TODO: 短2度の音程を含むと高スコア
+    // ルートとM7が短2度の関係にあったら加点
+    if (notes.size() >= 4 && notes[0] - notes[3] == 1) {
+        result += 5;
+    }
 
     return result;
 }
