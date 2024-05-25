@@ -59,7 +59,7 @@ inline void MidiSampler::UpdateAdsr(MidiSampler::SamplePlayer *player)
     }
 }
 
-void MidiSampler::SendNoteOn(uint8_t noteNo, uint8_t velocity, uint8_t channnel)
+void MidiSampler::SendNoteOn(uint8_t noteNo, uint8_t velocity, uint8_t channel)
 {
     uint8_t oldestPlayerId = 0;
     for (uint8_t i = 0; i < MAX_SOUND; i++)
@@ -78,7 +78,7 @@ void MidiSampler::SendNoteOn(uint8_t noteNo, uint8_t velocity, uint8_t channnel)
     // 全てのPlayerが再生中だった時には、最も昔に発音されたPlayerを停止する
     players[oldestPlayerId] = MidiSampler::SamplePlayer(&MidiSampler::piano, noteNo, velocity / 127.0f);
 }
-void MidiSampler::SendNoteOff(uint8_t noteNo, uint8_t velocity, uint8_t channnel)
+void MidiSampler::SendNoteOff(uint8_t noteNo, uint8_t velocity, uint8_t channel)
 {
     for (uint8_t i = 0; i < MAX_SOUND; i++)
     {

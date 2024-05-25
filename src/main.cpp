@@ -9,7 +9,7 @@
 #include "Context.h"
 #include "Sampler.h"
 
-#define DEVICE_NAME "CapsuleChord2"
+#define DEVICE_NAME "CapsuleChord 2"
 
 #define GPIO_NUM_BACK GPIO_NUM_7
 #define GPIO_NUM_HOME GPIO_NUM_5

@@ -75,8 +75,8 @@ public:
 
     float masterVolume = 0.25f;
 
-    void SendNoteOn(uint8_t noteNo, uint8_t velocity, uint8_t channnel);
-    void SendNoteOff(uint8_t noteNo,  uint8_t velocity, uint8_t channnel);
+    void SendNoteOn(uint8_t noteNo, uint8_t velocity, uint8_t channel);
+    void SendNoteOff(uint8_t noteNo,  uint8_t velocity, uint8_t channel);
     void HandleMidiMessage(uint8_t *message);
     void begin(AudioOutput output);
     void terminate();
