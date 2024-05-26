@@ -75,7 +75,7 @@ void Chord::calcInversion(uint8_t centerNoteNo) {
             inversion = i;
             float score = getScore(centerNoteNo);
             // Serial.printf("calcInversion %d %d %f\n", o, i, score);
-            if(previousScore[1] < 6 && previousScore[1] < previousScore[0] && previousScore[1] < score) {
+            if(previousScore[1] < 8 && previousScore[1] < previousScore[0] && previousScore[1] < score) {
                 // スコアが2回連続で増加してしまったので、2つ前の転回で確定
                 if(inversion == 0) {
                     octave--;
@@ -105,6 +105,12 @@ float Chord::getScore(uint8_t centerNoteNo) {
     // 構成音の中央がcenterNoteNoと近いほど低スコア
     float mid = (bottom + top) / 2.0f;
     float result = std::abs(centerNoteNo - mid);
+
+    // あまり音が高いと目立つので、音が高いと僅かに加点
+    if(octave >= 5) {
+        result += (octave - 4) * 1.0f;
+        result += inversion * 0.1f;
+    }
 
     // ルートとM7が短2度の関係にあったら加点
     if (notes.size() >= 4 && notes[0] - notes[3] == 1) {
