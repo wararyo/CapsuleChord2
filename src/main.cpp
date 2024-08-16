@@ -106,12 +106,14 @@ void _changeScene_raw() {
 void sendNotes(bool isNoteOn, std::vector<uint8_t> notes, int vel) {
   if(isNoteOn) {
     for(uint8_t n : notes) {
+      // Midi.sendNote(0x90, n, vel);
       Sampler.SendNoteOn(n, vel, 1);
     }
     playingNotes.insert(playingNotes.end(),notes.begin(),notes.end());
   }
   else {
     for(uint8_t n : playingNotes) {
+      // Midi.sendNote(0x80, n, 0);
       Sampler.SendNoteOff(n, 0, 1);
     }
     playingNotes.clear();
@@ -119,8 +121,7 @@ void sendNotes(bool isNoteOn, std::vector<uint8_t> notes, int vel) {
 }
 
 void playChord(Chord chord) {
-  sendNotes(true,chord.toMidiNoteNumbers(*centerNoteNo,16),120);
-  Serial.printf("playChord %d ", *centerNoteNo);
+  sendNotes(true,chord.toMidiNoteNumbers(),120);
   M5.Lcd.setTextSize(4);
   M5.Lcd.fillRect(0,130,240,120,BLACK);
   M5.Lcd.setTextDatum(CC_DATUM);
