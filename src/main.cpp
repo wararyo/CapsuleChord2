@@ -8,6 +8,7 @@
 #include "KeyMap/KeyMap.h"
 #include "Context.h"
 #include "Output/MidiOutput.h"
+#include "Tempo.h"
 
 #define DEVICE_NAME "CapsuleChord 2"
 
@@ -142,6 +143,18 @@ class ServerCallbacks: public BLEMidiServerCallbacks {
     }
 };
 
+class MainTempoCallbacks: public TempoController::TempoCallbacks {
+    void onTempoChanged(TempoController::tempo_t tempo) override {
+      Serial.printf("Tempo: %d\n", tempo);
+    }
+    void onTick(TempoController::tick_timing_t beat) override {
+      Serial.printf("Tick: %4x\n", beat);
+    }
+    TempoController::tick_timing_t getTimingMask() override {
+      return TempoController::TICK_TIMING_FULL | TempoController::TICK_TIMING_FULL_TRIPLET;
+    }
+};
+
 void setup() {
   M5.begin();
   M5.Display.setRotation(M5.Display.getRotation() ^ 1);
@@ -192,6 +205,10 @@ void setup() {
   // Midi.begin(DEVICE_NAME, new ServerCallbacks(), NULL);
   bool isHeadphone = digitalRead(GPIO_NUM_18);
   Output.Internal.begin(isHeadphone ? OutputInternal::AudioOutput::headphone : OutputInternal::AudioOutput::speaker);
+
+  Tempo.setTempo(60);
+  Tempo.addListener(new MainTempoCallbacks());
+  Tempo.start();
 }
 
 void loop() {
