@@ -7,7 +7,7 @@
 #include "Keypad.h"
 #include "KeyMap/KeyMap.h"
 #include "Context.h"
-#include "Sampler.h"
+#include "Output/MidiOutput.h"
 
 #define DEVICE_NAME "CapsuleChord 2"
 
@@ -107,14 +107,14 @@ void sendNotes(bool isNoteOn, std::vector<uint8_t> notes, int vel) {
   if(isNoteOn) {
     for(uint8_t n : notes) {
       // Midi.sendNote(0x90, n, vel);
-      Sampler.SendNoteOn(n, vel, 1);
+      Output.Internal.NoteOn(n, vel, 0);
     }
     playingNotes.insert(playingNotes.end(),notes.begin(),notes.end());
   }
   else {
     for(uint8_t n : playingNotes) {
       // Midi.sendNote(0x80, n, 0);
-      Sampler.SendNoteOff(n, 0, 1);
+      Output.Internal.NoteOff(n, 0, 0);
     }
     playingNotes.clear();
   }
@@ -191,7 +191,7 @@ void setup() {
 
   // Midi.begin(DEVICE_NAME, new ServerCallbacks(), NULL);
   bool isHeadphone = digitalRead(GPIO_NUM_18);
-  Sampler.begin(isHeadphone ? MidiSampler::AudioOutput::headphone : MidiSampler::AudioOutput::speaker);
+  Output.Internal.begin(isHeadphone ? OutputInternal::AudioOutput::headphone : OutputInternal::AudioOutput::speaker);
 }
 
 void loop() {
@@ -217,11 +217,11 @@ void loop() {
       }
       if (BtnHome.wasPressed())
       {
-        Sampler.SendNoteOn(60 + scale->key, 100, 1);
+        Output.Internal.NoteOn(60 + scale->key, 100, 0);
       }
       else if (BtnHome.wasReleased())
       {
-        Sampler.SendNoteOff(60 + scale->key, 100, 1);
+        Output.Internal.NoteOff(60 + scale->key, 0, 0);
       }
       if (BtnMenu.wasPressed())
       {
@@ -245,7 +245,7 @@ void loop() {
   static bool isHeadphonePreviously = digitalRead(GPIO_NUM_18);
   bool isHeadphone = digitalRead(GPIO_NUM_18);
   if(isHeadphonePreviously != isHeadphone) {
-    Sampler.begin(isHeadphone ? MidiSampler::AudioOutput::headphone : MidiSampler::AudioOutput::speaker);
+    Output.Internal.begin(isHeadphone ? OutputInternal::AudioOutput::headphone : OutputInternal::AudioOutput::speaker);
     isHeadphonePreviously = isHeadphone;
   }
 
