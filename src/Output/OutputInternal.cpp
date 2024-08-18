@@ -120,7 +120,8 @@ void OutputInternal::begin(AudioOutput output)
         aw88298_write_reg(0x05, 0x0008); // RMSE=0 HAGCE=0 HDCCE=0 HMUTE=0
         aw88298_write_reg(0x06, reg0x06_value);
         // aw88298_write_reg(0x0C, 0x0064);  // volume setting (full volume)
-        aw88298_write_reg(0x0C, 0x1064); // volume setting (-6db)
+        // aw88298_write_reg(0x0C, 0x1064); // volume setting (-6db)
+        aw88298_write_reg(0x0C, 0x1664); // volume setting (-9db)
         // aw88298_write_reg(0x0C, 0x2064); // volume setting (-12db)
         pinMode(PIN_EN_HP, OUTPUT);
         digitalWrite(PIN_EN_HP, 0);
