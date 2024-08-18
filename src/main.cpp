@@ -11,12 +11,12 @@
 #include "Tempo.h"
 
 #define DEVICE_NAME "CapsuleChord 2"
+#include "ChordPipeline.h"
 
 #define GPIO_NUM_BACK GPIO_NUM_7
 #define GPIO_NUM_HOME GPIO_NUM_5
 #define GPIO_NUM_MENU GPIO_NUM_8
 
-std::vector<uint8_t> playingNotes;
 bool seventh = false;
 int option = 0;
 
@@ -104,33 +104,6 @@ void _changeScene_raw() {
   currentScene = requiredToChangeScene;
 }
 
-void sendNotes(bool isNoteOn, std::vector<uint8_t> notes, int vel) {
-  if(isNoteOn) {
-    for(uint8_t n : notes) {
-      // Midi.sendNote(0x90, n, vel);
-      Output.Internal.NoteOn(n, vel, 0);
-    }
-    playingNotes.insert(playingNotes.end(),notes.begin(),notes.end());
-  }
-  else {
-    for(uint8_t n : playingNotes) {
-      // Midi.sendNote(0x80, n, 0);
-      Output.Internal.NoteOff(n, 0, 0);
-    }
-    playingNotes.clear();
-  }
-}
-
-void playChord(Chord chord) {
-  sendNotes(true,chord.toMidiNoteNumbers(),120);
-  M5.Lcd.setTextSize(4);
-  M5.Lcd.fillRect(0,130,240,120,BLACK);
-  M5.Lcd.setTextDatum(CC_DATUM);
-  M5.Lcd.setTextSize(5);
-  M5.Lcd.drawString(chord.toString(), 120, 160, 2);
-  M5.Lcd.setTextDatum(TL_DATUM);
-}
-
 class ServerCallbacks: public BLEMidiServerCallbacks {
     void onConnect(BLEServer* pServer) {
       BLEMidiServerCallbacks::onConnect(pServer);
@@ -183,8 +156,8 @@ void setup() {
 
   // Make Context
   context = Context(&settings);
-  context.playChord = playChord;
-  context.sendNotes = sendNotes;
+  context.playChord = [](Chord chord) { Pipeline.playChord(chord); };
+  context.sendNotes = [](bool isNoteOn, std::vector<uint8_t> notes, int vel) { Pipeline.sendNotes(isNoteOn, notes, vel); };
   Context::setContext(&context);
 
   // Keymap initialization
