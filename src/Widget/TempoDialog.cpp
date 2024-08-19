@@ -78,6 +78,7 @@ void TempoDialog::create()
 
     button_play = lv_btn_create(frame);
     lv_obj_align(button_play, LV_ALIGN_BOTTOM_MID, 0, 0);
+    lv_obj_add_event_cb(button_play, button_play_event_cb, LV_EVENT_CLICKED, NULL);
     label = lv_label_create(button_play);
     lv_label_set_text(label, "Play");
 

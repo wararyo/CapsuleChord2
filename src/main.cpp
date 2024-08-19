@@ -14,6 +14,7 @@
 #include "LvglWrapper.h"
 #include "Widget/lv_chordlabel.h"
 #include "Widget/lv_battery.h"
+#include "Widget/lv_tickframe.h"
 #include "Widget/TempoDialog.h"
 
 #define GPIO_NUM_BACK GPIO_NUM_7
@@ -31,6 +32,7 @@ lv_style_t style_chordlabel;
 lv_obj_t *battery;
 lv_obj_t *scale_label;
 lv_obj_t *tempo_label;
+lv_obj_t *tickframe;
 TempoDialog tempoDialog;
 
 // Initialize at setup()
@@ -79,11 +81,11 @@ class MainTempoCallbacks: public TempoController::TempoCallbacks {
     void onTempoChanged(TempoController::tempo_t tempo) override {
       update_tempo();
     }
-    void onTick(TempoController::tick_timing_t beat) override {
-      Serial.printf("Tick: %4x\n", beat);
+    void onTick(TempoController::tick_timing_t timing) override {
+      lv_tickframe_tick(tickframe, timing & TempoController::TICK_TIMING_BAR);
     }
     TempoController::tick_timing_t getTimingMask() override {
-      return TempoController::TICK_TIMING_FULL | TempoController::TICK_TIMING_FULL_TRIPLET;
+      return TempoController::TICK_TIMING_BAR | TempoController::TICK_TIMING_FULL;
     }
 };
 
@@ -142,6 +144,10 @@ void setup() {
   Output.Internal.begin(isHeadphone ? OutputInternal::AudioOutput::headphone : OutputInternal::AudioOutput::speaker);
 
   // LVGLウィジェットの初期化
+  tickframe = lv_tickframe_create(lv_scr_act());
+  lv_obj_set_size(tickframe, 240, 320);
+  lv_obj_align(tickframe, LV_ALIGN_TOP_LEFT, 0, 0);
+  lv_obj_clear_flag(tickframe, LV_OBJ_FLAG_CLICKABLE);
   chordlabel = lv_chordlabel_create(lv_scr_act());
   lv_chordlabel_set_chord(chordlabel, Chord());
   lv_style_init(&style_chordlabel);
