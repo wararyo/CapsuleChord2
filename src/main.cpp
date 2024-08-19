@@ -1,6 +1,7 @@
 #include <M5Unified.h>
 #include <vector>
 #include <Preferences.h>
+#include <lvgl.h>
 #include "BLEMidi.h"
 #include "Chord.h"
 #include "Scale.h"
@@ -10,6 +11,7 @@
 #include "Output/MidiOutput.h"
 #include "Tempo.h"
 #include "ChordPipeline.h"
+#include "LvglWrapper.h"
 
 #define GPIO_NUM_BACK GPIO_NUM_7
 #define GPIO_NUM_HOME GPIO_NUM_5
@@ -59,9 +61,11 @@ class MainTempoCallbacks: public TempoController::TempoCallbacks {
 
 void setup() {
   M5.begin();
+
   M5.Display.setRotation(M5.Display.getRotation() ^ 1);
+  Lvgl.begin();
+
   BtnHome.setHoldThresh(1000);
-  
   Keypad.begin();
 
   Serial.println("Hello.");
@@ -102,6 +106,15 @@ void setup() {
 
   bool isHeadphone = digitalRead(GPIO_NUM_18);
   Output.Internal.begin(isHeadphone ? OutputInternal::AudioOutput::headphone : OutputInternal::AudioOutput::speaker);
+
+  // LVGLサンプル
+  lv_obj_t * label = lv_label_create(lv_scr_act());
+  lv_label_set_text(label, "こんにちは World");
+  lv_style_t style_label;
+  lv_style_init(&style_label);
+  lv_style_set_text_font(&style_label, &genshin_32);  /*Set a larger font*/
+  lv_obj_add_style(label, &style_label, 0);
+  lv_obj_center(label);
 }
 
 void loop() {
@@ -156,31 +169,21 @@ void loop() {
     char str[16] = {'\0'};
     sprintf(str, "%d%%", level);
     Serial.print(str);
-    M5.Lcd.fillRect(0,300,240,20,BLACK);
-    M5.Lcd.setTextDatum(BR_DATUM);
-    M5.Lcd.setTextSize(2);
-    M5.Lcd.drawString(str, 240, 320, 1);
-    M5.Lcd.setTextDatum(TL_DATUM);
   }
 
   // 仮でホームボタン長押ししたらKantanChordと切り替えるようにする
   if (BtnHome.wasHold()) {
-    M5.Lcd.fillRect(0,300,240,20,BLACK);
-    M5.Lcd.setTextDatum(BL_DATUM);
-    M5.Lcd.setTextSize(2);
     if (currentKeyMap == KeyMap::getAvailableKeyMaps()[0].get()) {
       currentKeyMap = KeyMap::getAvailableKeyMaps()[1].get();
-      M5.Lcd.drawString("KeyMap: Kantan", 0, 320, 1);
     } else {
       currentKeyMap = KeyMap::getAvailableKeyMaps()[0].get();
-      M5.Lcd.drawString("KeyMap: Capsule", 0, 320, 1);
     }
-    M5.Lcd.setTextDatum(TL_DATUM);
 
     // 一応、centerNoteNoを戻す
     *centerNoteNo = 60;
   }
 
+  lv_timer_handler();
   while(millis() - lastLoopMillis < 33); // Keep 60fps
   lastLoopMillis = millis();
 }
