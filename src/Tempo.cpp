@@ -2,10 +2,12 @@
 #include "M5Unified.h"
 #include <set>
 
-void TempoController::start() {
+void TempoController::start()
+{
     if (isActive) return;
     isActive = true;
-    if (timer != nullptr) {
+    if (timer != nullptr)
+    {
         xTimerDelete(timer, 0);
     }
     timer = xTimerCreate("Tempo", pdMS_TO_TICKS(1), pdTRUE, this, timerWork);
@@ -38,7 +40,8 @@ void TempoController::stop() {
     timer = nullptr;
 }
 
-void TempoController::timerWorkInner() {
+void TempoController::timerWorkInner()
+{
     elapsedTime++;
     // nearestNextTimeToTickまでは処理をスキップする
     if (elapsedTime <= nearestNextTimeToTick) return;
@@ -46,37 +49,44 @@ void TempoController::timerWorkInner() {
     // Tickのタイミングを迎えたビートを算出する
     tick_timing_t beatToNotify = 0;
     // 1/8拍
-    if (elapsedTime >= nextTimeToTickEighthBeat) {
+    if (elapsedTime >= nextTimeToTickEighthBeat)
+    {
         beatToNotify |= TICK_TIMING_EIGHTH;
         nextTimeToTickEighthBeat += intervalEighthBeat;
     }
     // 1/4拍
-    if (elapsedTime >= nextTimeToTickQuarterBeat) {
+    if (elapsedTime >= nextTimeToTickQuarterBeat)
+    {
         beatToNotify |= TICK_TIMING_QUARTER;
         nextTimeToTickQuarterBeat += intervalQuarterBeat;
     }
     // 6連符
-    if (elapsedTime >= nextTimeToTickHalfBeatTriplet) {
+    if (elapsedTime >= nextTimeToTickHalfBeatTriplet)
+    {
         beatToNotify |= TICK_TIMING_HALF_TRIPLET;
         nextTimeToTickHalfBeatTriplet += intervalHalfBeatTriplet;
     }
     // 1/2拍
-    if (elapsedTime >= nextTimeToTickHalfBeat) {
+    if (elapsedTime >= nextTimeToTickHalfBeat)
+    {
         beatToNotify |= TICK_TIMING_HALF;
         nextTimeToTickHalfBeat += intervalHalfBeat;
     }
     // 3連符
-    if (elapsedTime >= nextTimeToTickFullBeatTriplet) {
+    if (elapsedTime >= nextTimeToTickFullBeatTriplet)
+    {
         beatToNotify |= TICK_TIMING_FULL_TRIPLET;
         nextTimeToTickFullBeatTriplet += intervalFullBeatTriplet;
     }
     // 1拍
-    if (elapsedTime >= nextTimeToTickFullBeat) {
+    if (elapsedTime >= nextTimeToTickFullBeat)
+    {
         beatToNotify |= TICK_TIMING_FULL;
         nextTimeToTickFullBeat += intervalFullBeat;
     }
     // 1小節
-    if (elapsedTime >= nextTimeToTickBar) {
+    if (elapsedTime >= nextTimeToTickBar)
+    {
         beatToNotify |= TICK_TIMING_BAR;
         // elapsedTimeをリセット
         elapsedTime = 0;
@@ -90,8 +100,10 @@ void TempoController::timerWorkInner() {
     }
 
     // Tickを通知する
-    for (TempoCallbacks* listener : listeners) {
-        if (listener->getTimingMask() & beatToNotify) {
+    for (TempoCallbacks *listener : listeners)
+    {
+        if (listener->getTimingMask() & beatToNotify)
+        {
             listener->onTick(beatToNotify);
         }
     }
@@ -100,8 +112,9 @@ void TempoController::timerWorkInner() {
     nearestNextTimeToTick = (uint32_t)(std::min(nextTimeToTickHalfBeatTriplet, nextTimeToTickEighthBeat) + 0.5);
 }
 
-void TempoController::timerWork(TimerHandle_t t) {
-    static_cast<TempoController*>(pvTimerGetTimerID(t))->timerWorkInner();
+void TempoController::timerWork(TimerHandle_t t)
+{
+    static_cast<TempoController *>(pvTimerGetTimerID(t))->timerWorkInner();
 }
 
 TempoController Tempo;

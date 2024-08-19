@@ -2,7 +2,6 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
-#include <M5Unified.h>
 
 /*********************
  *      DEFINES
@@ -16,8 +15,8 @@
 /**********************
  *  STATIC PROTOTYPES
  **********************/
-static void lv_battery_constructor(const lv_obj_class_t * class_p, lv_obj_t * obj);
-static void lv_battery_event(const lv_obj_class_t * class_p, lv_event_t * e);
+static void lv_battery_constructor(const lv_obj_class_t *class_p, lv_obj_t *obj);
+static void lv_battery_event(const lv_obj_class_t *class_p, lv_event_t *e);
 
 /**********************
  *  STATIC VARIABLES
@@ -39,10 +38,10 @@ const lv_obj_class_t lv_battery_class = {
  *   GLOBAL FUNCTIONS
  **********************/
 
-lv_obj_t * lv_battery_create(lv_obj_t * parent)
+lv_obj_t *lv_battery_create(lv_obj_t *parent)
 {
     LV_LOG_INFO("begin");
-    lv_obj_t * obj = lv_obj_class_create_obj(MY_CLASS, parent);
+    lv_obj_t *obj = lv_obj_class_create_obj(MY_CLASS, parent);
     lv_obj_class_init_obj(obj);
     return obj;
 }
@@ -51,11 +50,11 @@ lv_obj_t * lv_battery_create(lv_obj_t * parent)
  * Setter functions
  *====================*/
 
-void lv_battery_set_level(lv_obj_t * obj, uint_fast8_t level)
+void lv_battery_set_level(lv_obj_t *obj, uint_fast8_t level)
 {
     LV_ASSERT_OBJ(obj, MY_CLASS);
 
-    lv_battery_t * batt = (lv_battery_t *)obj;
+    lv_battery_t *batt = (lv_battery_t *)obj;
     batt->battery_level = level;
 
     lv_obj_refresh_self_size(obj);
@@ -63,11 +62,11 @@ void lv_battery_set_level(lv_obj_t * obj, uint_fast8_t level)
     lv_obj_invalidate(obj);
 }
 
-void lv_battery_set_charging(lv_obj_t * obj, bool charging)
+void lv_battery_set_charging(lv_obj_t *obj, bool charging)
 {
     LV_ASSERT_OBJ(obj, MY_CLASS);
 
-    lv_battery_t * batt = (lv_battery_t *)obj;
+    lv_battery_t *batt = (lv_battery_t *)obj;
     batt->is_charging = charging;
 
     lv_obj_refresh_self_size(obj);
@@ -79,20 +78,20 @@ void lv_battery_set_charging(lv_obj_t * obj, bool charging)
  * Getter functions
  *====================*/
 
-uint_fast8_t lv_battery_get_level(lv_obj_t * obj)
+uint_fast8_t lv_battery_get_level(lv_obj_t *obj)
 {
     LV_ASSERT_OBJ(obj, MY_CLASS);
 
-    lv_battery_t * batt = (lv_battery_t *)obj;
+    lv_battery_t *batt = (lv_battery_t *)obj;
 
     return batt->battery_level;
 }
 
-bool lv_battery_get_charging(lv_obj_t * obj)
+bool lv_battery_get_charging(lv_obj_t *obj)
 {
     LV_ASSERT_OBJ(obj, MY_CLASS);
 
-    lv_battery_t * batt = (lv_battery_t *)obj;
+    lv_battery_t *batt = (lv_battery_t *)obj;
 
     return batt->is_charging;
 }
@@ -101,12 +100,12 @@ bool lv_battery_get_charging(lv_obj_t * obj)
  *   STATIC FUNCTIONS
  **********************/
 
-static void lv_battery_constructor(const lv_obj_class_t * class_p, lv_obj_t * obj)
+static void lv_battery_constructor(const lv_obj_class_t *class_p, lv_obj_t *obj)
 {
     LV_UNUSED(class_p);
     LV_TRACE_OBJ_CREATE("begin");
 
-    lv_battery_t * batt = (lv_battery_t *)obj;
+    lv_battery_t *batt = (lv_battery_t *)obj;
 
     batt->battery_level = 75;
     batt->is_charging = false;
@@ -116,7 +115,7 @@ static void lv_battery_constructor(const lv_obj_class_t * class_p, lv_obj_t * ob
     LV_TRACE_OBJ_CREATE("finished");
 }
 
-static void lv_battery_event(const lv_obj_class_t * class_p, lv_event_t * e)
+static void lv_battery_event(const lv_obj_class_t *class_p, lv_event_t *e)
 {
     LV_UNUSED(class_p);
 
@@ -124,28 +123,28 @@ static void lv_battery_event(const lv_obj_class_t * class_p, lv_event_t * e)
 
     /*Call the ancestor's event handler*/
     res = lv_obj_event_base(MY_CLASS, e);
-    if(res != LV_RES_OK) return;
+    if (res != LV_RES_OK)
+        return;
 
     lv_event_code_t code = lv_event_get_code(e);
-    lv_obj_t * obj = lv_event_get_target(e);
+    lv_obj_t *obj = lv_event_get_target(e);
 
-    if(code == LV_EVENT_REFR_EXT_DRAW_SIZE) {
-
+    if (code == LV_EVENT_REFR_EXT_DRAW_SIZE)
+    {
     }
-    else if(code == LV_EVENT_GET_SELF_SIZE) {
-        lv_point_t * p = (lv_point_t *)lv_event_get_param(e);
+    else if (code == LV_EVENT_GET_SELF_SIZE)
+    {
+        lv_point_t *p = (lv_point_t *)lv_event_get_param(e);
         p->x = 32;
         p->y = 16;
     }
-    else if(code == LV_EVENT_DRAW_MAIN) {
-        lv_battery_t * batt = (lv_battery_t *)obj;
-        lv_draw_ctx_t * draw_ctx = lv_event_get_draw_ctx(e);
+    else if (code == LV_EVENT_DRAW_MAIN)
+    {
+        lv_battery_t *batt = (lv_battery_t *)obj;
+        lv_draw_ctx_t *draw_ctx = lv_event_get_draw_ctx(e);
 
         lv_area_t area;
         lv_obj_get_coords(obj, &area);
-        lv_coord_t x_ofs = area.x1 - lv_obj_get_scroll_x(obj);
-        lv_coord_t y_ofs = area.y1 - lv_obj_get_scroll_y(obj);
-        lv_coord_t h = lv_obj_get_height(obj);
 
         // Draw the battery frame
         lv_area_t frame_area = {area.x1, area.y1, area.x2 - 2, area.y2};

@@ -5,7 +5,8 @@
 #include <cstdint>
 
 // テンポの管理と通知を行うクラス
-class TempoController {
+class TempoController
+{
 public:
     typedef uint16_t tick_timing_t;
     typedef uint16_t tempo_t;
@@ -17,26 +18,31 @@ public:
     static const tick_timing_t TICK_TIMING_QUARTER      = 0b00100000; // 1/4拍
     static const tick_timing_t TICK_TIMING_EIGHTH       = 0b10000000; // 1/8拍
     // テンポの変更を通知するためのインターフェース
-    class TempoCallbacks {
+    class TempoCallbacks
+    {
     public:
         virtual void onTempoChanged(tempo_t tempo) = 0;
         virtual void onTick(tick_timing_t timing) = 0;
         // Tickを通知するタイミング
         // tick_beat_tのビットフラグで指定する
-        virtual tick_timing_t getTimingMask() {
+        virtual tick_timing_t getTimingMask()
+        {
             return TICK_TIMING_BAR;
         }
     };
 
     // テンポを取得する
-    tempo_t getTempo() const {
+    tempo_t getTempo() const
+    {
         return tempo;
     }
 
     // テンポを変更する
-    void setTempo(tempo_t tempo) {
+    void setTempo(tempo_t tempo)
+    {
         this->tempo = tempo;
-        for (TempoCallbacks* listener : listeners) {
+        for (TempoCallbacks *listener : listeners)
+        {
             listener->onTempoChanged(tempo);
         }
     }
@@ -53,19 +59,22 @@ public:
     void stop();
 
     // リスナーを追加する
-    void addListener(TempoCallbacks* listener) {
+    void addListener(TempoCallbacks *listener)
+    {
         listeners.push_back(listener);
     }
 
     // リスナーを削除する
-    void removeListener(TempoCallbacks* listener) {
+    void removeListener(TempoCallbacks *listener)
+    {
         listeners.remove(listener);
     }
+
 private:
     bool isActive = false;
     tempo_t tempo = 120;
     // beat = BEAT_4_4;
-    std::list<TempoCallbacks*> listeners;
+    std::list<TempoCallbacks *> listeners;
     TimerHandle_t timer = nullptr;
     // 直前の小節頭からの経過時間(ミリ秒)
     uint32_t elapsedTime = 0;

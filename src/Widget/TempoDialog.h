@@ -9,14 +9,18 @@ public:
     void create();
     void del();
     void update();
+
 private:
-    class TempoControllerCallbacks: public TempoController::TempoCallbacks {
+    class TempoControllerCallbacks : public TempoController::TempoCallbacks
+    {
     public:
         TempoDialog *dialog;
-        void onTempoChanged(TempoController::tempo_t tempo) override {
+        void onTempoChanged(TempoController::tempo_t tempo) override
+        {
             dialog->update();
         }
-        void onTick(TempoController::tick_timing_t timing) override {
+        void onTick(TempoController::tick_timing_t timing) override
+        {
         }
     };
     TempoControllerCallbacks tempoControllerCallbacks;
