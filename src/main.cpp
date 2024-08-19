@@ -25,9 +25,11 @@ m5::Button_Class BtnBack;
 m5::Button_Class BtnHome;
 m5::Button_Class BtnMenu;
 
-lv_obj_t * chordlabel;
+lv_obj_t *chordlabel;
 lv_style_t style_chordlabel;
-lv_obj_t * battery;
+lv_obj_t *battery;
+lv_obj_t *scale_label;
+lv_obj_t *tempo_label;
 
 // Initialize at setup()
 Scale *scale;
@@ -77,6 +79,16 @@ void update_battery() {
   bool isCharging = M5.Power.isCharging();
   lv_battery_set_level(battery, level);
   lv_battery_set_charging(battery, isCharging);
+}
+
+void update_scale() {
+  lv_label_set_text(scale_label, scale->toString().c_str());
+}
+
+void update_tempo() {
+  char text[64] = {'\0'};
+  sprintf(text, "%d 4/4", Tempo.getTempo());
+  lv_label_set_text(tempo_label, text);
 }
 
 void setup() {
@@ -131,16 +143,22 @@ void setup() {
   chordlabel = lv_chordlabel_create(lv_scr_act());
   lv_chordlabel_set_chord(chordlabel, Chord());
   lv_style_init(&style_chordlabel);
-  lv_style_set_text_font(&style_chordlabel, &genshin_32);  /*Set a larger font*/
+  lv_style_set_text_font(&style_chordlabel, &genshin_32);
   lv_obj_add_style(chordlabel, &style_chordlabel, 0);
   lv_obj_center(chordlabel);
   battery = lv_battery_create(lv_scr_act());
   lv_obj_align(battery, LV_ALIGN_TOP_RIGHT, 0, 0);
+  scale_label = lv_label_create(lv_scr_act());
+  lv_obj_align(scale_label, LV_ALIGN_TOP_LEFT, 4, 28);
+  tempo_label = lv_label_create(lv_scr_act());
+  lv_obj_align(tempo_label, LV_ALIGN_TOP_RIGHT, -4, 28);
 
   // コードが鳴ったときにコード名を表示する
   Pipeline.addListener(new MainChordPipelineCallbacks());
 
   update_battery();
+  update_scale();
+  update_tempo();
 }
 
 void loop() {
@@ -154,10 +172,7 @@ void loop() {
     {
       if(scale->key > 0) scale->key--;
       else scale->key = 11;
-      M5.Lcd.clear();
-      M5.Lcd.setCursor(0, 0);
-      M5.Lcd.setTextSize(2);
-      M5.Lcd.println(scale->toString());
+      update_scale();
     }
     if (BtnHome.wasPressed())
     {
@@ -171,10 +186,7 @@ void loop() {
     {
       if(scale->key < 11) scale->key++;
       else scale->key = 0;
-      M5.Lcd.clear();
-      M5.Lcd.setCursor(0, 0);
-      M5.Lcd.setTextSize(2);
-      M5.Lcd.println(scale->toString());
+      update_scale();
     }
 
     Keypad.update();
