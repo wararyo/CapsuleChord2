@@ -54,6 +54,7 @@ public:
     uint8_t octave;
 
     Chord();
+    Chord(const Chord *original);
     Chord(uint8_t root, uint16_t option);
     Chord(uint8_t root, uint16_t option, uint8_t inversion);
     Chord(uint8_t root, uint16_t option, uint8_t inversion, uint8_t octave);

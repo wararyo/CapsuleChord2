@@ -20,6 +20,9 @@ void ChordPipeline::sendNotes(bool isNoteOn, std::vector<uint8_t> notes, int vel
 
 void ChordPipeline::playChord(Chord chord) {
   sendNotes(true,chord.toMidiNoteNumbers(),120);
+  for(PipelineCallbacks* listener : listeners) {
+    listener->onChordChanged(chord);
+  }
 }
 
 ChordPipeline Pipeline;

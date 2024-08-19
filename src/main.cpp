@@ -12,6 +12,7 @@
 #include "Tempo.h"
 #include "ChordPipeline.h"
 #include "LvglWrapper.h"
+#include "Widget/lv_chordlabel.h"
 
 #define GPIO_NUM_BACK GPIO_NUM_7
 #define GPIO_NUM_HOME GPIO_NUM_5
@@ -22,6 +23,9 @@ unsigned long lastLoopMillis = 0;
 m5::Button_Class BtnBack;
 m5::Button_Class BtnHome;
 m5::Button_Class BtnMenu;
+
+lv_obj_t * chordlabel;
+lv_style_t style_chordlabel;
 
 // Initialize at setup()
 Scale *scale;
@@ -56,6 +60,12 @@ class MainTempoCallbacks: public TempoController::TempoCallbacks {
     }
     TempoController::tick_timing_t getTimingMask() override {
       return TempoController::TICK_TIMING_FULL | TempoController::TICK_TIMING_FULL_TRIPLET;
+    }
+};
+
+class MainChordPipelineCallbacks: public ChordPipeline::PipelineCallbacks {
+    void onChordChanged(Chord chord) override {
+      lv_chordlabel_set_chord(chordlabel, chord);
     }
 };
 
@@ -107,14 +117,16 @@ void setup() {
   bool isHeadphone = digitalRead(GPIO_NUM_18);
   Output.Internal.begin(isHeadphone ? OutputInternal::AudioOutput::headphone : OutputInternal::AudioOutput::speaker);
 
-  // LVGLサンプル
-  lv_obj_t * label = lv_label_create(lv_scr_act());
-  lv_label_set_text(label, "こんにちは World");
-  lv_style_t style_label;
-  lv_style_init(&style_label);
-  lv_style_set_text_font(&style_label, &genshin_32);  /*Set a larger font*/
-  lv_obj_add_style(label, &style_label, 0);
-  lv_obj_center(label);
+  // LVGLウィジェットの初期化
+  chordlabel = lv_chordlabel_create(lv_scr_act());
+  lv_chordlabel_set_chord(chordlabel, Chord());
+  lv_style_init(&style_chordlabel);
+  lv_style_set_text_font(&style_chordlabel, &genshin_32);  /*Set a larger font*/
+  lv_obj_add_style(chordlabel, &style_chordlabel, 0);
+  lv_obj_center(chordlabel);
+
+  // コードが鳴ったときにコード名を表示する
+  Pipeline.addListener(new MainChordPipelineCallbacks());
 }
 
 void loop() {

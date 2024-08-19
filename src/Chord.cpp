@@ -4,11 +4,14 @@
 Chord::Chord()
 : Chord(C,0,0,3) {}
 
+Chord::Chord(const Chord *original)
+: Chord(original->root, original->option, original->inversion, original->octave) {}
+
 Chord::Chord(uint8_t root, uint16_t option)
-: Chord(root,option,0,3) {}
+: Chord(root, option, 0, 3) {}
 
 Chord::Chord(uint8_t root, uint16_t option, uint8_t inversion)
-: Chord(root,option,inversion,3) {}
+: Chord(root, option, inversion, 3) {}
 
 Chord::Chord(uint8_t root, uint16_t option, uint8_t inversion, uint8_t octave)
 : root(root) , option(option), inversion(inversion), octave(octave) {}
