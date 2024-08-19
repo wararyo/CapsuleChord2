@@ -3,6 +3,7 @@
 #include <set>
 
 void TempoController::start() {
+    if (isActive) return;
     isActive = true;
     if (timer != nullptr) {
         xTimerDelete(timer, 0);
@@ -31,6 +32,7 @@ void TempoController::start() {
 }
 
 void TempoController::stop() {
+    if (!isActive) return;
     isActive = false;
     xTimerDelete(timer, 0);
     timer = nullptr;

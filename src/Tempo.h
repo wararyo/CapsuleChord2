@@ -41,6 +41,11 @@ public:
         }
     }
 
+    bool getActive() const
+    {
+        return isActive;
+    }
+
     // テンポカウントを開始する
     void start();
 

@@ -14,6 +14,7 @@
 #include "LvglWrapper.h"
 #include "Widget/lv_chordlabel.h"
 #include "Widget/lv_battery.h"
+#include "Widget/TempoDialog.h"
 
 #define GPIO_NUM_BACK GPIO_NUM_7
 #define GPIO_NUM_HOME GPIO_NUM_5
@@ -30,6 +31,7 @@ lv_style_t style_chordlabel;
 lv_obj_t *battery;
 lv_obj_t *scale_label;
 lv_obj_t *tempo_label;
+TempoDialog tempoDialog;
 
 // Initialize at setup()
 Scale *scale;
@@ -55,24 +57,6 @@ Settings settings(si{
   new SettingItemEnum("Brightness", {"Bright","Normal","Dark"},1)
 });
 
-class MainTempoCallbacks: public TempoController::TempoCallbacks {
-    void onTempoChanged(TempoController::tempo_t tempo) override {
-      Serial.printf("Tempo: %d\n", tempo);
-    }
-    void onTick(TempoController::tick_timing_t beat) override {
-      Serial.printf("Tick: %4x\n", beat);
-    }
-    TempoController::tick_timing_t getTimingMask() override {
-      return TempoController::TICK_TIMING_FULL | TempoController::TICK_TIMING_FULL_TRIPLET;
-    }
-};
-
-class MainChordPipelineCallbacks: public ChordPipeline::PipelineCallbacks {
-    void onChordChanged(Chord chord) override {
-      lv_chordlabel_set_chord(chordlabel, chord);
-    }
-};
-
 void update_battery() {
   // バッテリー残量を取得
   int32_t level = M5.Power.getBatteryLevel();
@@ -90,6 +74,24 @@ void update_tempo() {
   sprintf(text, "%d 4/4", Tempo.getTempo());
   lv_label_set_text(tempo_label, text);
 }
+
+class MainTempoCallbacks: public TempoController::TempoCallbacks {
+    void onTempoChanged(TempoController::tempo_t tempo) override {
+      update_tempo();
+    }
+    void onTick(TempoController::tick_timing_t beat) override {
+      Serial.printf("Tick: %4x\n", beat);
+    }
+    TempoController::tick_timing_t getTimingMask() override {
+      return TempoController::TICK_TIMING_FULL | TempoController::TICK_TIMING_FULL_TRIPLET;
+    }
+};
+
+class MainChordPipelineCallbacks: public ChordPipeline::PipelineCallbacks {
+    void onChordChanged(Chord chord) override {
+      lv_chordlabel_set_chord(chordlabel, chord);
+    }
+};
 
 void setup() {
   M5.begin();
@@ -152,9 +154,15 @@ void setup() {
   lv_obj_align(scale_label, LV_ALIGN_TOP_LEFT, 4, 28);
   tempo_label = lv_label_create(lv_scr_act());
   lv_obj_align(tempo_label, LV_ALIGN_TOP_RIGHT, -4, 28);
+  lv_obj_add_flag(tempo_label, LV_OBJ_FLAG_CLICKABLE);
+  lv_obj_add_event_cb(tempo_label, [](lv_event_t *e) {
+      tempoDialog.create();
+  }, LV_EVENT_CLICKED, NULL);
 
   // コードが鳴ったときにコード名を表示する
   Pipeline.addListener(new MainChordPipelineCallbacks());
+  // テンポが変更されたときに表示を更新する
+  Tempo.addListener(new MainTempoCallbacks());
 
   update_battery();
   update_scale();
