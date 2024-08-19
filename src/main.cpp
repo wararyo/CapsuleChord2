@@ -16,6 +16,7 @@
 #include "Widget/lv_battery.h"
 #include "Widget/lv_tickframe.h"
 #include "Widget/TempoDialog.h"
+#include "App/AppManager.h"
 
 #define GPIO_NUM_BACK GPIO_NUM_7
 #define GPIO_NUM_HOME GPIO_NUM_5
@@ -83,7 +84,6 @@ class MainTempoCallbacks: public TempoController::TempoCallbacks {
     }
     void onTick(TempoController::tick_timing_t timing) override {
       lv_tickframe_tick(tickframe, timing & TempoController::TICK_TIMING_BAR);
-      Pipeline.sendNotes(true, {timing & TempoController::TICK_TIMING_BAR ? 25 : 24}, 64, 0xF);
     }
     TempoController::tick_timing_t getTimingMask() override {
       return TempoController::TICK_TIMING_BAR | TempoController::TICK_TIMING_FULL;
@@ -103,6 +103,7 @@ void setup() {
   Lvgl.begin();
 
   BtnHome.setHoldThresh(1000);
+  BtnMenu.setHoldThresh(1000);
   Keypad.begin();
 
   Serial.println("Hello.");
@@ -228,6 +229,11 @@ void loop() {
 
     // 一応、centerNoteNoを戻す
     *centerNoteNo = 60;
+  }
+
+  // 仮でメニューボタン長押ししたら最初のアプリを起動する
+  if (BtnMenu.wasHold()) {
+    App.launchApp(App.apps.front());
   }
 
   lv_timer_handler();
