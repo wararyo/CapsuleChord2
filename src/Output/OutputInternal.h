@@ -25,6 +25,8 @@ using capsule::sampler::Sample;
 using capsule::sampler::Timbre;
 
 extern const int16_t piano_data[24000];
+extern const int16_t metronome_tick_data[8000];
+extern const int16_t metronome_tick_bar_data[8000];
 
 // 内蔵音源
 class OutputInternal
@@ -45,11 +47,26 @@ public:
     void terminate();
 
 private:
+    // ピアノティンバー
     struct Sample pianoSample = Sample{
         piano_data, 24000, 60,
         21608, 21975,
         true, 1.0f, 0.998000f, 0.1f, 0.985000f};
     Timbre piano = Timbre({{&pianoSample, 0, 127, 0, 127}});
+    // システム音ティンバー
+    struct Sample metronomeTickSample = Sample{
+        metronome_tick_data, 7000, 24,
+        0, 0,
+        false, 1.0f, 1.0f, 1.0f, 1.0f};
+    struct Sample metronomeTickBarSample = Sample{
+        metronome_tick_bar_data, 7000, 25,
+        0, 0,
+        false, 1.0f, 1.0f, 1.0f, 1.0f};
+    Timbre system = Timbre({
+        {&metronomeTickSample, 24, 24, 0, 127},
+        {&metronomeTickBarSample, 25, 25, 0, 127}
+        });
+        
     Sampler sampler;
 
     AudioOutput audioOutput = AudioOutput::headphone;

@@ -83,6 +83,7 @@ class MainTempoCallbacks: public TempoController::TempoCallbacks {
     }
     void onTick(TempoController::tick_timing_t timing) override {
       lv_tickframe_tick(tickframe, timing & TempoController::TICK_TIMING_BAR);
+      Pipeline.sendNotes(true, {timing & TempoController::TICK_TIMING_BAR ? 25 : 24}, 64, 0xF);
     }
     TempoController::tick_timing_t getTimingMask() override {
       return TempoController::TICK_TIMING_BAR | TempoController::TICK_TIMING_FULL;

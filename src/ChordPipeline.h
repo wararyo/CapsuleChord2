@@ -13,7 +13,7 @@ public:
         virtual void onChordChanged(Chord chord) = 0;
     };
 
-    void sendNotes(bool isNoteOn, std::vector<uint8_t> notes, int vel);
+    void sendNotes(bool isNoteOn, std::vector<uint8_t> notes, int vel, uint8_t channel = 0);
     void playChord(Chord chord);
     void addListener(PipelineCallbacks* listener) {
         listeners.push_back(listener);

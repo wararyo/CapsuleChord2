@@ -55,7 +55,8 @@ void OutputInternal::begin(AudioOutput output)
     audioLoopHandler = nullptr;
 
     // ティンバーをセット
-    sampler.SetTimbre(0, &piano);
+    sampler.SetTimbre(0x0, &piano);
+    sampler.SetTimbre(0xF, &system);
 
     // I2Sの初期化
     if (audioOutput == AudioOutput::headphone) i2s_driver_uninstall(I2S_NUM_HP);
