@@ -13,6 +13,7 @@
 #include "ChordPipeline.h"
 #include "LvglWrapper.h"
 #include "Widget/lv_chordlabel.h"
+#include "Widget/lv_battery.h"
 
 #define GPIO_NUM_BACK GPIO_NUM_7
 #define GPIO_NUM_HOME GPIO_NUM_5
@@ -26,6 +27,7 @@ m5::Button_Class BtnMenu;
 
 lv_obj_t * chordlabel;
 lv_style_t style_chordlabel;
+lv_obj_t * battery;
 
 // Initialize at setup()
 Scale *scale;
@@ -68,6 +70,14 @@ class MainChordPipelineCallbacks: public ChordPipeline::PipelineCallbacks {
       lv_chordlabel_set_chord(chordlabel, chord);
     }
 };
+
+void update_battery() {
+  // バッテリー残量を取得
+  int32_t level = M5.Power.getBatteryLevel();
+  bool isCharging = M5.Power.isCharging();
+  lv_battery_set_level(battery, level);
+  lv_battery_set_charging(battery, isCharging);
+}
 
 void setup() {
   M5.begin();
@@ -124,9 +134,13 @@ void setup() {
   lv_style_set_text_font(&style_chordlabel, &genshin_32);  /*Set a larger font*/
   lv_obj_add_style(chordlabel, &style_chordlabel, 0);
   lv_obj_center(chordlabel);
+  battery = lv_battery_create(lv_scr_act());
+  lv_obj_align(battery, LV_ALIGN_TOP_RIGHT, 0, 0);
 
   // コードが鳴ったときにコード名を表示する
   Pipeline.addListener(new MainChordPipelineCallbacks());
+
+  update_battery();
 }
 
 void loop() {
@@ -175,13 +189,7 @@ void loop() {
   }
 
   // 仮でホームボタンを押したらバッテリー残量が表示されるようにする
-  if (BtnHome.wasPressed()) {
-    // バッテリー残量を取得
-    int32_t level = M5.Power.getBatteryLevel();
-    char str[16] = {'\0'};
-    sprintf(str, "%d%%", level);
-    Serial.print(str);
-  }
+  if (BtnHome.wasPressed()) update_battery();
 
   // 仮でホームボタン長押ししたらKantanChordと切り替えるようにする
   if (BtnHome.wasHold()) {
