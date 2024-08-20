@@ -18,6 +18,10 @@ public:
     };
     void launchApp(AppBase *app);
     void hideApp();
+    AppBase *getCurrentApp()
+    {
+        return currentApp;
+    }
 private:
     AppBase *currentApp = nullptr;
     lv_obj_t *container = nullptr;

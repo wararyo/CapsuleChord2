@@ -17,6 +17,7 @@
 #include "Widget/lv_tickframe.h"
 #include "Widget/TempoDialog.h"
 #include "App/AppManager.h"
+#include "Widget/AppLauncher.h"
 
 #define GPIO_NUM_BACK GPIO_NUM_7
 #define GPIO_NUM_HOME GPIO_NUM_5
@@ -35,6 +36,7 @@ lv_obj_t *scale_label;
 lv_obj_t *tempo_label;
 lv_obj_t *tickframe;
 TempoDialog tempoDialog;
+AppLauncher appLauncher;
 
 // Initialize at setup()
 Scale *scale;
@@ -218,6 +220,7 @@ void loop() {
 
   // 仮でホームボタンを押したらバッテリー残量が表示されるようにする
   if (BtnHome.wasPressed()) update_battery();
+  // if (BtnHome.wasPressed()) M5.Display.clear();
 
   // 仮でホームボタン長押ししたらKantanChordと切り替えるようにする
   if (BtnHome.wasHold()) {
@@ -231,9 +234,16 @@ void loop() {
     *centerNoteNo = 60;
   }
 
-  // 仮でメニューボタン長押ししたら最初のアプリを起動する
-  if (BtnMenu.wasHold()) {
-    App.launchApp(App.apps.front());
+  // ホームボタンを押したらアプリ一覧
+  if (BtnHome.wasPressed()) {
+    if (App.getCurrentApp() != nullptr)
+    {
+      App.hideApp();
+    } else if (appLauncher.getShown()) {
+      appLauncher.del();
+    } else {
+      appLauncher.create();
+    }
   }
 
   lv_timer_handler();

@@ -39,7 +39,7 @@ void AppMetronome::onShowGui(lv_obj_t *container)
 
 void AppMetronome::onHideGui()
 {
-    lv_obj_del(label);
+    lv_obj_del(button);
 }
 
 void AppMetronome::onDestroy()
