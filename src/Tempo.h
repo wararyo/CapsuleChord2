@@ -27,7 +27,7 @@ public:
         // tick_beat_tのビットフラグで指定する
         virtual tick_timing_t getTimingMask()
         {
-            return TICK_TIMING_BAR;
+            return TICK_TIMING_BAR; // TODO: 0が初期値でいいよね多分
         }
     };
 

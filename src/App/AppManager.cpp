@@ -6,7 +6,9 @@ void AppManager::launchApp(AppBase *app)
     if (container == nullptr)
     {
         container = lv_obj_create(lv_scr_act());
-        lv_obj_set_size(container, LvglWrapper::screenWidth, LvglWrapper::screenHeight);
+        lv_obj_set_size(container, LvglWrapper::screenWidth, LvglWrapper::screenHeight - 24);
+        lv_obj_set_align(container, LV_ALIGN_BOTTOM_LEFT);
+        lv_obj_clear_flag(container, LV_OBJ_FLAG_SCROLLABLE);
         lv_obj_set_style_bg_color(container, lv_color_black(), 0);
         lv_obj_set_style_bg_opa(container, LV_OPA_COVER, 0);
         lv_obj_set_style_border_width(container, 0, 0);

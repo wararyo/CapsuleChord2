@@ -159,7 +159,7 @@ void setup() {
   lv_obj_add_style(chordlabel, &style_chordlabel, 0);
   lv_obj_center(chordlabel);
   battery = lv_battery_create(lv_scr_act());
-  lv_obj_align(battery, LV_ALIGN_TOP_RIGHT, 0, 0);
+  lv_obj_align(battery, LV_ALIGN_TOP_RIGHT, -4, 4);
   scale_label = lv_label_create(lv_scr_act());
   lv_obj_align(scale_label, LV_ALIGN_TOP_LEFT, 4, 28);
   tempo_label = lv_label_create(lv_scr_act());
