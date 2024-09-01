@@ -17,8 +17,9 @@ public:
     void onHideGui() override;
     void onDestroy() override;
 private:
-    class MetronomeTempoCallback : public TempoController::TempoCallbacks
+    class MetronomeSoundTempoCallback : public TempoController::TempoCallbacks
     {
+    public:
         void onTempoChanged(TempoController::tempo_t tempo) override
         {
         }
@@ -31,8 +32,29 @@ private:
             return TempoController::TICK_TIMING_BAR | TempoController::TICK_TIMING_FULL;
         }
     };
-    MetronomeTempoCallback tempoCallbacks;
+    class MetronomeUiTempoCallback : public TempoController::TempoCallbacks
+    {
+    public:
+        AppMetronome *app;
+        void onTempoChanged(TempoController::tempo_t tempo) override
+        {
+            app->update();
+        }
+        void onTick(TempoController::tick_timing_t timing) override
+        {
+        }
+        TempoController::tick_timing_t getTimingMask() override
+        {
+            return 0;
+        }
+    };
+    MetronomeSoundTempoCallback soundTempoCallbacks;
+    MetronomeUiTempoCallback uiTempoCallbacks;
     bool isActive = false;
-    lv_obj_t *button;
-    lv_obj_t *label;
+    lv_obj_t *titleLabel;
+    lv_obj_t *switchButton;
+    lv_obj_t *tempoContainer;
+    lv_obj_t *tempo_label;
+
+    void update();
 };
