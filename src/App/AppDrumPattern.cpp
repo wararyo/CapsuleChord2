@@ -44,6 +44,7 @@ void AppDrumPattern::onShowGui(lv_obj_t *container)
         // 以降のisActiveの値は変更後の値
         if (self->isActive)
         {
+            self->previousTime = Tempo.getMusicalTime();
             Tempo.addListener(&self->tempoCallbacks);
         }
         else

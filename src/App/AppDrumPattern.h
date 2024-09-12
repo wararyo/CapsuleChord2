@@ -30,6 +30,7 @@ private:
         AppDrumPattern *app;
         void onPlayingStateChanged(bool isPlaying) override
         {
+            if (isPlaying) app->previousTime = Tempo.getMusicalTime();
         }
         void onTempoChanged(TempoController::tempo_t tempo) override
         {
