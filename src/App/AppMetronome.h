@@ -23,7 +23,7 @@ private:
         void onTempoChanged(TempoController::tempo_t tempo) override
         {
         }
-        void onTick(TempoController::tick_timing_t timing) override
+        void onTick(TempoController::tick_timing_t timing, musical_time_t time) override
         {
             Pipeline.sendNotes(true, {timing & TempoController::TICK_TIMING_BAR ? 25 : 24}, 64, 0xF);
         }
@@ -40,7 +40,7 @@ private:
         {
             app->update();
         }
-        void onTick(TempoController::tick_timing_t timing) override
+        void onTick(TempoController::tick_timing_t timing, musical_time_t time) override
         {
         }
         TempoController::tick_timing_t getTimingMask() override

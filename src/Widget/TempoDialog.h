@@ -19,7 +19,7 @@ private:
         {
             dialog->update();
         }
-        void onTick(TempoController::tick_timing_t timing) override
+        void onTick(TempoController::tick_timing_t timing, musical_time_t time) override
         {
         }
     };

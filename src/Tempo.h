@@ -3,6 +3,7 @@
 #include <freertos/timers.h>
 #include <list>
 #include <cstdint>
+#include "Foundation/MusicalTime.h"
 
 // テンポの管理と通知を行うクラス
 class TempoController
@@ -22,7 +23,7 @@ public:
     {
     public:
         virtual void onTempoChanged(tempo_t tempo) = 0;
-        virtual void onTick(tick_timing_t timing) = 0;
+        virtual void onTick(tick_timing_t timing, musical_time_t time) = 0;
         // Tickを通知するタイミング
         // tick_beat_tのビットフラグで指定する
         virtual tick_timing_t getTimingMask()
@@ -35,6 +36,12 @@ public:
     tempo_t getTempo() const
     {
         return tempo;
+    }
+
+    // カウント開始からの積算音楽時間を取得する
+    musical_time_t getMusicalTime() const
+    {
+        return musicalTime;
     }
 
     // テンポを変更する
@@ -94,6 +101,9 @@ private:
     float intervalHalfBeatTriplet = 0.0f;
     float intervalQuarterBeat = 0.0f;
     float intervalEighthBeat = 0.0f;
+
+    // カウント開始からの積算音楽時間
+    musical_time_t musicalTime = 0;
 
     void timerWorkInner();
     static void timerWork(TimerHandle_t t);

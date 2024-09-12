@@ -31,6 +31,7 @@ void TempoController::start()
     nextTimeToTickQuarterBeat = 0;
     nextTimeToTickEighthBeat = 0;
     nearestNextTimeToTick = 0;
+    musicalTime = 0;
 }
 
 void TempoController::stop() {
@@ -38,6 +39,7 @@ void TempoController::stop() {
     isActive = false;
     xTimerDelete(timer, 0);
     timer = nullptr;
+    musicalTime = 0;
 }
 
 void TempoController::timerWorkInner()
@@ -104,12 +106,13 @@ void TempoController::timerWorkInner()
     {
         if (listener->getTimingMask() & beatToNotify)
         {
-            listener->onTick(beatToNotify);
+            listener->onTick(beatToNotify, musicalTime);
         }
     }
 
     // 最も近い次のTickをセットする
     nearestNextTimeToTick = (uint32_t)(std::min(nextTimeToTickHalfBeatTriplet, nextTimeToTickEighthBeat) + 0.5);
+    if (beatToNotify & TICK_TIMING_EIGHTH) musicalTime += 60; // TODO: 4/4拍子以外にも対応する
 }
 
 void TempoController::timerWork(TimerHandle_t t)

@@ -84,7 +84,7 @@ class MainTempoCallbacks: public TempoController::TempoCallbacks {
     void onTempoChanged(TempoController::tempo_t tempo) override {
       update_tempo();
     }
-    void onTick(TempoController::tick_timing_t timing) override {
+    void onTick(TempoController::tick_timing_t timing, musical_time_t time) override {
       lv_tickframe_tick(tickframe, timing & TempoController::TICK_TIMING_BAR);
     }
     TempoController::tick_timing_t getTimingMask() override {
