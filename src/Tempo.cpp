@@ -6,13 +6,8 @@ void TempoController::play()
 {
     if (isPlaying) return;
     portENTER_CRITICAL(&mutex);
-    if (timer != nullptr)
-    {
-        xTimerDelete(timer, 0);
-    }
-    timer = xTimerCreate("Tempo", pdMS_TO_TICKS(1), pdTRUE, this, timerWork);
-    xTimerStart(timer, 0);
     isPlaying = true;
+    if (timer != nullptr) xTimerDelete(timer, 0);
 
     // 各intervalを計算する
     intervalBar = (60000.0 * 4) / tempo; // TODO: 現状では4/4拍子固定としている
@@ -33,6 +28,9 @@ void TempoController::play()
     nextTimeToTickEighthBeat = 0;
     nearestNextTimeToTick = 0;
     musicalTime = 0;
+
+    timer = xTimerCreate("Tempo", pdMS_TO_TICKS(1), pdTRUE, this, timerWork);
+    xTimerStart(timer, 0);
     portEXIT_CRITICAL(&mutex);
 
     for (TempoCallbacks *listener : listeners)

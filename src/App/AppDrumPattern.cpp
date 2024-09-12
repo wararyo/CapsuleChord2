@@ -98,7 +98,6 @@ const struct AppDrumPattern::DrumPatternItem pattern[] = {
 
 void process_item(const AppDrumPattern::DrumPatternItem &item)
 {
-    Serial.printf("process_item: %d %2x %2x %2x\n", item.time, item.status, item.data1, item.data2);
     if ((item.status & 0xF0) == 0x90)
     {
         Pipeline.sendNote(true, item.data1, item.data2, item.status & 0x0F);
@@ -113,7 +112,6 @@ void AppDrumPattern::TempoCallbacks::onTick(TempoController::tick_timing_t timin
 {
     const musical_time_t timeInBar = time_in_bar(time);
     const musical_time_t previousTime = app->previousTime;
-    if (timing & TempoController::TICK_TIMING_QUARTER) Serial.printf("%d\n", timeInBar);
     if (timeInBar == 0) {
         // 小節終わりのノート(ノートオフ想定)を発音する
         if (previousTime > 0) {

@@ -19,6 +19,7 @@ public:
     static const tick_timing_t TICK_TIMING_QUARTER      = 0b00100000; // 1/4拍
     static const tick_timing_t TICK_TIMING_EIGHTH       = 0b10000000; // 1/8拍
     // テンポの変更を通知するためのインターフェース
+    // 各種コールバック内でTempo.start()やTempo.stop()を呼び出さない！(デッドロックが発生するため)
     class TempoCallbacks
     {
     public:
