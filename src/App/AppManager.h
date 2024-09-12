@@ -3,6 +3,7 @@
 #include <list>
 #include "AppBase.h"
 #include "AppMetronome.h"
+#include "AppDrumPattern.h"
 
 class AppManager
 {
@@ -14,7 +15,8 @@ public:
         }
     }
     const std::list<AppBase *> apps = {
-        new AppMetronome()
+        new AppMetronome(),
+        new AppDrumPattern()
     };
     void launchApp(AppBase *app);
     void hideApp();

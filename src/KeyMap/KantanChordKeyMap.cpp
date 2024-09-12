@@ -48,7 +48,7 @@ void KantanChordKeyMap::update() {
       case Key_State_Released:
         switch(event >> 4 & 0b111) {
           case 0: {
-            context->sendNotes(false,std::vector<uint8_t>(),120);
+            context->stopChord();
           } break;
           case 2: {
             // if((event & 0b1111111) == Key_InversionUp) *(context->centerNoteNo) -= 4;

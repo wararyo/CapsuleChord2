@@ -10,6 +10,7 @@ public:
     Scale* scale;
     int* centerNoteNo;
     void (*playChord)(Chord);
+    void (*stopChord)();
     void (*sendNotes)(bool,std::vector<uint8_t>,int);
 
     Context(){}

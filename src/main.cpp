@@ -130,6 +130,7 @@ void setup() {
   // Make Context
   context = Context(&settings);
   context.playChord = [](Chord chord) { Pipeline.playChord(chord); };
+  context.stopChord = []() { Pipeline.stopChord(); };
   context.sendNotes = [](bool isNoteOn, std::vector<uint8_t> notes, int vel) { Pipeline.sendNotes(isNoteOn, notes, vel); };
   Context::setContext(&context);
 

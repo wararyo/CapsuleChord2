@@ -25,6 +25,11 @@ using capsule::sampler::Sample;
 using capsule::sampler::Timbre;
 
 extern const int16_t piano_data[24000];
+extern const int16_t kick_data[12000];
+extern const int16_t rimknock_data[10000];
+extern const int16_t snare_data[12000];
+extern const int16_t hihat_data[3200];
+extern const int16_t crash_data[38879];
 extern const int16_t metronome_tick_data[8000];
 extern const int16_t metronome_tick_bar_data[8000];
 
@@ -53,6 +58,34 @@ private:
         21608, 21975,
         true, 1.0f, 0.998000f, 0.1f, 0.985000f};
     Timbre piano = Timbre({{&pianoSample, 0, 127, 0, 127}});
+    // ドラムティンバー
+    struct Sample kickSample = Sample{
+        kick_data, 11000, 36,
+        0, 0,
+        false, 0, 0, 0, 0};
+    struct Sample rimknockSample = Sample{
+        rimknock_data, 9000, 37,
+        0, 0,
+        false, 0, 0, 0, 0};
+    struct Sample snareSample = Sample{
+        snare_data, 11000, 38,
+        0, 0,
+        false, 0, 0, 0, 0};
+    struct Sample hihatSample = Sample{
+        hihat_data, 2400, 42,
+        0, 0,
+        false, 0, 0, 0, 0};
+    struct Sample crashSample = Sample{
+        crash_data, 28000, 49,
+        0, 0,
+        false, 0, 0, 0, 0};
+    Timbre drumset = Timbre({
+        {&kickSample, 36, 36, 0, 127},
+        {&rimknockSample, 37, 37, 0, 127},
+        {&snareSample, 38, 38, 0, 127},
+        {&hihatSample, 42, 42, 0, 127},
+        {&crashSample, 49, 49, 0, 127}
+    });
     // システム音ティンバー
     struct Sample metronomeTickSample = Sample{
         metronome_tick_data, 7000, 24,
@@ -65,7 +98,7 @@ private:
     Timbre system = Timbre({
         {&metronomeTickSample, 24, 24, 0, 127},
         {&metronomeTickBarSample, 25, 25, 0, 127}
-        });
+    });
         
     Sampler sampler;
 

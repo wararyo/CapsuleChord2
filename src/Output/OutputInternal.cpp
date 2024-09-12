@@ -56,6 +56,7 @@ void OutputInternal::begin(AudioOutput output)
 
     // ティンバーをセット
     sampler.SetTimbre(0x0, &piano);
+    sampler.SetTimbre(0x9, &drumset);
     sampler.SetTimbre(0xF, &system);
 
     // I2Sの初期化
