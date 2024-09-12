@@ -13,8 +13,8 @@ protected:
 public:
     static std::vector<std::shared_ptr<KeyMapBase>> getAvailableKeyMaps() {
     if(availableKeyMaps.empty()) {
-        availableKeyMaps.push_back(std::make_shared<CapsuleChordKeyMap>());
-        availableKeyMaps.push_back(std::make_shared<KantanChordKeyMap>());
+      availableKeyMaps.push_back(std::make_shared<KantanChordKeyMap>());
+      availableKeyMaps.push_back(std::make_shared<CapsuleChordKeyMap>());
     }
     return availableKeyMaps;
   }
