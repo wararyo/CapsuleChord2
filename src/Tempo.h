@@ -68,17 +68,22 @@ public:
     // リスナーを追加する
     void addListener(TempoCallbacks *listener)
     {
+        portENTER_CRITICAL(&mutex);
         listeners.push_back(listener);
+        portEXIT_CRITICAL(&mutex);
     }
 
     // リスナーを削除する
     void removeListener(TempoCallbacks *listener)
     {
+        portENTER_CRITICAL(&mutex);
         listeners.remove(listener);
+        portEXIT_CRITICAL(&mutex);
     }
 
 private:
     bool isActive = false;
+    portMUX_TYPE mutex = portMUX_INITIALIZER_UNLOCKED;
     tempo_t tempo = 120;
     // beat = BEAT_4_4;
     std::list<TempoCallbacks *> listeners;

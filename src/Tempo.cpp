@@ -5,6 +5,7 @@
 void TempoController::start()
 {
     if (isActive) return;
+    portENTER_CRITICAL(&mutex);
     isActive = true;
     if (timer != nullptr)
     {
@@ -32,14 +33,17 @@ void TempoController::start()
     nextTimeToTickEighthBeat = 0;
     nearestNextTimeToTick = 0;
     musicalTime = 0;
+    portEXIT_CRITICAL(&mutex);
 }
 
 void TempoController::stop() {
     if (!isActive) return;
+    portENTER_CRITICAL(&mutex);
     isActive = false;
     xTimerDelete(timer, 0);
     timer = nullptr;
     musicalTime = 0;
+    portEXIT_CRITICAL(&mutex);
 }
 
 void TempoController::timerWorkInner()
@@ -47,6 +51,8 @@ void TempoController::timerWorkInner()
     elapsedTime++;
     // nearestNextTimeToTickまでは処理をスキップする
     if (elapsedTime <= nearestNextTimeToTick) return;
+
+    portENTER_CRITICAL(&mutex);
 
     // Tickのタイミングを迎えたビートを算出する
     tick_timing_t beatToNotify = 0;
@@ -113,6 +119,7 @@ void TempoController::timerWorkInner()
     // 最も近い次のTickをセットする
     nearestNextTimeToTick = (uint32_t)(std::min(nextTimeToTickHalfBeatTriplet, nextTimeToTickEighthBeat) + 0.5);
     if (beatToNotify & TICK_TIMING_EIGHTH) musicalTime += 60; // TODO: 4/4拍子以外にも対応する
+    portEXIT_CRITICAL(&mutex);
 }
 
 void TempoController::timerWork(TimerHandle_t t)
