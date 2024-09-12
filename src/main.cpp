@@ -81,6 +81,9 @@ void update_tempo() {
 }
 
 class MainTempoCallbacks: public TempoController::TempoCallbacks {
+    void onPlayingStateChanged(bool isPlaying) override
+    {
+    }
     void onTempoChanged(TempoController::tempo_t tempo) override {
       update_tempo();
     }

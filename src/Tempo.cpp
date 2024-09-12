@@ -2,17 +2,17 @@
 #include "M5Unified.h"
 #include <set>
 
-void TempoController::start()
+void TempoController::play()
 {
-    if (isActive) return;
+    if (isPlaying) return;
     portENTER_CRITICAL(&mutex);
-    isActive = true;
     if (timer != nullptr)
     {
         xTimerDelete(timer, 0);
     }
     timer = xTimerCreate("Tempo", pdMS_TO_TICKS(1), pdTRUE, this, timerWork);
     xTimerStart(timer, 0);
+    isPlaying = true;
 
     // 各intervalを計算する
     intervalBar = (60000.0 * 4) / tempo; // TODO: 現状では4/4拍子固定としている
@@ -34,16 +34,26 @@ void TempoController::start()
     nearestNextTimeToTick = 0;
     musicalTime = 0;
     portEXIT_CRITICAL(&mutex);
+
+    for (TempoCallbacks *listener : listeners)
+    {
+        listener->onPlayingStateChanged(true);
+    }
 }
 
 void TempoController::stop() {
-    if (!isActive) return;
+    if (!isPlaying) return;
     portENTER_CRITICAL(&mutex);
-    isActive = false;
+    isPlaying = false;
     xTimerDelete(timer, 0);
     timer = nullptr;
     musicalTime = 0;
     portEXIT_CRITICAL(&mutex);
+
+    for (TempoCallbacks *listener : listeners)
+    {
+        listener->onPlayingStateChanged(false);
+    }
 }
 
 void TempoController::timerWorkInner()

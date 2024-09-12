@@ -25,7 +25,7 @@ static void button_play_event_cb(lv_event_t *e)
     lv_event_code_t code = lv_event_get_code(e);
     if (code == LV_EVENT_CLICKED)
     {
-        Tempo.getActive() ? Tempo.stop() : Tempo.start();
+        Tempo.getPlaying() ? Tempo.stop() : Tempo.play();
     }
 }
 
@@ -79,7 +79,7 @@ void AppMetronome::onShowGui(lv_obj_t *container)
         {
             Tempo.addListener(&self->soundTempoCallbacks);
             // 再生していないときにメトロノームを有効にした場合は再生も始める
-            if (!Tempo.getActive()) Tempo.start();
+            if (!Tempo.getPlaying()) Tempo.play();
         }
         else
         {

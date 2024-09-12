@@ -22,6 +22,7 @@ public:
     class TempoCallbacks
     {
     public:
+        virtual void onPlayingStateChanged(bool isPlaying) = 0;
         virtual void onTempoChanged(tempo_t tempo) = 0;
         virtual void onTick(tick_timing_t timing, musical_time_t time) = 0;
         // Tickを通知するタイミング
@@ -54,13 +55,13 @@ public:
         }
     }
 
-    bool getActive() const
+    bool getPlaying() const
     {
-        return isActive;
+        return isPlaying;
     }
 
     // テンポカウントを開始する
-    void start();
+    void play();
 
     // テンポカウントを停止する
     void stop();
@@ -82,7 +83,7 @@ public:
     }
 
 private:
-    bool isActive = false;
+    bool isPlaying = false;
     portMUX_TYPE mutex = portMUX_INITIALIZER_UNLOCKED;
     tempo_t tempo = 120;
     // beat = BEAT_4_4;

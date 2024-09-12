@@ -20,6 +20,9 @@ private:
     class MetronomeSoundTempoCallback : public TempoController::TempoCallbacks
     {
     public:
+        void onPlayingStateChanged(bool isPlaying) override
+        {
+        }
         void onTempoChanged(TempoController::tempo_t tempo) override
         {
         }
@@ -36,6 +39,9 @@ private:
     {
     public:
         AppMetronome *app;
+        void onPlayingStateChanged(bool isPlaying) override
+        {
+        }
         void onTempoChanged(TempoController::tempo_t tempo) override
         {
             app->update();

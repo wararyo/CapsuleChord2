@@ -15,6 +15,9 @@ private:
     {
     public:
         TempoDialog *dialog;
+        void onPlayingStateChanged(bool isPlaying) override
+        {
+        }
         void onTempoChanged(TempoController::tempo_t tempo) override
         {
             dialog->update();

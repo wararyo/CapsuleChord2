@@ -28,6 +28,9 @@ private:
     {
     public:
         AppDrumPattern *app;
+        void onPlayingStateChanged(bool isPlaying) override
+        {
+        }
         void onTempoChanged(TempoController::tempo_t tempo) override
         {
         }
