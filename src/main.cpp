@@ -95,9 +95,17 @@ class MainTempoCallbacks: public TempoController::TempoCallbacks {
     }
 };
 
-class MainChordPipelineCallbacks: public ChordPipeline::PipelineCallbacks {
-    void onChordChanged(Chord chord) override {
+class MainChordFilter: public ChordPipeline::ChordFilter {
+    bool modifiesChord() override
+    {
+      return false;
+    }
+    void onChordOn(Chord chord) override
+    {
       lv_chordlabel_set_chord(chordlabel, chord);
+    }
+    void onChordOff() override
+    {
     }
 };
 
@@ -174,7 +182,7 @@ void setup() {
   }, LV_EVENT_CLICKED, NULL);
 
   // コードが鳴ったときにコード名を表示する
-  Pipeline.addListener(new MainChordPipelineCallbacks());
+  Pipeline.addChordFilter(new MainChordFilter());
   // テンポが変更されたときに表示を更新する
   Tempo.addListener(new MainTempoCallbacks());
 
