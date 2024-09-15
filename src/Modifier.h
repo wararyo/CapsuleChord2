@@ -12,5 +12,7 @@ void ninth(Chord *c);
 void thirteenth(Chord *c);
 void pitchUp(Chord *c);
 void pitchDown(Chord *c);
+void inversionUp(Chord *c);
+void inversionDown(Chord *c);
 
 #endif

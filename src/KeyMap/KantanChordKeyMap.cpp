@@ -34,8 +34,8 @@ void KantanChordKeyMap::update() {
               if(Keypad[Key_PitchUp].isPressed()) pitchUp(&c);
               if(Keypad[Key_PitchDown].isPressed()) pitchDown(&c);
               c.calcInversion(*(uint8_t *)context->centerNoteNo);
-              if(Keypad[Key_InversionUp].isPressed()) c.inversion++;
-              if(Keypad[Key_InversionDown].isPressed()) c.inversion = c.inversion > 0 ? (c.inversion-1) : 0;
+              if(Keypad[Key_InversionUp].isPressed()) inversionUp(&c);
+              if(Keypad[Key_InversionDown].isPressed()) inversionDown(&c);
               context->playChord(c);
             }
           } break;
