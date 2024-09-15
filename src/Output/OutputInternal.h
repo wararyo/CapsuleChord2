@@ -25,6 +25,7 @@ using capsule::sampler::Sample;
 using capsule::sampler::Timbre;
 
 extern const int16_t piano_data[24000];
+extern const int16_t aguitar_data[96000];
 extern const int16_t kick_data[12000];
 extern const int16_t rimknock_data[10000];
 extern const int16_t snare_data[12000];
@@ -58,6 +59,11 @@ private:
         21608, 21975,
         true, 1.0f, 0.998000f, 0.1f, 0.985000f};
     Timbre piano = Timbre({{&pianoSample, 0, 127, 0, 127}});
+    struct Sample aguitarSample = Sample{
+        aguitar_data, 96000, 60,
+        83347, 83714,
+        true, 1.0f, 0.9985f, 0.03f, 0.97f};
+    Timbre aguitar = Timbre({{&aguitarSample, 0, 127, 0, 127}});
     // ドラムティンバー
     struct Sample kickSample = Sample{
         kick_data, 11000, 36,

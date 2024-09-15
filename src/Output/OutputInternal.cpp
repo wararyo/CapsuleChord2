@@ -55,7 +55,7 @@ void OutputInternal::begin(AudioOutput output)
     audioLoopHandler = nullptr;
 
     // ティンバーをセット
-    sampler.SetTimbre(0x0, &piano);
+    sampler.SetTimbre(0x0, &aguitar);
     sampler.SetTimbre(0x9, &drumset);
     sampler.SetTimbre(0xF, &system);
 
