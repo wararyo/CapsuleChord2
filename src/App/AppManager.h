@@ -4,6 +4,7 @@
 #include "AppBase.h"
 #include "AppMetronome.h"
 #include "AppDrumPattern.h"
+#include "AppSequencer.h"
 
 class AppManager
 {
@@ -16,7 +17,8 @@ public:
     }
     const std::list<AppBase *> apps = {
         new AppMetronome(),
-        new AppDrumPattern()
+        new AppDrumPattern(),
+        new AppSequencer()
     };
     void launchApp(AppBase *app);
     void hideApp();
