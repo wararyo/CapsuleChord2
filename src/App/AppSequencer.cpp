@@ -165,7 +165,10 @@ void AppSequencer::processItem(const AppSequencer::SequenceItem &item)
 void AppSequencer::TempoCallbacks::onTick(TempoController::tick_timing_t timing, musical_time_t time)
 {
     const musical_time_t timeInBar = time_in_bar(time);
-    if (timing & TempoController::TICK_TIMING_FULL)
+    // コードを切り替えるときに音が途切れないようにするために、4分音符の間隔で入力を更新する
+    // ただし直前が無音だった場合は即座に鳴らす
+    if ((timing & TempoController::TICK_TIMING_FULL) ||
+        (app->output.empty() && !app->inputBuffer.empty()))
     {
         app->input = app->inputBuffer;
         app->updatePlayingNotes();
