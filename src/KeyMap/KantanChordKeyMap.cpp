@@ -36,6 +36,7 @@ void KantanChordKeyMap::update() {
               c.calcInversion(*(uint8_t *)context->centerNoteNo);
               if(Keypad[Key_InversionUp].isPressed()) inversionUp(&c);
               if(Keypad[Key_InversionDown].isPressed()) inversionDown(&c);
+              currentPressingButton = event & 0b1111111;
               context->playChord(c);
             }
           } break;
@@ -48,7 +49,8 @@ void KantanChordKeyMap::update() {
       case Key_State_Released:
         switch(event >> 4 & 0b111) {
           case 0: {
-            context->stopChord();
+            if ((event & 0b1111111) == currentPressingButton)
+              context->stopChord();
           } break;
           case 2: {
             // if((event & 0b1111111) == Key_InversionUp) *(context->centerNoteNo) -= 4;
