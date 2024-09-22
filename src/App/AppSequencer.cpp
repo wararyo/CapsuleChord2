@@ -27,7 +27,26 @@ void AppSequencer::onDeactivate()
 {
     isActive = false;
     Tempo.removeListener(&tempoCallbacks);
+    // 入力で発音中かつ出力で発音中でないノートを発音する
+    for (uint8_t n : input)
+    {
+        if (std::find(output.begin(), output.end(), n) == output.end())
+        {
+            Pipeline.sendNote(true, n, 120, 0x0, &noteFilter);
+        }
+    }
+    // 入力で発音中でなく出力で発音中のノートをオフにする
+    for (uint8_t n : output)
+    {
+        if (std::find(input.begin(), input.end(), n) == input.end())
+        {
+            Pipeline.sendNote(false, n, 0, 0x0, &noteFilter);
+        }
+    }
     Pipeline.removeNoteFilter(&noteFilter);
+    inputBuffer.clear();
+    input.clear();
+    output.clear();
 }
 
 void AppSequencer::onShowGui(lv_obj_t *container)
@@ -69,8 +88,7 @@ void AppSequencer::NoteFilter::onNoteOn(uint8_t note, uint8_t vel, uint8_t chann
 {
     if (channel == 0)
     {
-        app->playingNotes.push_back(note);
-        app->updatePlayingNotes();
+        app->inputBuffer.push_back(note);
     }
     else Pipeline.sendNote(true, note, vel, channel, &app->noteFilter);
 }
@@ -79,40 +97,39 @@ void AppSequencer::NoteFilter::onNoteOff(uint8_t note, uint8_t vel, uint8_t chan
 {
     if (channel == 0)
     {
-        app->playingNotes.remove(note);
-        app->updatePlayingNotes();
+        app->inputBuffer.remove(note);
     }
     else Pipeline.sendNote(false, note, vel, channel, &app->noteFilter);
 }
 
 const struct AppSequencer::SequenceItem sequence[] = {
 {0,0x90,0x3C,0x6B},
-{240,0x80,0x3C,0x40},
 {240,0x90,0x3D,0x5C},
-{480,0x80,0x3D,0x40},
 {480,0x90,0x3E,0x64},
-{720,0x80,0x3E,0x40},
+{720,0x80,0x3C,0x40},
 {720,0x90,0x3C,0x50},
-{960,0x80,0x3C,0x40},
 {960,0x90,0x3F,0x6F},
-{1200,0x80,0x3F,0x40},
+{1200,0x80,0x3E,0x40},
 {1200,0x90,0x3E,0x64},
-{1440,0x80,0x3E,0x40},
+{1440,0x80,0x3D,0x40},
 {1440,0x90,0x3D,0x52},
-{1680,0x80,0x3D,0x40},
+{1680,0x80,0x3C,0x40},
 {1680,0x90,0x3C,0x4B},
-{1920,0x80,0x3C,0x40},
+{1920,0x80,0x3F,0x40},
+{1920,0x80,0x3E,0x40},
+{1920,0x80,0x3D,0x40},
+{1920,0x80,0x3C,0x40}
 };
 
-// playingNotesの内容を、processItem内で使用できる形に変換する
+// inputの内容を、processItem内で使用できる形に変換する
 void AppSequencer::updatePlayingNotes()
 {
-    if (playingNotes.empty()) return;
+    if (input.empty()) return;
     std::list<uint_fast8_t> notes;
     uint_fast8_t octaveOffset = 0;
     do
     {
-        for (uint8_t note : playingNotes)
+        for (uint8_t note : input)
         {
             notes.push_back(note + octaveOffset);
         }
@@ -121,7 +138,7 @@ void AppSequencer::updatePlayingNotes()
     notes.sort();
     for (uint_fast8_t i = 0; i < 12; i++)
     {
-        playingNotesProcessed[i] = notes.front();
+        inputProcessed[i] = notes.front();
         notes.pop_front();
     }
 }
@@ -131,21 +148,37 @@ void AppSequencer::processItem(const AppSequencer::SequenceItem &item)
     uint_fast8_t data1 = item.data1;
     uint_fast8_t index = data1 % 12;
     int_fast8_t octave = data1 / 12 - 5;
-    uint8_t noteNo = playingNotesProcessed[index] + octave * 12;
+    uint8_t noteNo = inputProcessed[index] + octave * 12;
 
     if ((item.status & 0xF0) == 0x90)
     {
         Pipeline.sendNote(true, noteNo, item.data2, item.status & 0x0F, &noteFilter);
+        output.push_back(noteNo);
     }
     else if ((item.status & 0xF0) == 0x80)
     {
         Pipeline.sendNote(false, noteNo, item.data2, item.status & 0x0F, &noteFilter);
+        output.remove(noteNo);
     }
 }
 
 void AppSequencer::TempoCallbacks::onTick(TempoController::tick_timing_t timing, musical_time_t time)
 {
     const musical_time_t timeInBar = time_in_bar(time);
+    if (timing & TempoController::TICK_TIMING_FULL)
+    {
+        app->input = app->inputBuffer;
+        app->updatePlayingNotes();
+        // 入力から発音中のノートがなくなったら全ての出力中のノートをオフにする
+        if (app->input.empty() && !app->output.empty())
+        {
+            for (uint8_t n : app->output)
+            {
+                Pipeline.sendNote(false, n, 0, 0x0, &app->noteFilter);
+            }
+            app->output.clear();
+        }
+    }
     if (!app->isPlayingNotes())
     {
         app->previousTime = timeInBar;

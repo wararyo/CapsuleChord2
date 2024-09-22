@@ -31,7 +31,7 @@ public:
     void onHideGui() override;
     void onDestroy() override;
 
-    bool isPlayingNotes() { return !playingNotes.empty(); }
+    bool isPlayingNotes() { return !input.empty(); }
 private:
     class TempoCallbacks : public TempoController::TempoCallbacks
     {
@@ -70,8 +70,10 @@ private:
     musical_time_t previousTime = 0;
     lv_obj_t *titleLabel;
     lv_obj_t *switchButton;
-    std::list<uint8_t> playingNotes; // 入力に来た発音中のノート
-    uint8_t playingNotesProcessed[12] = {60};
+    std::list<uint8_t> inputBuffer; // 入力に来た発音中のノート (最新)
+    std::list<uint8_t> input; // 入力に来た発音中のノート (直前のTICK_TIMING_FULLなtick時)
+    uint8_t inputProcessed[12] = {60};
+    std::list<uint8_t> output; // 出力した発音中のノート
     portMUX_TYPE mutex = portMUX_INITIALIZER_UNLOCKED;
 
     void updateUi();
