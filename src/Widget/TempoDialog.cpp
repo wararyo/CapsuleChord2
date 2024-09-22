@@ -4,7 +4,7 @@
 static void tempo_button_plus_event_cb(lv_event_t *e)
 {
     lv_event_code_t code = lv_event_get_code(e);
-    if (code == LV_EVENT_CLICKED || code == LV_EVENT_LONG_PRESSED_REPEAT)
+    if (code == LV_EVENT_PRESSED || code == LV_EVENT_LONG_PRESSED_REPEAT)
     {
         Tempo.setTempo(Tempo.getTempo() + 1);
         Tempo.stop();
@@ -14,7 +14,7 @@ static void tempo_button_plus_event_cb(lv_event_t *e)
 static void tempo_button_minus_event_cb(lv_event_t *e)
 {
     lv_event_code_t code = lv_event_get_code(e);
-    if (code == LV_EVENT_CLICKED || code == LV_EVENT_LONG_PRESSED_REPEAT)
+    if (code == LV_EVENT_PRESSED || code == LV_EVENT_LONG_PRESSED_REPEAT)
     {
         Tempo.setTempo(Tempo.getTempo() - 1);
         Tempo.stop();
@@ -63,6 +63,7 @@ void TempoDialog::create()
     tempo_button_plus = lv_btn_create(frame);
     lv_obj_align(tempo_button_plus, LV_ALIGN_TOP_MID, 64, 0);
     lv_obj_set_size(tempo_button_plus, 48, 48);
+    lv_obj_set_ext_click_area(tempo_button_plus, 16);
     lv_obj_add_event_cb(tempo_button_plus, tempo_button_plus_event_cb, LV_EVENT_ALL, NULL);
     lv_obj_t *label = lv_label_create(tempo_button_plus);
     lv_obj_center(label);
@@ -71,16 +72,19 @@ void TempoDialog::create()
     tempo_button_minus = lv_btn_create(frame);
     lv_obj_align(tempo_button_minus, LV_ALIGN_TOP_MID, -64, 0);
     lv_obj_set_size(tempo_button_minus, 48, 48);
+    lv_obj_set_ext_click_area(tempo_button_plus, 16);
     lv_obj_add_event_cb(tempo_button_minus, tempo_button_minus_event_cb, LV_EVENT_ALL, NULL);
     label = lv_label_create(tempo_button_minus);
     lv_obj_center(label);
     lv_label_set_text(label, "-");
 
     button_play = lv_btn_create(frame);
+    lv_obj_set_size(button_play, 128, 48);
     lv_obj_align(button_play, LV_ALIGN_BOTTOM_MID, 0, 0);
     lv_obj_add_event_cb(button_play, button_play_event_cb, LV_EVENT_CLICKED, NULL);
     label = lv_label_create(button_play);
     lv_label_set_text(label, "Play");
+    lv_obj_center(label);
 
     update();
 

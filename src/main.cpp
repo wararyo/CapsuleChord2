@@ -177,6 +177,7 @@ void setup() {
   tempo_label = lv_label_create(lv_scr_act());
   lv_obj_align(tempo_label, LV_ALIGN_TOP_RIGHT, -4, 28);
   lv_obj_add_flag(tempo_label, LV_OBJ_FLAG_CLICKABLE);
+  lv_obj_set_ext_click_area(tempo_label, 16);
   lv_obj_add_event_cb(tempo_label, [](lv_event_t *e) {
       tempoDialog.create();
   }, LV_EVENT_CLICKED, NULL);
@@ -259,6 +260,6 @@ void loop() {
   }
 
   lv_timer_handler();
-  while(millis() - lastLoopMillis < 33); // Keep 60fps
+  while(millis() - lastLoopMillis < 17); // Keep 60fps
   lastLoopMillis = millis();
 }
