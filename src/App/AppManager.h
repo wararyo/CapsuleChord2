@@ -5,6 +5,7 @@
 #include "AppMetronome.h"
 #include "AppDrumPattern.h"
 #include "AppSequencer.h"
+#include "AppBass.h"
 #include "AppSoundTest.h"
 
 class AppManager
@@ -20,6 +21,7 @@ public:
         new AppMetronome(),
         new AppDrumPattern(),
         new AppSequencer(),
+        new AppBass(),
         new AppSoundTest()
     };
     void launchApp(AppBase *app);
