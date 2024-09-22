@@ -96,8 +96,6 @@ static void anim_opa_cb(void *obj, int32_t v)
     lv_tickframe_t *frame = (lv_tickframe_t *)obj;
 
     frame->current_opacity = v;
-    lv_area_t area;
-    lv_obj_get_coords((lv_obj_t *)obj, &area);
     // 再描画領域を更新
     // lv_obj_invalidateを使うと全画面を更新してしまうので、_areaで周辺部のみを再描画する
     lv_obj_invalidate_area((lv_obj_t *)frame, &frame->invalidatearea[0]);
