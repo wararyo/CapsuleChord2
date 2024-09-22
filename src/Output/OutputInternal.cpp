@@ -56,6 +56,8 @@ void OutputInternal::begin(AudioOutput output)
 
     // ティンバーをセット
     sampler.SetTimbre(0x0, &aguitar);
+    sampler.SetTimbre(0x1, &bass);
+    sampler.SetTimbre(0x3, &epiano);
     sampler.SetTimbre(0x9, &drumset);
     sampler.SetTimbre(0xF, &system);
 
