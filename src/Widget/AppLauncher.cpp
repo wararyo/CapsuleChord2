@@ -21,14 +21,28 @@ void AppLauncher::create()
 
         obj = lv_btn_create(frame);
         lv_obj_set_size(obj, LV_PCT(100), LV_SIZE_CONTENT);
-        AppIconClickEventData *eventData = new AppIconClickEventData{this, app};
+        AppIconClickEventData *eventData = new AppIconClickEventData{this, app, 0};
         eventDatas.push_back(eventData);
         lv_obj_add_event_cb(obj, [](lv_event_t *e)
         {
             auto data = (AppIconClickEventData *)lv_event_get_user_data(e);
-            data->launcher->del();
-            App.launchApp(data->app);
-        }, LV_EVENT_CLICKED, (void *)eventData);
+            data->pressedAt = millis();
+        }, LV_EVENT_PRESSED, (void *)eventData);
+        lv_obj_add_event_cb(obj, [](lv_event_t *e)
+        {
+            auto data = (AppIconClickEventData *)lv_event_get_user_data(e);
+            // 長押しながらトグル、通常押しでアプリ画面を表示
+            if (millis() - data->pressedAt >= 250)
+            {
+                if (data->app->getActive()) data->app->onDeactivate();
+                else data->app->onActivate();
+            }
+            else
+            {
+                data->launcher->del();
+                App.launchApp(data->app);
+            }
+        }, LV_EVENT_RELEASED, (void *)eventData);
 
         label = lv_label_create(obj);
         lv_label_set_text(label, app->getAppName());

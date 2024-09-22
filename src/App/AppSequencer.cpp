@@ -43,20 +43,12 @@ void AppSequencer::onShowGui(lv_obj_t *container)
     lv_obj_center(switchButton);
     lv_obj_add_event_cb(switchButton, [](lv_event_t *e) {
         auto *self = (AppSequencer *)lv_event_get_user_data(e);
-        // ここでisActiveを反転させる
-        self->isActive = !self->isActive;
-        // 以降のisActiveの値は変更後の値
-        if (self->isActive)
-        {
-            self->previousTime = Tempo.getMusicalTime();
-            Tempo.addListener(&self->tempoCallbacks);
-            Pipeline.addNoteFilter(&self->noteFilter);
-        }
-        else
-        {
-            Tempo.removeListener(&self->tempoCallbacks);
-            Pipeline.removeNoteFilter(&self->noteFilter);
-        }
+
+        // 変更後のisActiveに応じた処理
+        bool isActive = !self->isActive;
+        if (isActive) self->onActivate();
+        else self->onDeactivate();
+    
         self->updateUi();
     }, LV_EVENT_CLICKED, (void *)this);
 

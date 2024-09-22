@@ -17,6 +17,7 @@ public:
     char *getAppName() { return "サウンドテスト"; }
     bool runsInBackground() { return false; }
 
+    bool getActive() { return false; }
     void onCreate() override;
     void onActivate() override;
     void onDeactivate() override;

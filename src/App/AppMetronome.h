@@ -10,6 +10,7 @@ public:
     char *getAppName() { return "メトロノーム"; }
     bool runsInBackground() { return true; }
 
+    bool getActive() { return isActive; }
     void onCreate() override;
     void onActivate() override;
     void onDeactivate() override;

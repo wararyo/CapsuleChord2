@@ -23,6 +23,7 @@ public:
     char *getAppName() { return "ベース"; }
     bool runsInBackground() { return true; }
 
+    bool getActive() { return isActive; }
     void onCreate() override;
     void onActivate() override;
     void onDeactivate() override;

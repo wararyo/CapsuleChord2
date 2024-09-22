@@ -20,6 +20,7 @@ private:
     {
         AppLauncher *launcher;
         AppBase *app;
+        uint32_t pressedAt;
     };
     bool isShown = false;
     lv_obj_t *frame = nullptr;

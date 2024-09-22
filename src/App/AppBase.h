@@ -13,6 +13,9 @@ public:
     // Tempo等のコールバックをバックグラウンドでフックするアプリはtrueを返す必要がある
     virtual bool runsInBackground() { return false; }
 
+    // アプリがバックグラウンド動作を行っているか
+    virtual bool getActive() = 0;
+
     // アプリを初めて起動したとき
     virtual void onCreate() = 0;
 
