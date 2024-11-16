@@ -9,6 +9,10 @@ public:
     void create();
     void del();
     void update();
+    bool getShown()
+    {
+        return isShown;
+    }
 
 private:
     class TempoControllerCallbacks : public TempoController::TempoCallbacks
@@ -26,6 +30,7 @@ private:
         {
         }
     };
+    bool isShown = false;
     TempoControllerCallbacks tempoControllerCallbacks;
     lv_obj_t *bg = nullptr;
     lv_obj_t *frame = nullptr;

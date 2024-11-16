@@ -249,12 +249,18 @@ void loop() {
 
   // ホームボタンを押したらアプリ一覧
   if (BtnHome.wasPressed()) {
-    if (App.getCurrentApp() != nullptr)
+    if (tempoDialog.getShown()) {
+      tempoDialog.del();
+    }
+    else if (App.getCurrentApp() != nullptr)
     {
       App.hideApp();
-    } else if (appLauncher.getShown()) {
+    } else if (appLauncher.getShown())
+    {
       appLauncher.del();
-    } else {
+    }
+    else
+    {
       appLauncher.create();
     }
   }

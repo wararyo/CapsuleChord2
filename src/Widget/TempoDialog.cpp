@@ -39,6 +39,7 @@ void TempoDialog::update()
 
 void TempoDialog::create()
 {
+    if (isShown) return;
     // UI
     bg = lv_obj_create(lv_scr_act());
     lv_obj_set_size(bg, 240, 320);
@@ -91,10 +92,13 @@ void TempoDialog::create()
     // テンポが変更された際に表示を更新する
     tempoControllerCallbacks.dialog = this;
     Tempo.addListener(&tempoControllerCallbacks);
+    isShown = true;
 }
 
 void TempoDialog::del()
 {
+    if (!isShown) return;
+    isShown = false;
     lv_obj_del(bg);
     lv_obj_del(frame);
     bg = nullptr;
