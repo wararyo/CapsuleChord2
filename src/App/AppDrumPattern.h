@@ -50,9 +50,12 @@ private:
     };
     TempoCallbacks tempoCallbacks;
     bool isActive = false;
+    bool isShowingGui = false;
     musical_time_t previousTime = 0;
     lv_obj_t *titleLabel;
     lv_obj_t *switchButton;
+    lv_obj_t *patternContainer;
+    lv_obj_t *cursorRect;
 
     void update();
 };
