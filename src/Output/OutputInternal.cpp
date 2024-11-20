@@ -1,4 +1,6 @@
 #include "OutputInternal.h"
+#include "TimbreLoader.h"
+#include "SD.h"
 
 void OutputInternal::NoteOn(uint8_t noteNo, uint8_t velocity, uint8_t channel)
 {
@@ -21,11 +23,11 @@ void OutputInternal::AudioLoop()
     uint8_t buf_idx = 0;
     while (true)
     {
-        unsigned long startTime = micros();
+        unsigned long startTime = capsule::sampler::micros();
 
         sampler.Process(output[buf_idx]);
         
-        unsigned long endTime = micros();
+        unsigned long endTime = capsule::sampler::micros();
         audioProcessTime = endTime - startTime;
 
         static size_t bytes_written = 0;
@@ -54,12 +56,18 @@ void OutputInternal::begin(AudioOutput output)
     if(audioLoopHandler != nullptr) vTaskDelete(audioLoopHandler);
     audioLoopHandler = nullptr;
 
-    // ティンバーをセット
-    sampler.SetTimbre(0x0, &aguitar);
-    sampler.SetTimbre(0x1, &bass);
-    sampler.SetTimbre(0x3, &epiano);
-    sampler.SetTimbre(0x9, &drumset);
-    sampler.SetTimbre(0xF, &system);
+    sampler.SetTimbre(0x0, piano);
+    sampler.SetTimbre(0x1, bass);
+    sampler.SetTimbre(0x3, epiano);
+    sampler.SetTimbre(0x9, drumset);
+    sampler.SetTimbre(0xF, system);
+
+    // SDカードに音色があればそれを使う
+    if (SD.begin(GPIO_NUM_4, SPI, 15000000)) {
+        std::shared_ptr<Timbre> t;
+        t = Loader.loadTimbre(SD, "/capsulechord/timbres/aguitar/aguitar.json");
+        if (t) sampler.SetTimbre(0x0, t);
+    }
 
     // I2Sの初期化
     if (audioOutput == AudioOutput::headphone) i2s_driver_uninstall(I2S_NUM_HP);

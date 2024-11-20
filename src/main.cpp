@@ -122,10 +122,10 @@ void setup() {
   Serial.println("Hello.");
 
   // Load settings
-  if(!settings.load()){
-    Serial.println("settings.json is not found in SD, so I'll try to create it.");
-    if(!settings.save()) Serial.println("Setting file creation failed.");
-  }
+  // if(!settings.load()){
+  //   Serial.println("settings.json is not found in SD, so I'll try to create it.");
+  //   if(!settings.save()) Serial.println("Setting file creation failed.");
+  // }
 
   // Get setting items
   scale = &((SettingItemScale*)settings.findSettingByKey(String("Scale")))->content;

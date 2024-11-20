@@ -60,25 +60,33 @@ private:
         piano_data, 24000, 60,
         21608, 21975,
         true, 1.0f, 0.998000f, 0.1f, 0.985000f};
-    Timbre piano = Timbre({{&pianoSample, 0, 127, 0, 127}});
+    std::shared_ptr<Timbre> piano = std::make_shared<Timbre>(std::vector<Timbre::MappedSample>{
+        {&pianoSample, 0, 127, 0, 127}
+    });
     // アコギティンバー
     struct Sample aguitarSample = Sample{
         aguitar_data, 96000, 60,
         83347, 83714,
         true, 1.0f, 0.9985f, 0.03f, 0.97f};
-    Timbre aguitar = Timbre({{&aguitarSample, 0, 127, 0, 127}});
+    std::shared_ptr<Timbre> aguitar = std::make_shared<Timbre>(std::vector<Timbre::MappedSample>{
+        {&aguitarSample, 0, 127, 0, 127}
+    });
     // ベースティンバー
     struct Sample bassSample = Sample{
         bass_data, 24000, 36,
         21714, 22448,
         true, 1.0f, 0.999000f, 0.25f, 0.970000f};
-    Timbre bass = Timbre({{&bassSample, 0, 127, 0, 127}});
+    std::shared_ptr<Timbre> bass = std::make_shared<Timbre>(std::vector<Timbre::MappedSample>{
+        {&bassSample, 0, 127, 0, 127}
+    });
     // エレピティンバー
     struct Sample epianoSample = Sample{
         epiano_data, 124800, 60,
         120048, 120415,
         true, 1.0f, 0.98f, 0.5f, 0.95f};
-    Timbre epiano = Timbre({{&epianoSample, 0, 127, 0, 127}});
+    std::shared_ptr<Timbre> epiano = std::make_shared<Timbre>(std::vector<Timbre::MappedSample>{
+        {&epianoSample, 0, 127, 0, 127}
+    });
     // ドラムティンバー
     struct Sample kickSample = Sample{
         kick_data, 11000, 36,
@@ -100,7 +108,7 @@ private:
         crash_data, 38000, 49,
         0, 0,
         false, 0, 0, 0, 0};
-    Timbre drumset = Timbre({
+    std::shared_ptr<Timbre> drumset = std::make_shared<Timbre>(std::vector<Timbre::MappedSample>{
         {&kickSample, 36, 36, 0, 127},
         {&rimknockSample, 37, 37, 0, 127},
         {&snareSample, 38, 38, 0, 127},
@@ -116,7 +124,7 @@ private:
         metronome_tick_bar_data, 7000, 25,
         0, 0,
         false, 1.0f, 1.0f, 1.0f, 1.0f};
-    Timbre system = Timbre({
+    std::shared_ptr<Timbre> system = std::make_shared<Timbre>(std::vector<Timbre::MappedSample>{
         {&metronomeTickSample, 24, 24, 0, 127},
         {&metronomeTickBarSample, 25, 25, 0, 127}
     });
