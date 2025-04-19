@@ -49,6 +49,9 @@ private:
                 TempoController::TICK_TIMING_QUARTER | 
                 TempoController::TICK_TIMING_EIGHTH;
         }
+    private:
+        void processItem(const DrumPatternItem &item);
+        bool shouldKnock = false; // 今回の処理の終わりでノックするかどうか
     };
     TempoCallbacks tempoCallbacks;
     bool isActive = false;

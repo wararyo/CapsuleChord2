@@ -162,15 +162,16 @@ const struct AppDrumPattern::DrumPatternItem pattern[] = {
 {1920,0x89,0x2A,0x40},
 };
 
-void process_item(const AppDrumPattern::DrumPatternItem &item, Context *context)
+void AppDrumPattern::TempoCallbacks::processItem(const AppDrumPattern::DrumPatternItem &item)
 {
     if ((item.status & 0xF0) == 0x90)
     {
-        context->pipeline->sendNote(true, item.data1, item.data2, item.status & 0x0F);
+        app->context->pipeline->sendNote(true, item.data1, item.data2, item.status & 0x0F);
+        shouldKnock = true;
     }
     else if ((item.status & 0xF0) == 0x80)
     {
-        context->pipeline->sendNote(false, item.data1, item.data2, item.status & 0x0F);
+        app->context->pipeline->sendNote(false, item.data1, item.data2, item.status & 0x0F);
     }
 }
 
@@ -183,14 +184,14 @@ void AppDrumPattern::TempoCallbacks::onTick(TempoController::tick_timing_t timin
         if (previousTime > 0) {
             for (const AppDrumPattern::DrumPatternItem &item : pattern)
             {
-                if (previousTime < item.time && item.time <= 1920) process_item(item, app->context);
+                if (previousTime < item.time && item.time <= 1920) processItem(item);
                 else if (item.time > 1920) break;
             }
         }
         // 小節頭のノートを発音する
         for (const AppDrumPattern::DrumPatternItem &item : pattern)
         {
-            if (item.time <= 0) process_item(item, app->context);
+            if (item.time <= 0) processItem(item);
             else if (item.time > 0) break;
         }
     }
@@ -199,7 +200,7 @@ void AppDrumPattern::TempoCallbacks::onTick(TempoController::tick_timing_t timin
         // previousTimeより後でcurrentTimeと同じかそれより前のノートを発音する
         for (const AppDrumPattern::DrumPatternItem &item : pattern)
         {
-            if (previousTime < item.time && item.time <= timeInBar) process_item(item, app->context);
+            if (previousTime < item.time && item.time <= timeInBar) processItem(item);
             else if (item.time > timeInBar) break;
         }
     }
@@ -208,6 +209,13 @@ void AppDrumPattern::TempoCallbacks::onTick(TempoController::tick_timing_t timin
     if (timing & TempoController::TICK_TIMING_QUARTER && app->isShowingGui && app->cursorRect != nullptr)
     {
         lv_obj_align(app->cursorRect, LV_ALIGN_BOTTOM_LEFT, (timeInBar / 120) * 14, 0);
+    }
+
+    // 必要ならノックを行う
+    if (shouldKnock)
+    {
+        app->context->knock(app);
+        shouldKnock = false;
     }
 
     app->previousTime = timeInBar;

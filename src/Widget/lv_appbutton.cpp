@@ -19,6 +19,7 @@ static void lv_appbutton_constructor(const lv_obj_class_t *class_p, lv_obj_t *ob
 static void lv_appbutton_destructor(const lv_obj_class_t *class_p, lv_obj_t *obj);
 static void lv_appbutton_event(const lv_obj_class_t *class_p, lv_event_t *e);
 static void draw_main(lv_event_t *e);
+static void knock_anim_cb(void *obj, int32_t value);
 
 /**********************
  *  STATIC VARIABLES
@@ -76,9 +77,39 @@ AppBase *lv_appbutton_get_app(lv_obj_t *obj)
     return appbutton->app;
 }
 
+/*=====================
+ * Animation functions
+ *====================*/
+
+void lv_appbutton_knock(lv_obj_t *obj)
+{
+    LV_ASSERT_OBJ(obj, MY_CLASS);
+    
+    lv_appbutton_t *appbutton = (lv_appbutton_t *)obj;
+    
+    // Start the knock animation
+    lv_anim_del(appbutton, knock_anim_cb);
+    lv_anim_t a;
+    lv_anim_init(&a);
+    lv_anim_set_var(&a, appbutton);
+    lv_anim_set_values(&a, 4, 2);  // Animate border width from 4px to 2px
+    lv_anim_set_time(&a, 300);     // Animation duration: 300ms
+    lv_anim_set_exec_cb(&a, knock_anim_cb);
+    lv_anim_set_path_cb(&a, lv_anim_path_ease_out);
+    lv_anim_start(&a);
+}
+
 /**********************
  *   STATIC FUNCTIONS
  **********************/
+
+// Animation callback for knock effect
+static void knock_anim_cb(void *obj, int32_t value)
+{
+    lv_appbutton_t *appbutton = (lv_appbutton_t *)obj;
+    appbutton->current_width = value;
+    lv_obj_invalidate(&appbutton->obj);
+}
 
 static void lv_appbutton_constructor(const lv_obj_class_t *class_p, lv_obj_t *obj)
 {
@@ -87,6 +118,7 @@ static void lv_appbutton_constructor(const lv_obj_class_t *class_p, lv_obj_t *ob
 
     lv_appbutton_t *appbutton = (lv_appbutton_t *)obj;
     appbutton->app = NULL;
+    appbutton->current_width = 2;  // Default border width
 
     // Style for the container
     lv_obj_set_style_bg_opa(obj, LV_OPA_TRANSP, 0);
@@ -148,9 +180,10 @@ static void draw_main(lv_event_t *e)
     // Draw the icon circle (border)
     lv_draw_arc_dsc_t arc_dsc;
     lv_draw_arc_dsc_init(&arc_dsc);
-    arc_dsc.width = 2;
+    arc_dsc.width = appbutton->current_width;  // Use the animated width
     arc_dsc.color = lv_color_white();
-    arc_dsc.opa = appbutton->app->getActive() ? LV_OPA_COVER : LV_OPA_50;
+    arc_dsc.opa = appbutton->app && appbutton->app->getActive() ? 
+                  LV_OPA_COVER : LV_OPA_50;
     lv_draw_arc(draw_ctx, &arc_dsc, &circle_center, circle_radius, 360, 0);
     
     // Draw app icon if available

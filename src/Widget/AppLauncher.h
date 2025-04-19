@@ -3,11 +3,15 @@
 #include <lvgl.h>
 #include <vector>
 #include "App/AppBase.h"
+#include "Context.h"
 
 // アプリ一覧画面
-class AppLauncher
+class AppLauncher : public Context::KnockListener
 {
 public:
+    AppLauncher();
+    ~AppLauncher();
+    
     void create();
     void del();
     void update();
@@ -15,6 +19,10 @@ public:
     {
         return isShown;
     }
+    
+    // KnockListener implementation
+    void onKnock(AppBase* app) override;
+
 private:
     struct AppIconClickEventData
     {
@@ -32,4 +40,7 @@ private:
     // アプリアイコンクリック時に使用するデータ
     // メモリリークを防ぐためにdeleteする必要がある
     std::vector<AppIconClickEventData *> eventDatas;
+    
+    // Find the button widget for a given app
+    lv_obj_t* findAppButton(AppBase* app);
 };

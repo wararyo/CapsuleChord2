@@ -39,6 +39,7 @@ private:
     {
     public:
         AppBass *app;
+        bool shouldKnock = false; // 今回の処理の終わりでノックするかどうか
         void onPlayingStateChanged(bool isPlaying) override
         {
             if (isPlaying) app->previousTime = Tempo.getMusicalTime();

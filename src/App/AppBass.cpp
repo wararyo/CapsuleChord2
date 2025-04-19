@@ -145,6 +145,7 @@ void AppBass::processItem(const AppBass::SequenceItem &item)
     {
         context->pipeline->sendNote(true, noteNo, item.data2, item.status & 0x0F);
         output.push_back(noteNo);
+        tempoCallbacks.shouldKnock = true;
     }
     else if ((item.status & 0xF0) == 0x80)
     {
@@ -186,6 +187,13 @@ void AppBass::TempoCallbacks::onTick(TempoController::tick_timing_t timing, musi
             if (previousTime < item.time && item.time <= timeInBar) app->processItem(item);
             else if (item.time > timeInBar) break;
         }
+    }
+
+    // 必要ならばノックを行う
+    if (shouldKnock)
+    {
+        app->context->knock(app);
+        shouldKnock = false;
     }
 
     app->previousTime = timeInBar;

@@ -3,8 +3,27 @@
 #include "App/AppManager.h"
 #include "lv_appbutton.h"
 
+// Constructor - Initialize and register as knock listener
+AppLauncher::AppLauncher() {
+}
+
+// Destructor - Clean up and unregister as knock listener
+AppLauncher::~AppLauncher() {
+    // Clean up any existing event data
+    for (AppIconClickEventData *eventData : eventDatas) {
+        delete eventData;
+    }
+    eventDatas.clear();
+}
+
 void AppLauncher::create()
 {
+    if (isShown) return;
+    Context *context = Context::getContext();
+    if (context != nullptr) {
+        context->addKnockListener(this);
+    }
+
     frame = lv_obj_create(lv_scr_act());
     lv_obj_set_size(frame, LvglWrapper::screenWidth, LvglWrapper::screenHeight);
     lv_obj_set_style_bg_color(frame, lv_color_black(), 0);
@@ -115,6 +134,13 @@ void AppLauncher::create()
 
 void AppLauncher::del()
 {
+    if (!isShown) return;
+
+    Context *context = Context::getContext();
+    if (context != nullptr) {
+        context->addKnockListener(this);
+    }
+
     lv_obj_del(frame);
     frame = nullptr;
     header = nullptr;
@@ -125,6 +151,33 @@ void AppLauncher::del()
     }
     eventDatas.clear();
     isShown = false;
+}
+
+// Find the button widget for a given app
+lv_obj_t* AppLauncher::findAppButton(AppBase* app) {
+    if (!grid_container || !app) return nullptr;
+    
+    for (uint16_t i = 0; i < lv_obj_get_child_cnt(grid_container); i++) {
+        lv_obj_t* button = lv_obj_get_child(grid_container, i);
+        if (lv_appbutton_get_app(button) == app) {
+            return button;
+        }
+    }
+    return nullptr;
+}
+
+// Handle knock event from an app
+void AppLauncher::onKnock(AppBase* app) {
+    // lv_appbutton_knock(lv_obj_get_child(grid_container, 0));
+    // If launcher is visible, trigger knock animation on the app button
+    if (isShown) {
+        // Find the app's button
+        lv_obj_t* button = findAppButton(app);
+        if (button) {
+            // Trigger knock animation
+            lv_appbutton_knock(button);
+        }
+    }
 }
 
 void AppLauncher::update()

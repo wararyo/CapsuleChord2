@@ -32,6 +32,10 @@ private:
         void onTick(TempoController::tick_timing_t timing, musical_time_t time) override
         {
             app->context->pipeline->sendNotes(true, {timing & TempoController::TICK_TIMING_BAR ? 25 : 24}, 64, 0xF);
+
+            if (app->isActive && app->context) {
+                app->context->knock(app);
+            }
         }
         TempoController::tick_timing_t getTimingMask() override
         {
