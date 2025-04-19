@@ -2,7 +2,6 @@
 
 #include "AppBase.h"
 #include "Tempo.h"
-#include "ChordPipeline.h"
 #include "Assets/Icons.h"
 
 class AppMetronome : public AppBase
@@ -23,6 +22,7 @@ private:
     class MetronomeSoundTempoCallback : public TempoController::TempoCallbacks
     {
     public:
+        AppMetronome *app;
         void onPlayingStateChanged(bool isPlaying) override
         {
         }
@@ -31,7 +31,7 @@ private:
         }
         void onTick(TempoController::tick_timing_t timing, musical_time_t time) override
         {
-            Pipeline.sendNotes(true, {timing & TempoController::TICK_TIMING_BAR ? 25 : 24}, 64, 0xF);
+            app->context->pipeline->sendNotes(true, {timing & TempoController::TICK_TIMING_BAR ? 25 : 24}, 64, 0xF);
         }
         TempoController::tick_timing_t getTimingMask() override
         {

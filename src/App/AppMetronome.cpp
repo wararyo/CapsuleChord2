@@ -44,6 +44,7 @@ void AppMetronome::update()
 void AppMetronome::onCreate()
 {
     isActive = false;
+    soundTempoCallbacks.app = this;
 }
 
 void AppMetronome::onActivate()

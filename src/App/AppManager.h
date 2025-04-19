@@ -7,6 +7,7 @@
 #include "AppSequencer.h"
 #include "AppBass.h"
 #include "AppSoundTest.h"
+#include "../Context.h"
 
 class AppManager
 {
@@ -17,6 +18,15 @@ public:
             app->onCreate();
         }
     }
+    
+    // Initialize context for all apps
+    void initContext(Context *context) {
+        for (AppBase *app : apps)
+        {
+            app->setContext(context);
+        }
+    }
+    
     const std::list<AppBase *> apps = {
         new AppMetronome(),
         new AppDrumPattern(),

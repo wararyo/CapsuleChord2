@@ -36,7 +36,7 @@ void CapsuleChordKeyMap::update() {
               c.calcInversion(*(uint8_t *)context->centerNoteNo);
               if(Keypad[Key_InversionUp].isPressed()) c.inversion++;
               if(Keypad[Key_InversionDown].isPressed()) c.inversion = c.inversion > 0 ? (c.inversion-1) : 0;
-              context->playChord(c);
+              context->pipeline->playChord(c);
             }
           } break;
           case 2: {// Other Keys Pressed
@@ -48,7 +48,7 @@ void CapsuleChordKeyMap::update() {
       case Key_State_Released:
         switch(event >> 4 & 0b111) {
           case 0: {
-            context->stopChord();
+            context->pipeline->stopChord();
           } break;
           case 2: {
             // if((event & 0b1111111) == Key_InversionUp) *(context->centerNoteNo) -= 4;

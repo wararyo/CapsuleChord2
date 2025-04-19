@@ -20,14 +20,14 @@ void AppBass::onActivate()
     isActive = true;
     previousTime = Tempo.getMusicalTime();
     Tempo.addListener(&tempoCallbacks);
-    Pipeline.addChordFilter(&chordFilter);
+    context->pipeline->addChordFilter(&chordFilter);
 }
 
 void AppBass::onDeactivate()
 {
     isActive = false;
     Tempo.removeListener(&tempoCallbacks);
-    Pipeline.removeChordFilter(&chordFilter);
+    context->pipeline->removeChordFilter(&chordFilter);
 }
 
 void AppBass::onShowGui(lv_obj_t *container)
@@ -50,12 +50,12 @@ void AppBass::onShowGui(lv_obj_t *container)
         {
             self->previousTime = Tempo.getMusicalTime();
             Tempo.addListener(&self->tempoCallbacks);
-            Pipeline.addChordFilter(&self->chordFilter);
+            self->context->pipeline->addChordFilter(&self->chordFilter);
         }
         else
         {
             Tempo.removeListener(&self->tempoCallbacks);
-            Pipeline.removeChordFilter(&self->chordFilter);
+            self->context->pipeline->removeChordFilter(&self->chordFilter);
         }
         self->updateUi();
     }, LV_EVENT_CLICKED, (void *)this);
@@ -89,7 +89,7 @@ void AppBass::ChordFilter::onChordOff()
     app->input.clear();
     for (uint8_t note : app->output)
     {
-        Pipeline.sendNote(false, note, 0, 0x1);
+        app->context->pipeline->sendNote(false, note, 0, 0x01);
     }
 }
 
@@ -143,12 +143,12 @@ void AppBass::processItem(const AppBass::SequenceItem &item)
 
     if ((item.status & 0xF0) == 0x90)
     {
-        Pipeline.sendNote(true, noteNo, item.data2, item.status & 0x0F);
+        context->pipeline->sendNote(true, noteNo, item.data2, item.status & 0x0F);
         output.push_back(noteNo);
     }
     else if ((item.status & 0xF0) == 0x80)
     {
-        Pipeline.sendNote(false, noteNo, item.data2, item.status & 0x0F);
+        context->pipeline->sendNote(false, noteNo, item.data2, item.status & 0x0F);
         output.remove(noteNo);
     }
 }

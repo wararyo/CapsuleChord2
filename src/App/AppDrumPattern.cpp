@@ -162,15 +162,15 @@ const struct AppDrumPattern::DrumPatternItem pattern[] = {
 {1920,0x89,0x2A,0x40},
 };
 
-void process_item(const AppDrumPattern::DrumPatternItem &item)
+void process_item(const AppDrumPattern::DrumPatternItem &item, Context *context)
 {
     if ((item.status & 0xF0) == 0x90)
     {
-        Pipeline.sendNote(true, item.data1, item.data2, item.status & 0x0F);
+        context->pipeline->sendNote(true, item.data1, item.data2, item.status & 0x0F);
     }
     else if ((item.status & 0xF0) == 0x80)
     {
-        Pipeline.sendNote(false, item.data1, item.data2, item.status & 0x0F);
+        context->pipeline->sendNote(false, item.data1, item.data2, item.status & 0x0F);
     }
 }
 
@@ -183,14 +183,14 @@ void AppDrumPattern::TempoCallbacks::onTick(TempoController::tick_timing_t timin
         if (previousTime > 0) {
             for (const AppDrumPattern::DrumPatternItem &item : pattern)
             {
-                if (previousTime < item.time && item.time <= 1920) process_item(item);
+                if (previousTime < item.time && item.time <= 1920) process_item(item, app->context);
                 else if (item.time > 1920) break;
             }
         }
         // 小節頭のノートを発音する
         for (const AppDrumPattern::DrumPatternItem &item : pattern)
         {
-            if (item.time <= 0) process_item(item);
+            if (item.time <= 0) process_item(item, app->context);
             else if (item.time > 0) break;
         }
     }
@@ -199,7 +199,7 @@ void AppDrumPattern::TempoCallbacks::onTick(TempoController::tick_timing_t timin
         // previousTimeより後でcurrentTimeと同じかそれより前のノートを発音する
         for (const AppDrumPattern::DrumPatternItem &item : pattern)
         {
-            if (previousTime < item.time && item.time <= timeInBar) process_item(item);
+            if (previousTime < item.time && item.time <= timeInBar) process_item(item, app->context);
             else if (item.time > timeInBar) break;
         }
     }

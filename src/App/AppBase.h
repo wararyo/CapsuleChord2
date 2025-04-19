@@ -1,6 +1,7 @@
 #pragma once
 
 #include <lvgl.h>
+#include "../Context.h" // Add Context include
 
 // アプリの基底クラス
 class AppBase
@@ -18,6 +19,9 @@ public:
 
     // アプリがバックグラウンド動作を行っているか
     virtual bool getActive() = 0;
+
+    // コンテキストを設定する
+    void setContext(Context *context) { this->context = context; }
 
     // アプリを初めて起動したとき
     virtual void onCreate() = 0;
@@ -41,4 +45,7 @@ public:
 
     // アプリの終了処理
     virtual void onDestroy() = 0;
+
+protected:
+    Context *context = nullptr; // All apps can access context through this pointer
 };

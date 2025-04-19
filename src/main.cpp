@@ -139,11 +139,11 @@ void setup() {
   }
 
   // Make Context
-  context = Context(&settings);
-  context.playChord = [](Chord chord) { Pipeline.playChord(chord); };
-  context.stopChord = []() { Pipeline.stopChord(); };
-  context.sendNotes = [](bool isNoteOn, std::vector<uint8_t> notes, int vel) { Pipeline.sendNotes(isNoteOn, notes, vel); };
+  context = Context(&settings, &Pipeline);
   Context::setContext(&context);
+  
+  // Initialize context in all apps
+  App.initContext(&context);
 
   // Keymap initialization
   currentKeyMap = KeyMap::getAvailableKeyMaps()[0].get();
