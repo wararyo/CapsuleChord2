@@ -47,7 +47,7 @@ public:
         speaker
     };
 
-    float masterVolume = 0.25f;
+    float masterVolume = 0.3f;
 
     void begin(AudioOutput output);
     void NoteOn(uint8_t noteNo, uint8_t velocity, uint8_t channel);

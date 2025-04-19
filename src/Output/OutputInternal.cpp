@@ -68,6 +68,9 @@ void OutputInternal::begin(AudioOutput output)
     //     if (t) sampler.SetTimbre(0x0, t);
     // }
 
+    // サンプラーの設定
+    sampler.masterVolume = masterVolume;
+
     // I2Sの初期化
     if (audioOutput == AudioOutput::headphone) i2s_driver_uninstall(I2S_NUM_HP);
     else i2s_driver_uninstall(I2S_NUM_SPK);
@@ -80,7 +83,7 @@ void OutputInternal::begin(AudioOutput output)
         .mode = (i2s_mode_t)(I2S_MODE_MASTER),
         .sample_rate = SAMPLE_RATE,
         .bits_per_sample = I2S_BITS_PER_SAMPLE_16BIT,
-        .channel_format = I2S_CHANNEL_FMT_ONLY_RIGHT,
+        .channel_format = I2S_CHANNEL_FMT_ONLY_LEFT,
         .communication_format = I2S_COMM_FORMAT_I2S,
         .intr_alloc_flags = ESP_INTR_FLAG_LEVEL1,
         .dma_buf_count = 8,

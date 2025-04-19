@@ -86,7 +86,7 @@ public:
 private:
     bool isPlaying = false;
     portMUX_TYPE mutex = portMUX_INITIALIZER_UNLOCKED;
-    tempo_t tempo = 120;
+    tempo_t tempo = 110;
     // beat = BEAT_4_4;
     std::list<TempoCallbacks *> listeners;
     TimerHandle_t timer = nullptr;
