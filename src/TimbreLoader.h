@@ -23,7 +23,7 @@ using namespace capsule::sampler;
  *         "loop-start": "ループ開始位置",
  *         "loop-end": "ループ終了位置",
  *         "adsr-enabled": "ADSR有効/無効",
- *         "attach": "アタック",
+ *         "attack": "アタック",
  *         "decay": "ディケイ",
  *         "sustain": "サスティン",
  *         "release": "リリース"

@@ -50,9 +50,9 @@ void LvglWrapper::begin()
     //                                        true,                                                                   /*Light or dark mode*/
     //                                        &genshin_16);
     // lv_disp_set_theme(disp, th);
-    lv_style_init(&style);
-    lv_style_set_bg_color(&style, lv_color_black());
-    lv_obj_add_style(lv_scr_act(), &style, 0);
+    lv_style_init(&scr_style);
+    lv_style_set_bg_color(&scr_style, lv_color_black());
+    lv_obj_add_style(lv_scr_act(), &scr_style, 0);
     lv_obj_clear_flag(lv_scr_act(), LV_OBJ_FLAG_SCROLLABLE);
 }
 
