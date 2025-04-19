@@ -1,6 +1,7 @@
 #pragma once
 
 #include <list>
+#include <memory>
 
 #include "AppBase.h"
 #include "Tempo.h"
@@ -49,9 +50,7 @@ private:
         {
             return TempoController::TICK_TIMING_BAR |
                 TempoController::TICK_TIMING_FULL |
-                TempoController::TICK_TIMING_FULL_TRIPLET |
                 TempoController::TICK_TIMING_HALF |
-                TempoController::TICK_TIMING_HALF_TRIPLET |
                 TempoController::TICK_TIMING_QUARTER | 
                 TempoController::TICK_TIMING_EIGHTH;
         }
@@ -75,6 +74,7 @@ private:
     uint8_t inputProcessed[12] = {60};
     std::list<uint8_t> output; // 出力した発音中のノート
     portMUX_TYPE mutex = portMUX_INITIALIZER_UNLOCKED;
+    std::shared_ptr<std::list<SequenceItem>> currentSequence;
 
     void updateUi();
     void updatePlayingNotes();

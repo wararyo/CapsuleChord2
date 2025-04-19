@@ -1,6 +1,5 @@
 #include "OutputInternal.h"
 #include "TimbreLoader.h"
-#include "SD.h"
 
 void OutputInternal::NoteOn(uint8_t noteNo, uint8_t velocity, uint8_t channel)
 {
@@ -56,18 +55,18 @@ void OutputInternal::begin(AudioOutput output)
     if(audioLoopHandler != nullptr) vTaskDelete(audioLoopHandler);
     audioLoopHandler = nullptr;
 
-    sampler.SetTimbre(0x0, piano);
+    sampler.SetTimbre(0x0, aguitar);
     sampler.SetTimbre(0x1, bass);
     sampler.SetTimbre(0x3, epiano);
     sampler.SetTimbre(0x9, drumset);
     sampler.SetTimbre(0xF, system);
 
     // SDカードに音色があればそれを使う
-    if (SD.begin(GPIO_NUM_4, SPI, 15000000)) {
-        std::shared_ptr<Timbre> t;
-        t = Loader.loadTimbre(SD, "/capsulechord/timbres/aguitar/aguitar.json");
-        if (t) sampler.SetTimbre(0x0, t);
-    }
+    // if (SD.begin(GPIO_NUM_4, SPI, 15000000)) {
+    //     std::shared_ptr<Timbre> t;
+    //     t = Loader.loadTimbre(SD, "/capsulechord/timbres/aguitar/aguitar.json");
+    //     if (t) sampler.SetTimbre(0x0, t);
+    // }
 
     // I2Sの初期化
     if (audioOutput == AudioOutput::headphone) i2s_driver_uninstall(I2S_NUM_HP);
@@ -164,4 +163,24 @@ void OutputInternal::terminate()
         audioLoopHandler = nullptr;
     }
     enableCore0WDT();
+}
+
+void OutputInternal::loadPiano()
+{
+    sampler.SetTimbre(0x0, piano);
+}
+
+void OutputInternal::loadAGuitar()
+{
+    sampler.SetTimbre(0x0, aguitar);
+}
+
+void OutputInternal::loadEPiano()
+{
+    sampler.SetTimbre(0x0, epiano);
+}
+
+void OutputInternal::loadSuperSaw()
+{
+    sampler.SetTimbre(0x0, supersaw);
 }

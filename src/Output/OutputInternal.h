@@ -28,6 +28,7 @@ extern const int16_t piano_data[24000];
 extern const int16_t aguitar_data[96000];
 extern const int16_t bass_data[24000];
 extern const int16_t epiano_data[124800];
+extern const int16_t supersaw_data[30000];
 extern const int16_t kick_data[12000];
 extern const int16_t rimknock_data[10000];
 extern const int16_t snare_data[12000];
@@ -53,6 +54,10 @@ public:
     void NoteOff(uint8_t noteNo, uint8_t velocity, uint8_t channel);
     void PitchBend(int16_t pitchBend, uint8_t channel);
     void terminate();
+    void loadPiano();
+    void loadAGuitar();
+    void loadEPiano();
+    void loadSuperSaw();
 
 private:
     // ピアノティンバー
@@ -86,6 +91,14 @@ private:
         true, 1.0f, 0.98f, 0.5f, 0.95f};
     std::shared_ptr<Timbre> epiano = std::make_shared<Timbre>(std::vector<Timbre::MappedSample>{
         {&epianoSample, 0, 127, 0, 127}
+    });
+    // スパソティンバー
+    struct Sample supersawSample = Sample{
+        supersaw_data, 30000, 60,
+        23979, 25263,
+        true, 1.0f, 0.982f, 0.8, 0.9f};
+    std::shared_ptr<Timbre> supersaw = std::make_shared<Timbre>(std::vector<Timbre::MappedSample>{
+        {&supersawSample, 0, 127, 0, 127}
     });
     // ドラムティンバー
     struct Sample kickSample = Sample{
