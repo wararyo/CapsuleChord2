@@ -1,7 +1,7 @@
 #include "AppLauncher.h"
 #include "LvglWrapper.h"
 #include "App/AppManager.h"
-#include "Assets/Icons.h"
+#include "lv_appbutton.h"
 
 void AppLauncher::create()
 {
@@ -61,50 +61,13 @@ void AppLauncher::create()
     // アプリ一覧
     for (AppBase *app : App.apps)
     {
-        // コンテナ
-        lv_obj_t *app_container = lv_obj_create(grid_container);
-        lv_obj_set_size(app_container, 112, 104);
-        lv_obj_set_style_bg_opa(app_container, LV_OPA_TRANSP, 0);
-        lv_obj_set_style_border_width(app_container, 0, 0);
-        lv_obj_set_style_pad_all(app_container, 0, 0);
-        lv_obj_clear_flag(app_container, LV_OBJ_FLAG_SCROLLABLE);
-        lv_obj_add_flag(app_container, LV_OBJ_FLAG_CLICKABLE);
+        lv_obj_t *app_button = lv_appbutton_create(grid_container);
+        lv_appbutton_set_app(app_button, app);
         
-        // アイコン枠
-        lv_obj_t *icon_circle = lv_obj_create(app_container);
-        lv_obj_set_size(icon_circle, 56, 56);
-        lv_obj_align(icon_circle, LV_ALIGN_TOP_MID, 0, 8);
-        lv_obj_set_style_radius(icon_circle, 28, 0);
-        lv_obj_set_style_bg_opa(icon_circle, LV_OPA_TRANSP, 0);
-        lv_obj_set_style_border_width(icon_circle, 2, 0);
-        lv_obj_set_style_border_color(icon_circle, lv_color_white(), 0);
-        lv_obj_clear_flag(icon_circle, LV_OBJ_FLAG_SCROLLABLE);
-        lv_obj_add_flag(icon_circle, LV_OBJ_FLAG_CLICKABLE);
-        lv_obj_add_flag(icon_circle, LV_OBJ_FLAG_EVENT_BUBBLE);
-        
-        // アイコン画像
-        lv_img_dsc_t *icon = app->getIcon();
-        if (icon) {
-            // アイコン画像がある場合、画像を表示
-            lv_obj_t *icon_img = lv_img_create(icon_circle);
-            lv_img_set_src(icon_img, icon);
-            lv_obj_set_style_img_recolor(icon_img, lv_color_white(), 0);
-            lv_obj_set_style_img_recolor_opa(icon_img, LV_OPA_COVER, 0);
-            lv_obj_center(icon_img);
-        }
-
-        // アプリ名ラベル
-        lv_obj_t *label = lv_label_create(app_container);
-        lv_label_set_text(label, app->getAppName());
-        lv_obj_set_style_text_align(label, LV_TEXT_ALIGN_CENTER, 0);
-        lv_obj_set_width(label, 120);
-        lv_obj_align(label, LV_ALIGN_BOTTOM_MID, 0, -12);
-
-        // イベントハンドラを設定（アプリのクリックなど）
         AppIconClickEventData *eventData = new AppIconClickEventData{this, app, 0, {0, 0}, {0, 0}};
         eventDatas.push_back(eventData);
         
-        lv_obj_add_event_cb(app_container, [](lv_event_t *e)
+        lv_obj_add_event_cb(app_button, [](lv_event_t *e)
         {
             auto data = (AppIconClickEventData *)lv_event_get_user_data(e);
             // スクロール中はプレスイベントを無視
@@ -116,7 +79,7 @@ void AppLauncher::create()
             }
         }, LV_EVENT_PRESSED, (void *)eventData);
         
-        lv_obj_add_event_cb(app_container, [](lv_event_t *e)
+        lv_obj_add_event_cb(app_button, [](lv_event_t *e)
         {
             auto data = (AppIconClickEventData *)lv_event_get_user_data(e);
             // スクロール中はリリースイベントを無視
@@ -126,6 +89,8 @@ void AppLauncher::create()
                 {
                     if (data->app->getActive()) data->app->onDeactivate();
                     else data->app->onActivate();
+
+                    lv_obj_invalidate(lv_event_get_target(e));
                 }
                 else
                 {
@@ -164,4 +129,17 @@ void AppLauncher::del()
 
 void AppLauncher::update()
 {
+    // アプリの状態の更新が必要であれば、ここで行う
+    if (grid_container) {
+        // すべてのapp_buttonの状態を更新
+        for (uint16_t i = 0; i < lv_obj_get_child_cnt(grid_container); i++) {
+            lv_obj_t *app_button = lv_obj_get_child(grid_container, i);
+            if (app_button) {
+                AppBase *app = lv_appbutton_get_app(app_button);
+                if (app) {
+                    lv_obj_invalidate(app_button);
+                }
+            }
+        }
+    }
 }
