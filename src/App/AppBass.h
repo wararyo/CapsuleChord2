@@ -5,6 +5,7 @@
 #include "AppBase.h"
 #include "Tempo.h"
 #include "ChordPipeline.h"
+#include "Assets/Icons.h"
 
 class AppBass : public AppBase
 {
@@ -21,6 +22,7 @@ public:
         uint8_t data2;
     };
     char *getAppName() { return "ベース"; }
+    lv_img_dsc_t *getIcon() override { return (lv_img_dsc_t *)&app_bass; }
     bool runsInBackground() { return true; }
 
     bool getActive() { return isActive; }

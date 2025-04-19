@@ -3,6 +3,7 @@
 #include "AppBase.h"
 #include "Tempo.h"
 #include "ChordPipeline.h"
+#include "Assets/Icons.h"
 
 class AppDrumPattern : public AppBase
 {
@@ -15,6 +16,7 @@ public:
         uint8_t data2;
     };
     char *getAppName() { return "ドラム"; }
+    lv_img_dsc_t *getIcon() override { return (lv_img_dsc_t *)&app_drum; }
     bool runsInBackground() { return true; }
 
     bool getActive() { return isActive; }

@@ -6,6 +6,7 @@
 #include "AppBase.h"
 #include "Tempo.h"
 #include "ChordPipeline.h"
+#include "Assets/Icons.h"
 
 class AppSequencer : public AppBase
 {
@@ -22,6 +23,7 @@ public:
         uint8_t data2;
     };
     char *getAppName() { return "シーケンサー"; }
+    lv_img_dsc_t *getIcon() override { return (lv_img_dsc_t *)&app_sequencer; }
     bool runsInBackground() { return true; }
 
     bool getActive() { return isActive; }

@@ -3,11 +3,13 @@
 #include "AppBase.h"
 #include "Tempo.h"
 #include "ChordPipeline.h"
+#include "Assets/Icons.h"
 
 class AppMetronome : public AppBase
 {
 public:
     char *getAppName() { return "メトロノーム"; }
+    lv_img_dsc_t *getIcon() override { return (lv_img_dsc_t *)&app_metronome; }
     bool runsInBackground() { return true; }
 
     bool getActive() { return isActive; }

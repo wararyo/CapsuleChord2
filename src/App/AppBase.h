@@ -9,6 +9,9 @@ public:
     // アプリ名
     virtual char *getAppName() { return ""; }
 
+    // アプリアイコン
+    virtual lv_img_dsc_t *getIcon() { return nullptr; }
+
     // バックグラウンドで動作するかどうか
     // Tempo等のコールバックをバックグラウンドでフックするアプリはtrueを返す必要がある
     virtual bool runsInBackground() { return false; }
