@@ -167,8 +167,8 @@ void setup() {
 
   // LVGLウィジェットの初期化
   tickframe = lv_tickframe_create(lv_scr_act());
-  lv_obj_set_size(tickframe, 70, 26);
-  lv_obj_align(tickframe, LV_ALIGN_TOP_RIGHT, -4, 28);
+  lv_obj_set_size(tickframe, 240, 320);
+  lv_obj_align(tickframe, LV_ALIGN_TOP_LEFT, 0, 0);
   lv_obj_clear_flag(tickframe, LV_OBJ_FLAG_CLICKABLE);
   chordlabel = lv_chordlabel_create(lv_scr_act());
   lv_chordlabel_set_chord(chordlabel, Chord());

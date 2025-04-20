@@ -109,11 +109,10 @@ static void anim_opa_cb(void *obj, int32_t v)
     frame->current_opacity = v;
     // 再描画領域を更新
     // lv_obj_invalidateを使うと全画面を更新してしまうので、_areaで周辺部のみを再描画する
-    lv_obj_invalidate((lv_obj_t *)frame);
-    // lv_obj_invalidate_area((lv_obj_t *)frame, &frame->invalidatearea[0]);
-    // lv_obj_invalidate_area((lv_obj_t *)frame, &frame->invalidatearea[1]);
-    // lv_obj_invalidate_area((lv_obj_t *)frame, &frame->invalidatearea[2]);
-    // lv_obj_invalidate_area((lv_obj_t *)frame, &frame->invalidatearea[3]);
+    lv_obj_invalidate_area((lv_obj_t *)frame, &frame->invalidatearea[0]);
+    lv_obj_invalidate_area((lv_obj_t *)frame, &frame->invalidatearea[1]);
+    lv_obj_invalidate_area((lv_obj_t *)frame, &frame->invalidatearea[2]);
+    lv_obj_invalidate_area((lv_obj_t *)frame, &frame->invalidatearea[3]);
 }
 
 static void lv_tickframe_event(const lv_obj_class_t *class_p, lv_event_t *e)
