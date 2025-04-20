@@ -35,6 +35,9 @@ lv_obj_t *battery;
 lv_obj_t *scale_label;
 lv_obj_t *tempo_label;
 lv_obj_t *tickframe;
+lv_obj_t *btn_label_left;   // Label for left button (Key-)
+lv_obj_t *btn_label_center; // Label for center button (Apps)
+lv_obj_t *btn_label_right;  // Label for right button (Key+)
 TempoDialog tempoDialog;
 AppLauncher appLauncher;
 
@@ -121,8 +124,7 @@ void setup() {
   M5.Display.setRotation(M5.Display.getRotation() ^ 1);
   Lvgl.begin();
 
-  BtnHome.setHoldThresh(1000);
-  BtnMenu.setHoldThresh(1000);
+  BtnHome.setHoldThresh(3000);
   Keypad.begin();
 
   Serial.begin(115200);
@@ -189,6 +191,19 @@ void setup() {
       tempoDialog.create();
   }, LV_EVENT_CLICKED, NULL);
 
+  // ボタン操作説明用ラベルの初期化
+  btn_label_left = lv_label_create(lv_scr_act());
+  lv_label_set_text(btn_label_left, "Key-");
+  lv_obj_align(btn_label_left, LV_ALIGN_BOTTOM_MID, -80, -8);
+
+  btn_label_center = lv_label_create(lv_scr_act());
+  lv_label_set_text(btn_label_center, "Apps");
+  lv_obj_align(btn_label_center, LV_ALIGN_BOTTOM_MID, 0, -8);
+
+  btn_label_right = lv_label_create(lv_scr_act());
+  lv_label_set_text(btn_label_right, "Key+");
+  lv_obj_align(btn_label_right, LV_ALIGN_BOTTOM_MID, 80, -8);
+
   // コードが鳴ったときにコード名を表示する
   Pipeline.addChordFilter(new MainChordFilter());
   // テンポが変更されたときに表示を更新する
@@ -214,19 +229,19 @@ void loop()
     else scale->key = 11;
     update_scale();
   }
-  if (BtnHome.wasPressed())
-  {
-    Output.Internal.NoteOn(60 + scale->key, 100, 0);
-  }
-  else if (BtnHome.wasReleased())
-  {
-    Output.Internal.NoteOff(60 + scale->key, 0, 0);
-  }
   if (BtnMenu.wasPressed())
   {
     if(scale->key < 11) scale->key++;
     else scale->key = 0;
     update_scale();
+  }
+  if (BtnBack.wasPressed() || BtnMenu.wasPressed())
+  {
+    Output.Internal.NoteOn(60 + scale->key, 100, 0);
+  }
+  else if (BtnBack.wasReleased() || BtnMenu.wasReleased())
+  {
+    Output.Internal.NoteOff(60 + scale->key, 0, 0);
   }
 
   Keypad.update();
