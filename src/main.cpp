@@ -125,6 +125,7 @@ void setup() {
   BtnMenu.setHoldThresh(1000);
   Keypad.begin();
 
+  Serial.begin(115200);
   Serial.println("Hello.");
 
   // Load settings
@@ -198,36 +199,38 @@ void setup() {
   update_tempo();
 }
 
-void loop() {
+void loop()
+{
   M5.update();
+  
   unsigned long ms = millis();
   BtnBack.setRawState(ms, digitalRead(GPIO_NUM_BACK) == 0);
   BtnHome.setRawState(ms, digitalRead(GPIO_NUM_HOME) == 0);
   BtnMenu.setRawState(ms, digitalRead(GPIO_NUM_MENU) == 0);
 
-    if (BtnBack.wasPressed())
-    {
-      if(scale->key > 0) scale->key--;
-      else scale->key = 11;
-      update_scale();
-    }
-    if (BtnHome.wasPressed())
-    {
-      Output.Internal.NoteOn(60 + scale->key, 100, 0);
-    }
-    else if (BtnHome.wasReleased())
-    {
-      Output.Internal.NoteOff(60 + scale->key, 0, 0);
-    }
-    if (BtnMenu.wasPressed())
-    {
-      if(scale->key < 11) scale->key++;
-      else scale->key = 0;
-      update_scale();
-    }
+  if (BtnBack.wasPressed())
+  {
+    if(scale->key > 0) scale->key--;
+    else scale->key = 11;
+    update_scale();
+  }
+  if (BtnHome.wasPressed())
+  {
+    Output.Internal.NoteOn(60 + scale->key, 100, 0);
+  }
+  else if (BtnHome.wasReleased())
+  {
+    Output.Internal.NoteOff(60 + scale->key, 0, 0);
+  }
+  if (BtnMenu.wasPressed())
+  {
+    if(scale->key < 11) scale->key++;
+    else scale->key = 0;
+    update_scale();
+  }
 
-    Keypad.update();
-    currentKeyMap->update();
+  Keypad.update();
+  currentKeyMap->update();
 
   // ヘッドフォン抜き差し
   static bool isHeadphonePreviously = digitalRead(GPIO_NUM_18);
