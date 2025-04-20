@@ -162,6 +162,16 @@ const struct AppDrumPattern::DrumPatternItem pattern[] = {
 {1920,0x89,0x2A,0x40},
 };
 
+void AppDrumPattern::onUpdateGui()
+{
+    // カーソル移動
+    if (needsCursorUpdate && isShowingGui && cursorRect != nullptr)
+    {
+        lv_obj_align(cursorRect, LV_ALIGN_BOTTOM_LEFT, (cursorTimeInBar / 120) * 14, 0);
+        needsCursorUpdate = false;
+    }
+}
+
 void AppDrumPattern::TempoCallbacks::processItem(const AppDrumPattern::DrumPatternItem &item)
 {
     if ((item.status & 0xF0) == 0x90)
@@ -205,10 +215,11 @@ void AppDrumPattern::TempoCallbacks::onTick(TempoController::tick_timing_t timin
         }
     }
 
-    // UIのカーソルを更新
-    if (timing & TempoController::TICK_TIMING_QUARTER && app->isShowingGui && app->cursorRect != nullptr)
+    // UIのカーソルを更新するためのフラグを設定
+    if (timing & TempoController::TICK_TIMING_QUARTER && app->isShowingGui)
     {
-        lv_obj_align(app->cursorRect, LV_ALIGN_BOTTOM_LEFT, (timeInBar / 120) * 14, 0);
+        app->needsCursorUpdate = true;
+        app->cursorTimeInBar = timeInBar;
     }
 
     // 必要ならノックを行う

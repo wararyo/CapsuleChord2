@@ -135,6 +135,7 @@ static void lv_appbutton_destructor(const lv_obj_class_t *class_p, lv_obj_t *obj
     LV_UNUSED(class_p);
     LV_TRACE_OBJ_CREATE("begin");
     // No additional cleanup needed
+    lv_anim_del(obj, knock_anim_cb);
     LV_TRACE_OBJ_CREATE("finished");
 }
 

@@ -168,31 +168,23 @@ lv_obj_t* AppLauncher::findAppButton(AppBase* app) {
 
 // Handle knock event from an app
 void AppLauncher::onKnock(AppBase* app) {
-    // lv_appbutton_knock(lv_obj_get_child(grid_container, 0));
-    // If launcher is visible, trigger knock animation on the app button
-    if (isShown) {
-        // Find the app's button
-        lv_obj_t* button = findAppButton(app);
-        if (button) {
-            // Trigger knock animation
-            lv_appbutton_knock(button);
-        }
+    if (isShown && app) {
+        needsKnockAnimation = true;
+        appsToKnock.insert(app);
     }
 }
 
 void AppLauncher::update()
 {
-    // アプリの状態の更新が必要であれば、ここで行う
-    if (grid_container) {
-        // すべてのapp_buttonの状態を更新
-        for (uint16_t i = 0; i < lv_obj_get_child_cnt(grid_container); i++) {
-            lv_obj_t *app_button = lv_obj_get_child(grid_container, i);
-            if (app_button) {
-                AppBase *app = lv_appbutton_get_app(app_button);
-                if (app) {
-                    lv_obj_invalidate(app_button);
-                }
+    // ノック待機中のアプリがある場合、アニメーションを実行
+    if (needsKnockAnimation && !appsToKnock.empty()) {
+        for (AppBase* app : appsToKnock) {
+            lv_obj_t* button = findAppButton(app);
+            if (button) {
+                lv_appbutton_knock(button);
             }
         }
+        appsToKnock.clear();
+        needsKnockAnimation = false;
     }
 }

@@ -17,6 +17,7 @@
  *  STATIC PROTOTYPES
  **********************/
 static void lv_tickframe_constructor(const lv_obj_class_t *class_p, lv_obj_t *obj);
+static void lv_tickframe_destructor(const lv_obj_class_t *class_p, lv_obj_t *obj);
 static void lv_tickframe_event(const lv_obj_class_t *class_p, lv_event_t *e);
 static void anim_opa_cb(void *obj, int32_t v);
 
@@ -26,6 +27,7 @@ static void anim_opa_cb(void *obj, int32_t v);
 const lv_obj_class_t lv_tickframe_class = {
     .base_class = &lv_obj_class,
     .constructor_cb = lv_tickframe_constructor,
+    .destructor_cb = lv_tickframe_destructor,
     .event_cb = lv_tickframe_event,
     .width_def = LV_SIZE_CONTENT,
     .height_def = LV_SIZE_CONTENT,
@@ -59,6 +61,7 @@ void lv_tickframe_tick(lv_obj_t *obj, bool bar)
     lv_tickframe_t *frame = (lv_tickframe_t *)obj;
 
     frame->is_bar = bar;
+    lv_anim_del(frame, anim_opa_cb);
     lv_anim_t a;
     lv_anim_init(&a);
     lv_anim_set_var(&a, frame);
@@ -89,6 +92,14 @@ static void lv_tickframe_constructor(const lv_obj_class_t *class_p, lv_obj_t *ob
     lv_obj_clear_flag(obj, LV_OBJ_FLAG_CLICKABLE);
 
     LV_TRACE_OBJ_CREATE("finished");
+}
+
+static void lv_tickframe_destructor(const lv_obj_class_t *class_p, lv_obj_t *obj)
+{
+    LV_UNUSED(class_p);
+    LV_TRACE_OBJ_CREATE("begin");
+
+    lv_anim_del(obj, anim_opa_cb);
 }
 
 static void anim_opa_cb(void *obj, int32_t v)

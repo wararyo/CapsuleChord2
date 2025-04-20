@@ -25,7 +25,9 @@ public:
     void onDeactivate() override;
     void onShowGui(lv_obj_t *container) override;
     void onHideGui() override;
-    void onDestroy() override;
+    void onDestroy() override;    
+    void onUpdateGui() override;
+
 private:
     class TempoCallbacks : public TempoController::TempoCallbacks
     {
@@ -61,6 +63,10 @@ private:
     lv_obj_t *switchButton;
     lv_obj_t *patternContainer;
     lv_obj_t *cursorRect;
+
+    // UI update flags
+    bool needsCursorUpdate = false;
+    musical_time_t cursorTimeInBar = 0;
 
     void update();
 };

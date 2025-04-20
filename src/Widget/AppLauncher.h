@@ -2,6 +2,7 @@
 
 #include <lvgl.h>
 #include <vector>
+#include <set>
 #include "App/AppBase.h"
 #include "Context.h"
 
@@ -41,6 +42,10 @@ private:
     // メモリリークを防ぐためにdeleteする必要がある
     std::vector<AppIconClickEventData *> eventDatas;
     
+    // Use a set instead of a vector to automatically handle duplicates
+    bool needsKnockAnimation = false;
+    std::set<AppBase*> appsToKnock;
+
     // Find the button widget for a given app
     lv_obj_t* findAppButton(AppBase* app);
 };

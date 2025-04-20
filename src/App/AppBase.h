@@ -45,6 +45,11 @@ public:
 
     // アプリの終了処理
     virtual void onDestroy() = 0;
+    
+    // メインループでUIを安全に更新するための処理
+    // このメソッドはタイマーコールバックやイベントリスナー内でUIを
+    // 直接更新せず、フラグを設定して後でこのメソッドで安全に更新するために使う
+    virtual void onUpdateGui() {}
 
 protected:
     Context *context = nullptr; // All apps can access context through this pointer

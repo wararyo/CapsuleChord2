@@ -80,6 +80,10 @@ void update_tempo() {
   lv_label_set_text(tempo_label, text);
 }
 
+// TickFrameの更新フラグ
+bool needsTickUpdate = false;
+TempoController::tick_timing_t lastTickTiming = 0;
+
 class MainTempoCallbacks: public TempoController::TempoCallbacks {
     void onPlayingStateChanged(bool isPlaying) override
     {
@@ -88,7 +92,9 @@ class MainTempoCallbacks: public TempoController::TempoCallbacks {
       update_tempo();
     }
     void onTick(TempoController::tick_timing_t timing, musical_time_t time) override {
-      lv_tickframe_tick(tickframe, timing & TempoController::TICK_TIMING_BAR);
+      // TickFrameの更新フラグをセット
+      needsTickUpdate = true;
+      lastTickTiming = timing;
     }
     TempoController::tick_timing_t getTimingMask() override {
       return TempoController::TICK_TIMING_BAR | TempoController::TICK_TIMING_FULL;
@@ -265,7 +271,20 @@ void loop() {
     }
   }
 
-  lv_timer_handler();
-  while(millis() - lastLoopMillis < 17); // Keep 60fps
+  // UI更新
+  if (appLauncher.getShown()) {
+    appLauncher.update();
+  }
+  AppBase* currentApp = App.getCurrentApp();
+  if (currentApp != nullptr) {
+    currentApp->onUpdateGui();
+  }
+  if (needsTickUpdate) {
+    lv_tickframe_tick(tickframe, lastTickTiming & TempoController::TICK_TIMING_BAR);
+    needsTickUpdate = false;
+  }
+  lv_task_handler();
+
+  while(millis() - lastLoopMillis < 5);
   lastLoopMillis = millis();
 }
