@@ -75,6 +75,10 @@ public:
         archive("Option",option);
         archive.popNest();
     }
+    // コードのオプション部分のみを文字列化する
+    // toString内で使用
+    // DegreeChord::toStringでも使用する
+    static String formatChordOptions(uint16_t option);
 
 protected:
     float getScore(uint8_t centerNoteNo);

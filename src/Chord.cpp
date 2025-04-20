@@ -17,13 +17,90 @@ Chord::Chord(uint8_t root, uint16_t option, uint8_t inversion, uint8_t octave)
 : root(root) , option(option), inversion(inversion), octave(octave) {}
 
 String Chord::toString() {
+    String str = rootStrings[root];
+    str += formatChordOptions(option);
+    return str;
+}
+
+String Chord::formatChordOptions(uint16_t option) {
     String str = "";
-    str += rootStrings[root];
-    for(auto item : optionStrings) {
-        if(option & item.first) {
-            str += item.second;
-        }
+    
+    // 3度
+    if(option & Sus4) {
+        str += "sus4";
+    } else if(option & Sus2) {
+        str += "sus2";
+    } else if(option & Dimish) {
+        str += "dim";
+    } else if(option & Aug) {
+        str += "aug";
+    } else if(option & Minor) {
+        str += "m";
+    } // Major is implied
+    
+    // 7度
+    if(option & MajorSeventh) {
+        str += "M7";
+    } else if(option & Seventh) {
+        str += "7";
+    } else if(option & Sixth) {
+        str += "6";
     }
+    
+    // 5度
+    bool fifthFlat = (option & FifthFlat) && !(option & Dimish);
+    
+    // 括弧の中に含める文字
+    bool hasExtensions = false;
+    String extensions = "";
+    
+    // フラットファイブとテンションが同時にある場合、フラットファイブは括弧の中に含める
+    if(fifthFlat && (option & 0b1111111000000000)) {
+        extensions += "♭5";
+        hasExtensions = true;
+    }
+    
+    // テンション
+    if(option & Ninth || option & NinthSharp) {
+        if(hasExtensions) extensions += ",";
+        if(option & NinthSharp) {
+            extensions += "♯9";
+        } else {
+            extensions += "9";
+        }
+        hasExtensions = true;
+    }
+    
+    if(option & Eleventh || option & EleventhSharp) {
+        if(hasExtensions) extensions += ",";
+        if(option & EleventhSharp) {
+            extensions += "♯11";
+        } else {
+            extensions += "11";
+        }
+        hasExtensions = true;
+    }
+    
+    if(option & Thirteenth || option & ThirteenthSharp || option & ThirteenthFlat) {
+        if(hasExtensions) extensions += ",";
+        if(option & ThirteenthSharp) {
+            extensions += "♯13";
+        } else if(option & ThirteenthFlat) {
+            extensions += "♭13";
+        } else {
+            extensions += "13";
+        }
+        hasExtensions = true;
+    }
+    
+    // 算出した文字列の合成
+    if(hasExtensions) {
+        str += "(" + extensions + ")";
+    } else if(fifthFlat) {
+        // フラットファイブは括弧の中に含めない
+        str += "-5";
+    }
+    
     return str;
 }
 
@@ -124,25 +201,6 @@ float Chord::getScore(uint8_t centerNoteNo) {
 }
 
 const std::vector<String> Chord::rootStrings = {"C","C#","D","D#","E","F","F#","G","G#","A","A#","B"};
-const std::map<uint16_t,String> Chord::optionStrings = {
-        {Major  , ""},
-        {Minor  , "m"},
-        {Dimish , "dim"},
-        {Sus4   , "sus4"},
-        {Sus2   , "sus2"},
-        {Aug    , "aug"},
-        {Seventh, "7"},
-        {MajorSeventh, "M7"},
-        {Sixth, "6"},
-        {FifthFlat       , "-5"},
-        {Ninth           , "9"},
-        {NinthSharp      , "♯9"},
-        {Eleventh        , "11"},
-        {EleventhSharp   , "♯11"},
-        {Thirteenth      , "13"},
-        {ThirteenthSharp , "♯13"},
-        {ThirteenthFlat  , "♭13"},
-    };
 
 DegreeChord::DegreeChord()
 : DegreeChord(I,0,0) {}
@@ -154,13 +212,8 @@ DegreeChord::DegreeChord(uint8_t root, uint16_t option, uint8_t inversion)
 : root(root) , option(option), inversion(inversion) {}
 
 String DegreeChord::toString() {
-    String str = "";
-    str += rootStrings[root];
-    for(auto item : Chord::optionStrings) {
-        if(option & item.first) {
-            str += item.second;
-        }
-    }
+    String str = rootStrings[root];
+    str += Chord::formatChordOptions(option);
     return str;
 }
 
