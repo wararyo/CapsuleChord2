@@ -30,7 +30,6 @@ m5::Button_Class BtnHome;
 m5::Button_Class BtnMenu;
 
 lv_obj_t *chordlabel;
-lv_style_t style_chordlabel;
 lv_obj_t *battery;
 lv_obj_t *scale_label;
 lv_obj_t *tempo_label;
@@ -175,9 +174,6 @@ void setup() {
   lv_obj_clear_flag(tickframe, LV_OBJ_FLAG_CLICKABLE);
   chordlabel = lv_chordlabel_create(lv_scr_act());
   lv_chordlabel_set_chord(chordlabel, Chord());
-  lv_style_init(&style_chordlabel);
-  lv_style_set_text_font(&style_chordlabel, &genshin_32);
-  lv_obj_add_style(chordlabel, &style_chordlabel, 0);
   lv_obj_center(chordlabel);
   battery = lv_battery_create(lv_scr_act());
   lv_obj_align(battery, LV_ALIGN_TOP_RIGHT, -4, 4);

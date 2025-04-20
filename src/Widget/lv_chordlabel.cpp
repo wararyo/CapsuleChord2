@@ -90,6 +90,15 @@ static void lv_chordlabel_constructor(const lv_obj_class_t *class_p, lv_obj_t *o
     cl->chord = Chord();
 
     lv_obj_clear_flag(obj, LV_OBJ_FLAG_CLICKABLE);
+    
+    // デフォルトフォントを変更
+    LV_ASSERT_OBJ(obj, MY_CLASS);
+    lv_style_t *style = (lv_style_t *)lv_mem_alloc(sizeof(lv_style_t));
+    lv_style_init(style);
+    lv_style_set_text_font(style, &mnoto_40);
+    lv_obj_add_style(obj, style, 0);
+    lv_obj_refresh_self_size(obj);
+    lv_obj_invalidate(obj);
 
     LV_TRACE_OBJ_CREATE("finished");
 }
@@ -146,12 +155,97 @@ static void lv_chordlabel_event(const lv_obj_class_t *class_p, lv_event_t *e)
     }
 }
 
+// MNotoで正しく表示するためには特殊な表記をする必要があるため、Chord::toString()とは別で実装する
+const std::vector<String> rootStrings = {"C","C[","D","D[","E","F","F[","G","G[","A","A[","B"};
+static String chord_to_string(const Chord &chord)
+{
+    String str = rootStrings[chord.root];
+    
+    // 3度
+    if(chord.option & Chord::Sus4) {
+        str += "sus$";
+    } else if(chord.option & Chord::Sus2) {
+        str += "sus\"";
+    } else if(chord.option & Chord::Dimish) {
+        str += "dim";
+    } else if(chord.option & Chord::Aug) {
+        str += "aug";
+    } else if(chord.option & Chord::Minor) {
+        str += "m";
+    } // Major is implied
+    
+    // 7度
+    if(chord.option & Chord::MajorSeventh) {
+        str += "M7";
+    } else if(chord.option & Chord::Seventh) {
+        str += "7";
+    } else if(chord.option & Chord::Sixth) {
+        str += "6";
+    }
+    
+    // 5度
+    bool fifthFlat = (chord.option & Chord::FifthFlat) && !(chord.option & Chord::Dimish);
+    
+    // 括弧の中に含める文字
+    bool hasExtensions = false;
+    String extensions = "";
+    
+    // フラットファイブとテンションが同時にある場合、フラットファイブは括弧の中に含める
+    if(fifthFlat && (chord.option & 0b1111111000000000)) {
+        extensions += "]5";
+        hasExtensions = true;
+    }
+    
+    // テンション
+    if(chord.option & Chord::Ninth || chord.option & Chord::NinthSharp) {
+        if(hasExtensions) extensions += "?";
+        if(chord.option & Chord::NinthSharp) {
+            extensions += "[9";
+        } else {
+            extensions += "9";
+        }
+        hasExtensions = true;
+    }
+    
+    if(chord.option & Chord::Eleventh || chord.option & Chord::EleventhSharp) {
+        if(hasExtensions) extensions += "?";
+        if(chord.option & Chord::EleventhSharp) {
+            extensions += "[11";
+        } else {
+            extensions += "11";
+        }
+        hasExtensions = true;
+    }
+    
+    if(chord.option & Chord::Thirteenth || chord.option & Chord::ThirteenthSharp || chord.option & Chord::ThirteenthFlat) {
+        if(hasExtensions) extensions += "?";
+        if(chord.option & Chord::ThirteenthSharp) {
+            extensions += "[13";
+        } else if(chord.option & Chord::ThirteenthFlat) {
+            extensions += "]13";
+        } else {
+            extensions += "13";
+        }
+        hasExtensions = true;
+    }
+    
+    // 算出した文字列の合成
+    if(hasExtensions) {
+        str += "{" + extensions + "}";
+    } else if(fifthFlat) {
+        // フラットファイブは括弧の中に含めない
+        str += "-5";
+    }
+    
+    return str;
+}
+
 static void draw_main(lv_event_t *e)
 {
     lv_obj_t *obj = lv_event_get_target(e);
     lv_chordlabel_t *cl = (lv_chordlabel_t *)obj;
     char text[64] = {0};
-    strcpy(text, cl->chord.toString().c_str());
+    strcpy(text, chord_to_string(cl->chord).c_str());
     lv_draw_ctx_t *draw_ctx = lv_event_get_draw_ctx(e);
 
     lv_area_t txt_coords;

@@ -396,7 +396,7 @@
 /*Optionally declare custom fonts here.
  *You can use these fonts as default font too and they will be available globally.
  *E.g. #define LV_FONT_CUSTOM_DECLARE   LV_FONT_DECLARE(my_font_1) LV_FONT_DECLARE(my_font_2)*/
-#define LV_FONT_CUSTOM_DECLARE LV_FONT_DECLARE(genshin_16) LV_FONT_DECLARE(genshin_32)
+#define LV_FONT_CUSTOM_DECLARE LV_FONT_DECLARE(genshin_16) LV_FONT_DECLARE(genshin_32) LV_FONT_DECLARE(mnoto_40)
 
 /*Always set a default font*/
 #define LV_FONT_DEFAULT &genshin_16
