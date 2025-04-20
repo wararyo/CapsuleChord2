@@ -6,6 +6,8 @@
 #include "AppDrumPattern.h"
 #include "AppSequencer.h"
 #include "AppBass.h"
+#include "AppXyPad.h"
+#include "AppDucking.h"
 #include "AppSoundTest.h"
 #include "../Context.h"
 
@@ -32,7 +34,9 @@ public:
         new AppDrumPattern(),
         new AppSequencer(),
         new AppBass(),
-        new AppSoundTest()
+        new AppXyPad(),
+        new AppDucking(),
+        new AppSoundTest(),
     };
     void launchApp(AppBase *app);
     void hideApp();
