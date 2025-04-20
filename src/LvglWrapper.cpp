@@ -45,11 +45,10 @@ void LvglWrapper::begin()
     indev_drv.read_cb = my_touchpad_read;
     lv_indev_drv_register(&indev_drv);
     lv_disp_set_default(disp);
-    // static lv_theme_t *th = lv_theme_default_init(disp,                                                                 /*Use the DPI, size, etc from this display*/
-    //                                        lv_color_white(), lv_color_hex(0x0000FF),                            /*Primary and secondary palette*/
-    //                                        true,                                                                   /*Light or dark mode*/
-    //                                        &genshin_16);
-    // lv_disp_set_theme(disp, th);
+    lv_log_register_print_cb([](const char *buf) {
+        Serial.print(buf);
+    });
+
     lv_style_init(&scr_style);
     lv_style_set_bg_color(&scr_style, lv_color_black());
     lv_obj_add_style(lv_scr_act(), &scr_style, 0);
