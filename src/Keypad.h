@@ -3,7 +3,6 @@
 
 #include <Wire.h>
 #undef min
-#include <queue>
 #include <map>
 #include <vector>
 #include <memory>
@@ -136,16 +135,12 @@ public:
     };
 
 private:
-    std::queue<KeyEvent> _events;
     std::map<int,Key> keys;
     std::vector<std::shared_ptr<KeyEventListener>> _listeners;
 
 public:
     void begin();
     void update();
-    bool hasEvent();
-    KeyEvent getEvent();
-    void disposeEvents();
     
     // Add a key event listener to the top of the stack
     void addKeyEventListener(std::shared_ptr<KeyEventListener> listener);
@@ -169,7 +164,6 @@ public:
     };
 
     Key operator [](int key){
-        if(keys.find(key) == keys.end()) keys[key] = Key(key); // create if not exist
         return keys[key];
     }
 };

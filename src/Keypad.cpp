@@ -8,11 +8,17 @@
 
 void CapsuleChordKeypad::begin() {
     M5.Ex_I2C.begin(EXT_I2C_PORT, PORTA_SDA, PORTA_SCL);
+    // キーパッド側のイベントキューをクリア
+    while (true) {
+        Wire.requestFrom(KEYPAD_I2C_ADDR,1);
+        if (!Wire.available()) break;
+        if (Wire.read() == 0) break;
+    }
 }
 
 void CapsuleChordKeypad::update() {
     Wire.requestFrom(KEYPAD_I2C_ADDR,1);//TODO:4とか試してみる
-    while(Wire.available()) {
+    while (Wire.available()) {
         int val = Wire.read();
         if(val != 0) {
             // KeyEventオブジェクトを作成
@@ -20,7 +26,14 @@ void CapsuleChordKeypad::update() {
             
             // Update keys
             int keyCode = event.getKeyCode();
-            if(keys.find(keyCode) != keys.end()) {
+            if (keys.find(keyCode) != keys.end())
+            {
+                if(event.isPressed()) keys[keyCode].press();
+                else keys[keyCode].release();
+            }
+            else
+            {
+                keys[keyCode] = Key();
                 if(event.isPressed()) keys[keyCode].press();
                 else keys[keyCode].release();
             }
@@ -30,9 +43,6 @@ void CapsuleChordKeypad::update() {
                 // Event was consumed by a listener
                 continue;
             }
-            
-            // If not consumed, add to queue for chord system
-            _events.push(event);
         }
     }
 }
@@ -76,21 +86,6 @@ void CapsuleChordKeypad::removeKeyEventListener(std::shared_ptr<KeyEventListener
             ++it;
         }
     }
-}
-
-bool CapsuleChordKeypad::hasEvent() {
-    return !_events.empty();
-}
-
-KeyEvent CapsuleChordKeypad::getEvent() {
-    KeyEvent event = _events.front();
-    _events.pop();
-    return event;
-}
-
-void CapsuleChordKeypad::disposeEvents() {
-    std::queue<KeyEvent> empty;
-    std::swap(_events, empty);
 }
 
 void CapsuleChordKeypad::Key::press() {

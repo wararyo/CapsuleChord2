@@ -14,7 +14,6 @@ protected:
 public:
     static std::vector<std::shared_ptr<KeyMapBase>> getAvailableKeyMaps() {
     if(availableKeyMaps.empty()) {
-      // KeyMapBase requires a Context* in constructor
       Context* ctx = Context::getContext();
       availableKeyMaps.push_back(std::make_shared<KantanChordKeyMap>(ctx));
       availableKeyMaps.push_back(std::make_shared<CapsuleChordKeyMap>(ctx));
