@@ -30,6 +30,7 @@
 #define Key_VIm 8
 #define Key_IIIm 9
 // Modifiers (Group 2)
+#define Key_BlackAdder    0x13
 #define Key_Ninth         0x12
 #define Key_Thirteenth    0x11
 #define Key_Sus4          0x19

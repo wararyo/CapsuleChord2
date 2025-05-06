@@ -33,6 +33,7 @@ void KantanChordKeyMap::update() {
               if(Keypad[Key_Thirteenth].isPressed())    thirteenth(&c);
               if(Keypad[Key_PitchUp].isPressed()) pitchUp(&c);
               if(Keypad[Key_PitchDown].isPressed()) pitchDown(&c);
+              if(Keypad[Key_BlackAdder].isPressed()) blackAdder(&c);
               c.calcInversion(*(uint8_t *)context->centerNoteNo);
               if(Keypad[Key_InversionUp].isPressed()) inversionUp(&c);
               if(Keypad[Key_InversionDown].isPressed()) inversionDown(&c);

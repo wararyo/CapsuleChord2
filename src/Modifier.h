@@ -14,5 +14,6 @@ void pitchUp(Chord *c);
 void pitchDown(Chord *c);
 void inversionUp(Chord *c);
 void inversionDown(Chord *c);
+void blackAdder(Chord *c);
 
 #endif

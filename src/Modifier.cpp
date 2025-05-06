@@ -50,3 +50,13 @@ void inversionDown(Chord *c) {
   }
   else c->inversion--;
 }
+
+void blackAdder(Chord *c) {
+  // First make the chord an augmented chord
+  c->option &= ~(Chord::Minor | Chord::Dimish | Chord::Sus4 | Chord::Sus2 | Chord::FifthFlat); // Clear modifiers that would conflict with augmented
+  c->option |= Chord::Aug; // Set it as augmented
+  
+  // Set the bass note to be 2 semitones higher than the root
+  uint8_t bassNote = (c->root + 2) % 12;
+  c->setBass(bassNote);
+}
