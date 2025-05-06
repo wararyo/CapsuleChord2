@@ -5,6 +5,8 @@
 #undef min
 #include <queue>
 #include <map>
+#include <vector>
+#include <memory>
 
 #define KEYPAD_I2C_ADDR 0x09
 
@@ -45,17 +47,114 @@
 #define KEY_LT     0x23
 #define KEY_RT     0x24
 
-class CapsuleChordKeypad {
-public: class Key;
+// Key Groups
+#define KEY_GROUP_LEFT  0
+#define KEY_GROUP_RIGHT 1
+#define KEY_GROUP_OTHER 2
+
+// 型安全なキーイベントクラス
+class KeyEvent {
+public:
+    // キー状態
+    enum class State : uint8_t {
+        Pressed = KEY_STATE_PRESSED,
+        Released = KEY_STATE_RELEASED
+    };
+
+    // キーグループ
+    enum class Group : uint8_t {
+        Left = KEY_GROUP_LEFT,
+        Right = KEY_GROUP_RIGHT,
+        Other = KEY_GROUP_OTHER
+    };
+
 private:
-    std::queue<char> _events;
+    union {
+        char rawValue;
+        struct {
+            uint8_t button : 4;  // ボタン番号 (0-15)
+            uint8_t group : 3;   // グループID (0-7)
+            uint8_t state : 1;   // 状態 (0: released, 1: pressed)
+        } bits;
+    } data;
+
+public:
+    // デフォルトコンストラクタ
+    KeyEvent() : data{0} {}
+
+    // 生のchar値からのコンストラクタ（後方互換性用）
+    KeyEvent(char rawValue) : data{rawValue} {}
+
+    // 各要素からのコンストラクタ
+    KeyEvent(State state, Group group, uint8_t button) {
+        data.bits.state = static_cast<uint8_t>(state);
+        data.bits.group = static_cast<uint8_t>(group);
+        data.bits.button = button;
+    }
+
+    // キーコードからのコンストラクタ
+    KeyEvent(State state, uint8_t keyCode) {
+        data.bits.state = static_cast<uint8_t>(state);
+        data.bits.group = (keyCode >> 4) & 0x07;
+        data.bits.button = keyCode & 0x0F;
+    }
+
+    // 個別のアクセサメソッド
+    State getState() const { return static_cast<State>(data.bits.state); }
+    Group getGroup() const { return static_cast<Group>(data.bits.group); }
+    uint8_t getButton() const { return data.bits.button; }
+    
+    // キーコード全体を取得（グループ+ボタン）
+    uint8_t getKeyCode() const { return ((data.bits.group & 0x07) << 4) | (data.bits.button & 0x0F); }
+    
+    // charへの変換演算子（後方互換性用）
+    operator char() const { return data.rawValue; }
+    
+    // ボタンが押されているかどうか
+    bool isPressed() const { return getState() == State::Pressed; }
+    
+    // イベントが特定のキーに関するものかどうかを判定
+    bool isKey(uint8_t keyCode) const { return getKeyCode() == keyCode; }
+};
+
+class CapsuleChordKeypad {
+public: 
+    class Key;
+
+    // Key Event Listener Interface
+    class KeyEventListener {
+    public:
+        virtual ~KeyEventListener() = default;
+        
+        // Called when a key is pressed
+        // Return true if the event is consumed, false to pass to the next listener
+        virtual bool onKeyPressed(uint8_t keyCode) = 0;
+        
+        // Called when a key is released
+        // Return true if the event is consumed, false to pass to the next listener
+        virtual bool onKeyReleased(uint8_t keyCode) = 0;
+    };
+
+private:
+    std::queue<KeyEvent> _events;
     std::map<int,Key> keys;
+    std::vector<std::shared_ptr<KeyEventListener>> _listeners;
+
 public:
     void begin();
     void update();
     bool hasEvent();
-    char getEvent();
+    KeyEvent getEvent();
     void disposeEvents();
+    
+    // Add a key event listener to the top of the stack
+    void addKeyEventListener(std::shared_ptr<KeyEventListener> listener);
+    
+    // Remove a key event listener
+    void removeKeyEventListener(std::shared_ptr<KeyEventListener> listener);
+    
+    // Process a key event through the listener stack
+    bool processKeyEvent(const KeyEvent& event);
     
     class Key {
         private:

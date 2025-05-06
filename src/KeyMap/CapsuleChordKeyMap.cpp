@@ -13,50 +13,47 @@ const uint8_t CapsuleChordKeyMap::numberKeyMap[] = {
     5, //VI
     2};
 
-void CapsuleChordKeyMap::update() {
-  while(Keypad.hasEvent()){
-    char event = Keypad.getEvent();
-    switch(event >> 7 & 0b1) {
-      case KEY_STATE_PRESSED:
-        switch(event >> 4 & 0b111) {
-          case 0: {// Left Keys Pressed
-            uint8_t number = numberKeyMap[(event & 0b1111) - 1]; // Key number starts from 1
-            if(0 <= number && number <= 6) {
-              Chord c = context->scale->getDiatonic(number,Keypad[KEY_RIGHT_5].isPressed());
-              if(Keypad[KEY_RIGHT_8].isPressed())   thirdInvert(&c);
-              if(Keypad[KEY_RIGHT_7].isPressed())   fifthFlat(&c);
-              if(Keypad[KEY_RIGHT_6].isPressed())   augment(&c);
-              if(Keypad[KEY_RIGHT_9].isPressed())   sus4(&c);
-              // if(Keypad[KEY_RIGHT_5].isPressed()) thirdInvert(&c);
-              if(Keypad[KEY_RIGHT_4].isPressed())   seventhInvert(&c);
-              if(Keypad[KEY_RIGHT_2].isPressed())   ninth(&c);
-              if(Keypad[KEY_RIGHT_1].isPressed())   thirteenth(&c);
-              if(Keypad[KEY_R].isPressed())         pitchUp(&c);
-              if(Keypad[KEY_L].isPressed())         pitchDown(&c);
-              if(Keypad[KEY_RIGHT_3].isPressed())   blackAdder(&c);
-              c.calcInversion(*(uint8_t *)context->centerNoteNo);
-              if(Keypad[KEY_RT].isPressed())        inversionUp(&c);
-              if(Keypad[KEY_LT].isPressed())        inversionDown(&c);
-              context->pipeline->playChord(c);
-            }
-          } break;
-          case 2: {// Other Keys Pressed
-            // if((event & 0b1111111) == KEY_RT) *(context->centerNoteNo) += 4;
-            // if((event & 0b1111111) == KEY_LT) *(context->centerNoteNo) -= 4;
-          } break;
-        }
-      break;
-      case KEY_STATE_RELEASED:
-        switch(event >> 4 & 0b111) {
-          case 0: {
-            context->pipeline->stopChord();
-          } break;
-          case 2: {
-            // if((event & 0b1111111) == KEY_RT) *(context->centerNoteNo) -= 4;
-            // if((event & 0b1111111) == KEY_LT) *(context->centerNoteNo) += 4;
-          } break;
-        }
-      break;
+bool CapsuleChordKeyMap::onKeyPressed(uint8_t keyCode) {
+  if ((keyCode & 0xF0) == 0x00) { // 左キーパッドが押された場合
+    uint8_t button = keyCode & 0x0F;
+    uint8_t number = numberKeyMap[button - 1]; // Key number starts from 1
+    if(0 <= number && number <= 6) {
+      Chord c = context->scale->getDiatonic(number,Keypad[KEY_RIGHT_5].isPressed());
+      if(Keypad[KEY_RIGHT_8].isPressed())   thirdInvert(&c);
+      if(Keypad[KEY_RIGHT_7].isPressed())   fifthFlat(&c);
+      if(Keypad[KEY_RIGHT_6].isPressed())   augment(&c);
+      if(Keypad[KEY_RIGHT_9].isPressed())   sus4(&c);
+      // if(Keypad[KEY_RIGHT_5].isPressed()) thirdInvert(&c);
+      if(Keypad[KEY_RIGHT_4].isPressed())   seventhInvert(&c);
+      if(Keypad[KEY_RIGHT_2].isPressed())   ninth(&c);
+      if(Keypad[KEY_RIGHT_1].isPressed())   thirteenth(&c);
+      if(Keypad[KEY_R].isPressed())         pitchUp(&c);
+      if(Keypad[KEY_L].isPressed())         pitchDown(&c);
+      if(Keypad[KEY_RIGHT_3].isPressed())   blackAdder(&c);
+      c.calcInversion(*(uint8_t *)context->centerNoteNo);
+      if(Keypad[KEY_RT].isPressed())        inversionUp(&c);
+      if(Keypad[KEY_LT].isPressed())        inversionDown(&c);
+      context->pipeline->playChord(c);
+      return true; // イベントを消費
     }
+  } 
+  else if ((keyCode & 0xF0) == 0x20) { // その他のキーが押された場合
+    // 現在はコメントアウトされている
+    // if (keyCode == KEY_RT) *(context->centerNoteNo) += 4;
+    // if (keyCode == KEY_LT) *(context->centerNoteNo) -= 4;
   }
+  return false; // イベントを消費しない
+}
+
+bool CapsuleChordKeyMap::onKeyReleased(uint8_t keyCode) {
+  if ((keyCode & 0xF0) == 0x00) { // 左キーパッドが離された場合
+    context->pipeline->stopChord();
+    return true; // イベントを消費
+  } 
+  else if ((keyCode & 0xF0) == 0x20) { // その他のキーが離された場合
+    // 現在はコメントアウトされている
+    // if (keyCode == KEY_RT) *(context->centerNoteNo) -= 4;
+    // if (keyCode == KEY_LT) *(context->centerNoteNo) += 4;
+  }
+  return false; // イベントを消費しない
 }

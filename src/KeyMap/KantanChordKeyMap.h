@@ -8,7 +8,11 @@
 class KantanChordKeyMap : public KeyMapBase {
 public:
     using KeyMapBase::KeyMapBase;
-    void update() override;
+    
+    // KeyEventListenerインターフェース実装
+    bool onKeyPressed(uint8_t keyCode) override;
+    bool onKeyReleased(uint8_t keyCode) override;
+    
     static const uint8_t numberKeyMap[]; //Key and diatonic chord matching
 private:
     // 今なっているChordが鳴るきっかけとなった物理ボタン

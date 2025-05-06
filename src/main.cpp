@@ -155,6 +155,12 @@ void setup() {
 
   // Keymap initialization
   currentKeyMap = KeyMap::getAvailableKeyMaps()[0].get();
+  
+  // Register keymap as the bottom-level event listener
+  std::shared_ptr<CapsuleChordKeypad::KeyEventListener> keyMapPtr(
+      currentKeyMap, [](CapsuleChordKeypad::KeyEventListener*){} // 所有権を持たないカスタムデリータ
+  );
+  Keypad.addKeyEventListener(keyMapPtr);
 
   // イヤホン端子スイッチ
   pinMode(GPIO_NUM_18, INPUT_PULLUP);
@@ -241,7 +247,6 @@ void loop()
   }
 
   Keypad.update();
-  currentKeyMap->update();
 
   // ヘッドフォン抜き差し
   static bool isHeadphonePreviously = digitalRead(GPIO_NUM_18);

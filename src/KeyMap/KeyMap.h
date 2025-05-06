@@ -6,6 +6,7 @@
 #include "KeyMapBase.h"
 #include "CapsuleChordKeyMap.h"
 #include "KantanChordKeyMap.h"
+#include "Context.h"
 
 class KeyMap {
 protected:
@@ -13,8 +14,10 @@ protected:
 public:
     static std::vector<std::shared_ptr<KeyMapBase>> getAvailableKeyMaps() {
     if(availableKeyMaps.empty()) {
-      availableKeyMaps.push_back(std::make_shared<KantanChordKeyMap>());
-      availableKeyMaps.push_back(std::make_shared<CapsuleChordKeyMap>());
+      // KeyMapBase requires a Context* in constructor
+      Context* ctx = Context::getContext();
+      availableKeyMaps.push_back(std::make_shared<KantanChordKeyMap>(ctx));
+      availableKeyMaps.push_back(std::make_shared<CapsuleChordKeyMap>(ctx));
     }
     return availableKeyMaps;
   }
