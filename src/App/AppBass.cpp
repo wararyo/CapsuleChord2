@@ -77,9 +77,70 @@ void AppBass::ChordFilter::onChordOn(Chord chord)
 {
     chord.octave = 3;
     chord.inversion = 0;
-    for (uint8_t note : chord.toMidiNoteNumbers())
+    
+    // Handle slash chord if bass note is specified
+    if (chord.bass != Chord::BASS_DEFAULT) {
+        // Get the chord notes before making any changes
+        std::vector<uint8_t> chordNotes = chord.toMidiNoteNumbers();
+        bool bassNoteInChord = false;
+        uint8_t bassNoteValue = (chord.octave * 12) + chord.bass;
+        
+        // Check if the bass note is part of the chord
+        for (uint8_t i = 0; i < chordNotes.size(); i++) {
+            // Compare ignoring octave (modulo 12)
+            if (chordNotes[i] % 12 == chord.bass) {
+                bassNoteInChord = true;
+                
+                // Adjust inversion to make the bass note the bottom note
+                chord.inversion = i;
+                break;
+            }
+        }
+        
+        // If bass note is not part of the chord, ensure all chord notes are higher than the bass note
+        if (!bassNoteInChord) {
+            // Reset chord settings to calculate properly
+            chord.inversion = 0;
+            
+            // Count how many notes are below the bass note
+            chordNotes = chord.toMidiNoteNumbers();
+            uint8_t notesBelow = 0;
+            
+            for (uint8_t note : chordNotes) {
+                if (note < bassNoteValue) {
+                    notesBelow++;
+                }
+            }
+            
+            // Set inversion to make all notes above bass note
+            if (notesBelow > 0) {
+                // If all notes are below, we need to increase octave
+                if (notesBelow >= chordNotes.size()) {
+                    chord.octave++;
+                    chord.inversion = 0;
+                } else {
+                    chord.inversion = notesBelow;
+                }
+            }
+            
+            // Now convert chord to notes with appropriate inversion
+            for (uint8_t note : chord.toMidiNoteNumbers()) {
+                // Skip the root note as we'll replace it with the bass note
+                if (note % 12 != chord.root) {
+                    app->input.push_back(note);
+                }
+            }
+            
+            // Add the bass note
+            app->input.push_back(bassNoteValue);
+        }
+    }
+    else
     {
-        app->input.push_back(note);
+        // If not a slash chord, just add the chord notes
+        for (uint8_t note : chord.toMidiNoteNumbers()) {
+            app->input.push_back(note);
+        }
     }
     app->updatePlayingNotes();
 }
