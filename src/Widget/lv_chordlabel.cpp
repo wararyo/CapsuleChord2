@@ -237,6 +237,11 @@ static String chord_to_string(const Chord &chord)
         str += "-5";
     }
     
+    // Add slash chord notation if a bass note is specified
+    if (chord.bass != Chord::BASS_DEFAULT) {
+        str += "/" + rootStrings[chord.bass];
+    }
+    
     return str;
 }
 

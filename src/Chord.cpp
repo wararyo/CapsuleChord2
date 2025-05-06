@@ -5,7 +5,9 @@ Chord::Chord()
 : Chord(C,0,0,3) {}
 
 Chord::Chord(const Chord *original)
-: Chord(original->root, original->option, original->inversion, original->octave) {}
+: Chord(original->root, original->option, original->inversion, original->octave) {
+    bass = original->bass;
+}
 
 Chord::Chord(uint8_t root, uint16_t option)
 : Chord(root, option, 0, 3) {}
@@ -14,11 +16,17 @@ Chord::Chord(uint8_t root, uint16_t option, uint8_t inversion)
 : Chord(root, option, inversion, 3) {}
 
 Chord::Chord(uint8_t root, uint16_t option, uint8_t inversion, uint8_t octave)
-: root(root) , option(option), inversion(inversion), octave(octave) {}
+: root(root), option(option), inversion(inversion), octave(octave), bass(BASS_DEFAULT) {}
 
 String Chord::toString() {
     String str = rootStrings[root];
     str += formatChordOptions(option);
+    
+    // Add slash chord notation if a bass note is specified
+    if (bass != BASS_DEFAULT) {
+        str += "/" + rootStrings[bass];
+    }
+    
     return str;
 }
 
@@ -114,7 +122,7 @@ std::vector<uint8_t> Chord::toMidiNoteNumbers() {
 
     //Third
     if(option & Sus4) notes.push_back(baseNoteNo + 5);
-    else if(option & Minor) notes.push_back(baseNoteNo + 3);
+    else if((option & Minor) && !(option & Aug)) notes.push_back(baseNoteNo + 3);
     else notes.push_back(baseNoteNo + 4); //Major
 
     //Fifth
@@ -200,6 +208,13 @@ float Chord::getScore(uint8_t centerNoteNo) {
     return result;
 }
 
+void Chord::setBass(int8_t bassNote) {
+    // Validate the bass note is within the chromatic scale (0-11) or BASS_DEFAULT
+    if (bassNote == BASS_DEFAULT || (bassNote >= 0 && bassNote <= 11)) {
+        bass = bassNote;
+    }
+}
+
 const std::vector<String> Chord::rootStrings = {"C","C#","D","D#","E","F","F#","G","G#","A","A#","B"};
 
 DegreeChord::DegreeChord()
@@ -209,12 +224,25 @@ DegreeChord::DegreeChord(uint8_t root, uint16_t option)
 : DegreeChord(root,option,0) {}
 
 DegreeChord::DegreeChord(uint8_t root, uint16_t option, uint8_t inversion)
-: root(root) , option(option), inversion(inversion) {}
+: root(root), option(option), inversion(inversion), bass(BASS_DEFAULT) {}
 
 String DegreeChord::toString() {
     String str = rootStrings[root];
     str += Chord::formatChordOptions(option);
+    
+    // Add slash chord notation if a bass note is specified
+    if (bass != BASS_DEFAULT) {
+        str += "/" + rootStrings[bass];
+    }
+    
     return str;
+}
+
+void DegreeChord::setBass(int8_t bassNote) {
+    // Validate the bass note is within the valid range (0-11) or BASS_DEFAULT
+    if (bassNote == BASS_DEFAULT || (bassNote >= 0 && bassNote <= 11)) {
+        bass = bassNote;
+    }
 }
 
 bool DegreeChord::equals(DegreeChord other){

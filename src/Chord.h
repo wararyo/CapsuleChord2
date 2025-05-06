@@ -23,6 +23,7 @@ public:
     static const uint8_t A      = 9;
     static const uint8_t ASharp = 10;
     static const uint8_t B      = 11;
+    static const int8_t BASS_DEFAULT = -1;
 
     //Third, Fifth, and Tension
     static const uint16_t Major   = 0b00000000;
@@ -52,12 +53,16 @@ public:
     uint16_t option;
     uint8_t inversion;
     uint8_t octave;
+    int8_t bass; // Bass note for slash chord notation, BASS_DEFAULT (-1) if not a slash chord
 
     Chord();
     Chord(const Chord *original);
     Chord(uint8_t root, uint16_t option);
     Chord(uint8_t root, uint16_t option, uint8_t inversion);
     Chord(uint8_t root, uint16_t option, uint8_t inversion, uint8_t octave);
+    
+    // Sets the bass note for slash chord notation
+    void setBass(int8_t bassNote);
     
     std::vector<uint8_t> toMidiNoteNumbers();
     void calcInversion(uint8_t centerNoteNo);
@@ -98,6 +103,7 @@ class DegreeChord {
     static const uint8_t VI      = 9;
     static const uint8_t VISharp = 10;
     static const uint8_t VII     = 11;
+    static const int8_t BASS_DEFAULT  = -1;
 
 public:
     static const std::vector<String> rootStrings;
@@ -105,10 +111,14 @@ public:
     uint8_t root;
     uint16_t option;
     uint8_t inversion;
+    int8_t bass; // Bass note for slash chord notation, BASS_DEFAULT (-1) if not a slash chord
 
     DegreeChord();
     DegreeChord(uint8_t root, uint16_t option);
     DegreeChord(uint8_t root, uint16_t option, uint8_t inversion);
+    
+    // Sets the bass note for slash chord notation
+    void setBass(int8_t bassNote);
 
     String toString();
 
