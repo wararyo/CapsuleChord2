@@ -19,7 +19,7 @@ void CapsuleChordKeypad::update() {
             int state = (val & 0b10000000) >> 7;
             int key   = val & 0b01111111;
             if(keys.find(key) != keys.end()) {
-                if(state == Key_State_Pressed) keys[key].press();
+                if(state == KEY_STATE_PRESSED) keys[key].press();
                 else keys[key].release();
             }
             _events.push((char)val);

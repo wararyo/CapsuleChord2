@@ -16,34 +16,34 @@
 /*** Buttons ***/
 // Group(3bit) | Button(4bit)
 
-#define Key_State_Pressed 1
-#define Key_State_Released 0
+#define KEY_STATE_PRESSED 1
+#define KEY_STATE_RELEASED 0
 
-// Numbers (Group 1)
-#define Key_Custom1 1
-#define Key_VIIdim 2
-#define Key_Custom2 3
-#define Key_IV 4
-#define Key_I 5
-#define Key_V 6
-#define Key_IIm 7
-#define Key_VIm 8
-#define Key_IIIm 9
-// Modifiers (Group 2)
-#define Key_BlackAdder    0x13
-#define Key_Ninth         0x12
-#define Key_Thirteenth    0x11
-#define Key_Sus4          0x19
-#define Key_Augment       0x16
-#define Key_SeventhInvert 0x14
-#define Key_Seventh       0x15
-#define Key_FlatFive      0x17
-#define Key_ThirdInvert   0x18
-// Other (Group 3)
-#define Key_PitchUp       0x22
-#define Key_PitchDown     0x21
-#define Key_InversionUp   0x24
-#define Key_InversionDown 0x23
+// Left keys (Group 0)
+#define KEY_LEFT_1 0x01
+#define KEY_LEFT_2 0x02
+#define KEY_LEFT_3 0x03
+#define KEY_LEFT_4 0x04
+#define KEY_LEFT_5 0x05
+#define KEY_LEFT_6 0x06
+#define KEY_LEFT_7 0x07
+#define KEY_LEFT_8 0x08
+#define KEY_LEFT_9 0x09
+// Right keys (Group 1)
+#define KEY_RIGHT_1 0x11
+#define KEY_RIGHT_2 0x12
+#define KEY_RIGHT_3 0x13
+#define KEY_RIGHT_4 0x14
+#define KEY_RIGHT_5 0x15
+#define KEY_RIGHT_6 0x16
+#define KEY_RIGHT_7 0x17
+#define KEY_RIGHT_8 0x18
+#define KEY_RIGHT_9 0x19
+// Other (Group 2)
+#define KEY_L      0x21
+#define KEY_R      0x22
+#define KEY_LT     0x23
+#define KEY_RT     0x24
 
 class CapsuleChordKeypad {
 public: class Key;

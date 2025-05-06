@@ -17,43 +17,43 @@ void CapsuleChordKeyMap::update() {
   while(Keypad.hasEvent()){
     char event = Keypad.getEvent();
     switch(event >> 7 & 0b1) {
-      case Key_State_Pressed:
+      case KEY_STATE_PRESSED:
         switch(event >> 4 & 0b111) {
-          case 0: {// Number Keys Pressed
+          case 0: {// Left Keys Pressed
             uint8_t number = numberKeyMap[(event & 0b1111) - 1]; // Key number starts from 1
             if(0 <= number && number <= 6) {
-              Chord c = context->scale->getDiatonic(number,Keypad[Key_Seventh].isPressed());
-              if(Keypad[Key_ThirdInvert].isPressed())   thirdInvert(&c);
-              if(Keypad[Key_FlatFive].isPressed())     fifthFlat(&c);
-              if(Keypad[Key_Augment].isPressed())       augment(&c);
-              if(Keypad[Key_Sus4].isPressed())          sus4(&c);
-              // if(Keypad[Key_Seventh].isPressed()) thirdInvert(&c);
-              if(Keypad[Key_SeventhInvert].isPressed()) seventhInvert(&c);
-              if(Keypad[Key_Ninth].isPressed())         ninth(&c);
-              if(Keypad[Key_Thirteenth].isPressed())    thirteenth(&c);
-              if(Keypad[Key_PitchUp].isPressed()) pitchUp(&c);
-              if(Keypad[Key_PitchDown].isPressed()) pitchDown(&c);
-              if(Keypad[Key_BlackAdder].isPressed()) blackAdder(&c);
+              Chord c = context->scale->getDiatonic(number,Keypad[KEY_RIGHT_5].isPressed());
+              if(Keypad[KEY_RIGHT_8].isPressed())   thirdInvert(&c);
+              if(Keypad[KEY_RIGHT_7].isPressed())   fifthFlat(&c);
+              if(Keypad[KEY_RIGHT_6].isPressed())   augment(&c);
+              if(Keypad[KEY_RIGHT_9].isPressed())   sus4(&c);
+              // if(Keypad[KEY_RIGHT_5].isPressed()) thirdInvert(&c);
+              if(Keypad[KEY_RIGHT_4].isPressed())   seventhInvert(&c);
+              if(Keypad[KEY_RIGHT_2].isPressed())   ninth(&c);
+              if(Keypad[KEY_RIGHT_1].isPressed())   thirteenth(&c);
+              if(Keypad[KEY_R].isPressed())         pitchUp(&c);
+              if(Keypad[KEY_L].isPressed())         pitchDown(&c);
+              if(Keypad[KEY_RIGHT_3].isPressed())   blackAdder(&c);
               c.calcInversion(*(uint8_t *)context->centerNoteNo);
-              if(Keypad[Key_InversionUp].isPressed()) inversionUp(&c);
-              if(Keypad[Key_InversionDown].isPressed()) inversionDown(&c);
+              if(Keypad[KEY_RT].isPressed())        inversionUp(&c);
+              if(Keypad[KEY_LT].isPressed())        inversionDown(&c);
               context->pipeline->playChord(c);
             }
           } break;
           case 2: {// Other Keys Pressed
-            // if((event & 0b1111111) == Key_InversionUp) *(context->centerNoteNo) += 4;
-            // if((event & 0b1111111) == Key_InversionDown) *(context->centerNoteNo) -= 4;
+            // if((event & 0b1111111) == KEY_RT) *(context->centerNoteNo) += 4;
+            // if((event & 0b1111111) == KEY_LT) *(context->centerNoteNo) -= 4;
           } break;
         }
       break;
-      case Key_State_Released:
+      case KEY_STATE_RELEASED:
         switch(event >> 4 & 0b111) {
           case 0: {
             context->pipeline->stopChord();
           } break;
           case 2: {
-            // if((event & 0b1111111) == Key_InversionUp) *(context->centerNoteNo) -= 4;
-            // if((event & 0b1111111) == Key_InversionDown) *(context->centerNoteNo) += 4;
+            // if((event & 0b1111111) == KEY_RT) *(context->centerNoteNo) -= 4;
+            // if((event & 0b1111111) == KEY_LT) *(context->centerNoteNo) += 4;
           } break;
         }
       break;
