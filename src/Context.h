@@ -4,6 +4,7 @@
 #include "Settings.h"
 #include "Chord.h"
 #include "ChordPipeline.h"
+#include "Keypad.h"
 #include <vector>
 
 // Forward declaration for AppBase
@@ -23,12 +24,13 @@ public:
     Scale *scale;
     int *centerNoteNo;
     ChordPipeline *pipeline;
+    CapsuleChordKeypad *keypad;
 
-    Context() : pipeline(nullptr) {} // デフォルトコンストラクタ(通常は使用しない)
+    Context() : pipeline(nullptr), keypad(nullptr) {} // デフォルトコンストラクタ(通常は使用しない)
 
     // 通常はこちらのコンストラクタを使用する
-    Context(Settings *settings, ChordPipeline *pipeline)
-        : settings(settings), pipeline(pipeline)
+    Context(Settings *settings, ChordPipeline *pipeline, CapsuleChordKeypad *keypad)
+        : settings(settings), pipeline(pipeline), keypad(keypad)
     {
         scale = &((SettingItemScale *)settings->findSettingByKey(String("Scale")))->content;
         centerNoteNo = &((SettingItemNumeric *)settings->findSettingByKey(String("CenterNoteNo")))->number;

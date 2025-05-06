@@ -147,7 +147,7 @@ void setup() {
   }
 
   // Make Context
-  context = Context(&settings, &Pipeline);
+  context = Context(&settings, &Pipeline, &Keypad);
   Context::setContext(&context);
   
   // Initialize context in all apps
