@@ -3,11 +3,11 @@
 #include "AppBase.h"
 #include "Assets/Icons.h"
 
-class AppXyPad : public AppBase
+class AppGuide : public AppBase
 {
 public:
-    char *getAppName() override { return "XYパッド"; }
-    lv_img_dsc_t *getIcon() override { return (lv_img_dsc_t *)&app_xypad; }
+    char *getAppName() override { return "コードガイド"; }
+    lv_img_dsc_t *getIcon() override { return (lv_img_dsc_t *)&app_guide; }
     bool runsInBackground() override { return false; }
     bool getActive() override { return false; }
 
