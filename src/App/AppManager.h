@@ -8,6 +8,7 @@
 #include "AppBass.h"
 #include "AppGuide.h"
 #include "AppXyPad.h"
+#include "AppDrumPad.h"
 #include "AppDucking.h"
 #include "AppSoundTest.h"
 #include "../Context.h"
@@ -37,6 +38,7 @@ public:
         new AppBass(),
         new AppGuide(),
         new AppXyPad(),
+        new AppDrumPad(),
         new AppDucking(),
         new AppSoundTest(),
     };
