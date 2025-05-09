@@ -73,6 +73,20 @@ bool CapsuleChordKeypad::processKeyEvent(const KeyEvent& event) {
     return false;
 }
 
+void CapsuleChordKeypad::setLedBrightness(uint8_t keyCode, uint8_t brightness) {
+    // Ensure brightness is within valid range (0-3)
+    if (brightness > LED_OFF) {
+        brightness = LED_OFF;
+    }
+    
+    // Send command through I2C
+    Wire.beginTransmission(KEYPAD_I2C_ADDR);
+    Wire.write(CMD_SET_LED);    // LED command
+    Wire.write(keyCode);        // Key code
+    Wire.write(brightness);     // Brightness level
+    Wire.endTransmission();
+}
+
 void CapsuleChordKeypad::addKeyEventListener(std::shared_ptr<KeyEventListener> listener) {
     _listeners.push_back(listener);
 }

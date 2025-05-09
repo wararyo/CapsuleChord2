@@ -9,6 +9,16 @@
 
 #define KEYPAD_I2C_ADDR 0x09
 
+// I2C Commands
+#define CMD_GET_KEY_EVENT 0x01
+#define CMD_SET_LED 0x02
+
+// LED Brightness Levels
+#define LED_BRIGHT 0
+#define LED_NORMAL 1
+#define LED_DIM 2
+#define LED_OFF 3
+
 /*** TWI Structure ***/
 // State(1bit) | Button(7bit)
 // State: 0 is pressed, 1 is released
@@ -150,6 +160,9 @@ public:
     
     // Process a key event through the listener stack
     bool processKeyEvent(const KeyEvent& event);
+
+    // Set LED brightness for a specific key
+    void setLedBrightness(uint8_t keyCode, uint8_t brightness);
     
     class Key {
         private:
