@@ -116,10 +116,10 @@ std::shared_ptr<Timbre> TimbreLoader::loadTimbre(fs::FS &fs, const char *path)
         size_t written_bytes = wavFile.read(data, dataSize);
         assert(written_bytes == dataSize);
         size_t sampleLength = wavFile.getSampleLength();
-        struct Sample *s = new Sample{
+        std::shared_ptr<Sample> s = std::make_shared<Sample>(
             data, sampleLength, root,
             loopStart, loopEnd,
-            adsrEnabled, attach, decay, sustain, release};
+            adsrEnabled, attach, decay, sustain, release);
         auto ms = std::make_unique<Timbre::MappedSample>(s, lowerNoteNo, upperNoteNo, lowerVelocity, upperVelocity);
         samples->push_back(std::move(ms));
         wavFile.close();

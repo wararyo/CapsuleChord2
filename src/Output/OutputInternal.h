@@ -61,88 +61,88 @@ public:
 
 private:
     // ピアノティンバー
-    struct Sample pianoSample = Sample{
+    std::shared_ptr<Sample> pianoSample = std::make_shared<Sample>(
         piano_data, 24000, 60,
         21608, 21975,
-        true, 1.0f, 0.998000f, 0.1f, 0.985000f};
+        true, 1.0f, 0.998000f, 0.1f, 0.985000f);
     std::shared_ptr<Timbre> piano = std::make_shared<Timbre>(std::vector<Timbre::MappedSample>{
-        {&pianoSample, 0, 127, 0, 127}
+        {pianoSample, 0, 127, 0, 127}
     });
     // アコギティンバー
-    struct Sample aguitarSample = Sample{
+    std::shared_ptr<Sample> aguitarSample = std::make_shared<Sample>(
         aguitar_data, 96000, 60,
         83347, 83714,
-        true, 1.0f, 0.9985f, 0.03f, 0.97f};
+        true, 1.0f, 0.9985f, 0.03f, 0.97f);
     std::shared_ptr<Timbre> aguitar = std::make_shared<Timbre>(std::vector<Timbre::MappedSample>{
-        {&aguitarSample, 0, 127, 0, 127}
+        {aguitarSample, 0, 127, 0, 127}
     });
     // ベースティンバー
-    struct Sample bassSample = Sample{
+    std::shared_ptr<Sample> bassSample = std::make_shared<Sample>(
         bass_data, 24000, 36,
         21714, 22448,
-        true, 1.0f, 0.999000f, 0.25f, 0.970000f};
+        true, 1.0f, 0.999000f, 0.25f, 0.970000f);
     std::shared_ptr<Timbre> bass = std::make_shared<Timbre>(std::vector<Timbre::MappedSample>{
-        {&bassSample, 0, 127, 0, 127}
+        {bassSample, 0, 127, 0, 127}
     });
     // エレピティンバー
-    struct Sample epianoSample = Sample{
+    std::shared_ptr<Sample> epianoSample = std::make_shared<Sample>(
         epiano_data, 124800, 60,
         120048, 120415,
-        true, 1.0f, 0.98f, 0.5f, 0.95f};
+        true, 1.0f, 0.98f, 0.5f, 0.95f);
     std::shared_ptr<Timbre> epiano = std::make_shared<Timbre>(std::vector<Timbre::MappedSample>{
-        {&epianoSample, 0, 127, 0, 127}
+        {epianoSample, 0, 127, 0, 127}
     });
     // スパソティンバー
-    struct Sample supersawSample = Sample{
+    std::shared_ptr<Sample> supersawSample = std::make_shared<Sample>(
         supersaw_data, 30000, 60,
         23979, 25263,
-        true, 1.0f, 0.982f, 0.8, 0.9f};
+        true, 1.0f, 0.982f, 0.8, 0.9f);
     std::shared_ptr<Timbre> supersaw = std::make_shared<Timbre>(std::vector<Timbre::MappedSample>{
-        {&supersawSample, 0, 127, 0, 127}
+        {supersawSample, 0, 127, 0, 127}
     });
     // ドラムティンバー
-    struct Sample kickSample = Sample{
+    std::shared_ptr<Sample> kickSample = std::make_shared<Sample>(
         kick_data, 11000, 36,
         0, 0,
-        false, 0, 0, 0, 0};
-    struct Sample rimknockSample = Sample{
+        false, 0, 0, 0, 0);
+    std::shared_ptr<Sample> rimknockSample = std::make_shared<Sample>(
         rimknock_data, 9000, 37,
         0, 0,
-        false, 0, 0, 0, 0};
-    struct Sample snareSample = Sample{
+        false, 0, 0, 0, 0);
+    std::shared_ptr<Sample> snareSample = std::make_shared<Sample>(
         snare_data, 11000, 38,
         0, 0,
-        false, 0, 0, 0, 0};
-    struct Sample hihatSample = Sample{
+        false, 0, 0, 0, 0);
+    std::shared_ptr<Sample> hihatSample = std::make_shared<Sample>(
         hihat_data, 2400, 42,
         0, 0,
-        false, 0, 0, 0, 0};
-    struct Sample crashSample = Sample{
+        false, 0, 0, 0, 0);
+    std::shared_ptr<Sample> crashSample = std::make_shared<Sample>(
         crash_data, 38000, 49,
         0, 0,
-        false, 0, 0, 0, 0};
+        false, 0, 0, 0, 0);
     std::shared_ptr<Timbre> drumset = std::make_shared<Timbre>(std::vector<Timbre::MappedSample>{
-        {&kickSample, 36, 36, 0, 127},
-        {&rimknockSample, 37, 37, 0, 127},
-        {&snareSample, 38, 38, 0, 127},
-        {&hihatSample, 42, 42, 0, 127},
-        {&crashSample, 49, 49, 0, 127}
+        {kickSample, 36, 36, 0, 127},
+        {rimknockSample, 37, 37, 0, 127},
+        {snareSample, 38, 38, 0, 127},
+        {hihatSample, 42, 42, 0, 127},
+        {crashSample, 49, 49, 0, 127}
     });
     // システム音ティンバー
-    struct Sample metronomeTickSample = Sample{
+    std::shared_ptr<Sample> metronomeTickSample = std::make_shared<Sample>(
         metronome_tick_data, 7000, 24,
         0, 0,
-        false, 1.0f, 1.0f, 1.0f, 1.0f};
-    struct Sample metronomeTickBarSample = Sample{
+        false, 1.0f, 1.0f, 1.0f, 1.0f);
+    std::shared_ptr<Sample> metronomeTickBarSample = std::make_shared<Sample>(
         metronome_tick_bar_data, 7000, 25,
         0, 0,
-        false, 1.0f, 1.0f, 1.0f, 1.0f};
+        false, 1.0f, 1.0f, 1.0f, 1.0f);
     std::shared_ptr<Timbre> system = std::make_shared<Timbre>(std::vector<Timbre::MappedSample>{
-        {&metronomeTickSample, 24, 24, 0, 127},
-        {&metronomeTickBarSample, 25, 25, 0, 127}
+        {metronomeTickSample, 24, 24, 0, 127},
+        {metronomeTickBarSample, 25, 25, 0, 127}
     });
         
-    Sampler sampler;
+    std::shared_ptr<Sampler> sampler = Sampler::Create();
 
     AudioOutput audioOutput = AudioOutput::headphone;
 

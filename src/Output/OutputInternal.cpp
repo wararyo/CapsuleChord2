@@ -3,17 +3,17 @@
 
 void OutputInternal::NoteOn(uint8_t noteNo, uint8_t velocity, uint8_t channel)
 {
-    sampler.NoteOn(noteNo, velocity, channel);
+    sampler->NoteOn(noteNo, velocity, channel);
 }
 
 void OutputInternal::NoteOff(uint8_t noteNo, uint8_t velocity, uint8_t channel)
 {
-    sampler.NoteOff(noteNo, velocity, channel);
+    sampler->NoteOff(noteNo, velocity, channel);
 }
 
 void OutputInternal::PitchBend(int16_t pitchBend, uint8_t channel)
 {
-    sampler.PitchBend(pitchBend, channel);
+    sampler->PitchBend(pitchBend, channel);
 }
 
 void OutputInternal::AudioLoop()
@@ -24,7 +24,7 @@ void OutputInternal::AudioLoop()
     {
         unsigned long startTime = capsule::sampler::micros();
 
-        sampler.Process(output[buf_idx]);
+        sampler->Process(output[buf_idx]);
         
         unsigned long endTime = capsule::sampler::micros();
         audioProcessTime = endTime - startTime;
@@ -55,21 +55,21 @@ void OutputInternal::begin(AudioOutput output)
     if(audioLoopHandler != nullptr) vTaskDelete(audioLoopHandler);
     audioLoopHandler = nullptr;
 
-    sampler.SetTimbre(0x0, aguitar);
-    sampler.SetTimbre(0x1, bass);
-    sampler.SetTimbre(0x3, epiano);
-    sampler.SetTimbre(0x9, drumset);
-    sampler.SetTimbre(0xF, system);
+    sampler->SetTimbre(0x0, aguitar);
+    sampler->SetTimbre(0x1, bass);
+    sampler->SetTimbre(0x3, epiano);
+    sampler->SetTimbre(0x9, drumset);
+    sampler->SetTimbre(0xF, system);
 
     // SDカードに音色があればそれを使う
     // if (SD.begin(GPIO_NUM_4, SPI, 15000000)) {
     //     std::shared_ptr<Timbre> t;
     //     t = Loader.loadTimbre(SD, "/capsulechord/timbres/aguitar/aguitar.json");
-    //     if (t) sampler.SetTimbre(0x0, t);
+    //     if (t) sampler->SetTimbre(0x0, t);
     // }
 
     // サンプラーの設定
-    sampler.masterVolume = masterVolume;
+    sampler->masterVolume = masterVolume;
 
     // I2Sの初期化
     if (audioOutput == AudioOutput::headphone) i2s_driver_uninstall(I2S_NUM_HP);
@@ -170,20 +170,20 @@ void OutputInternal::terminate()
 
 void OutputInternal::loadPiano()
 {
-    sampler.SetTimbre(0x0, piano);
+    sampler->SetTimbre(0x0, piano);
 }
 
 void OutputInternal::loadAGuitar()
 {
-    sampler.SetTimbre(0x0, aguitar);
+    sampler->SetTimbre(0x0, aguitar);
 }
 
 void OutputInternal::loadEPiano()
 {
-    sampler.SetTimbre(0x0, epiano);
+    sampler->SetTimbre(0x0, epiano);
 }
 
 void OutputInternal::loadSuperSaw()
 {
-    sampler.SetTimbre(0x0, supersaw);
+    sampler->SetTimbre(0x0, supersaw);
 }
