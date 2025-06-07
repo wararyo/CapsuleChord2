@@ -17,6 +17,10 @@ void CapsuleChordKeypad::begin() {
 }
 
 void CapsuleChordKeypad::update() {
+    Wire.beginTransmission(KEYPAD_I2C_ADDR);
+    Wire.write(CMD_GET_KEY_EVENT);
+    Wire.endTransmission();
+
     Wire.requestFrom(KEYPAD_I2C_ADDR,1);//TODO:4とか試してみる
     while (Wire.available()) {
         int val = Wire.read();
