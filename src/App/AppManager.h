@@ -11,6 +11,7 @@
 #include "AppDrumPad.h"
 #include "AppDucking.h"
 #include "AppSoundTest.h"
+#include "AppBall.h"
 #include "../Context.h"
 
 class AppManager
@@ -41,6 +42,7 @@ public:
         new AppDrumPad(),
         new AppDucking(),
         new AppSoundTest(),
+        new AppBall(),
     };
     void launchApp(AppBase *app);
     void hideApp();
