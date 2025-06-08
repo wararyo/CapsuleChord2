@@ -90,6 +90,7 @@ protected:
 };
 
 class DegreeChord {
+public:
     //Root
     static const uint8_t I       = 0;
     static const uint8_t ISharp  = 1;
@@ -105,7 +106,6 @@ class DegreeChord {
     static const uint8_t VII     = 11;
     static const int8_t BASS_DEFAULT  = -1;
 
-public:
     static const std::vector<String> rootStrings;
 
     uint8_t root;

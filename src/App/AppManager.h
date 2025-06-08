@@ -12,6 +12,7 @@
 #include "AppDucking.h"
 #include "AppSoundTest.h"
 #include "AppBall.h"
+#include "AppAutoPlay.h"
 #include "../Context.h"
 
 class AppManager
@@ -43,6 +44,7 @@ public:
         new AppDucking(),
         new AppSoundTest(),
         new AppBall(),
+        new AppAutoPlay(),
     };
     void launchApp(AppBase *app);
     void hideApp();
