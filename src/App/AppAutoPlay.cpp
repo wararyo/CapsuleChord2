@@ -12,6 +12,12 @@ void AppAutoPlay::onCreate()
     
     // 演奏状態を初期化
     resetPlayback();
+    
+    // LEDレイヤーを作成
+    ledLayer = std::make_shared<LedLayer>("AutoPlay");
+    
+    // 自動演奏用のLEDパターンを設定
+    setupLedPattern();
 }
 
 void AppAutoPlay::onActivate()
@@ -34,6 +40,11 @@ void AppAutoPlay::onShowGui(lv_obj_t *container)
     if (isShowingGui) return;
     
     isShowingGui = true;
+    
+    // LEDレイヤーをアクティブにする
+    if (context && context->keypad && ledLayer) {
+        context->keypad->pushLedLayer(ledLayer);
+    }
     
     // タイトルラベル
     titleLabel = lv_label_create(container);
@@ -86,6 +97,11 @@ void AppAutoPlay::onShowGui(lv_obj_t *container)
 void AppAutoPlay::onHideGui()
 {
     if (!isShowingGui) return;
+    
+    // LEDレイヤーを非アクティブにする
+    if (context && context->keypad && ledLayer) {
+        context->keypad->removeLedLayer(ledLayer);
+    }
     
     // UIオブジェクトを削除
     if (titleLabel) lv_obj_del(titleLabel);
@@ -280,10 +296,13 @@ void AppAutoPlay::executeCommand(const AutoPlayCommand& command)
             // DegreeChordをChordに変換してから演奏開始
             {
                 Chord chord = currentScore.degreeToChord(command.chordData.degreeChord);
-                chord.calcInversion(*(uint8_t *)context->centerNoteNo); // 中心ノートをC4 (MIDIノート60) として計算
+                chord.calcInversion(*(uint8_t *)context->centerNoteNo);
                 context->pipeline->playChord(chord);
                 currentChord = chord;
                 needsChordUpdate = true;
+                
+                // LEDを更新
+                updateLedForCurrentChord();
             }
             break;
             
@@ -293,6 +312,14 @@ void AppAutoPlay::executeCommand(const AutoPlayCommand& command)
             context->pipeline->stopChord();
             currentChord = Chord(); // 空のコード
             needsChordUpdate = true;
+            
+            // LEDをクリア
+            if (ledLayer) {
+                ledLayer->fillLeds();
+                if (context && context->keypad) {
+                    context->keypad->markLedNeedsUpdate();
+                }
+            }
             break;
             
         case CommandType::MIDI_NOTE:
@@ -411,4 +438,80 @@ void AppAutoPlay::stopButtonEventHandler(lv_event_t * e)
 {
     AppAutoPlay* app = (AppAutoPlay*)lv_event_get_user_data(e);
     app->stopPlayback();
+}
+
+// LED管理メソッド
+void AppAutoPlay::setupLedPattern()
+{
+    if (!ledLayer) return;
+    
+    ledLayer->fillLeds();
+    
+    if (context && context->keypad) {
+        context->keypad->markLedNeedsUpdate();
+    }
+}
+
+void AppAutoPlay::updateLedForCurrentChord()
+{
+    if (!ledLayer) return;
+    
+    // 現在のコードが空の場合はクリア
+    String chordText = currentChord.toString();
+    if (chordText.isEmpty() || chordText == "")
+    {
+        setupLedPattern(); // 基本パターンに戻す
+        return;
+    }
+    
+    // 現在のコードに基づいてLEDパターンを設定
+    std::map<uint8_t, uint8_t> chordLeds;
+    
+    // 現在演奏中のコードを示すために、コードの度数に対応するキーを光らせる
+    // これは楽器の学習にも役立つ
+    uint8_t scaleKey = currentScore.scaleKey;
+    uint8_t chordRoot = currentChord.root;
+    
+    // スケールキーからの相対的な度数を計算
+    int8_t degree = (chordRoot - scaleKey + 12) % 12;
+    
+    // 度数に対応するキーを明るく光らせる
+    uint8_t keyCode = 0;
+    switch (degree)
+    {
+        case 0:  keyCode = KEY_LEFT_7; break;  // I (1度)
+        case 2:  keyCode = KEY_LEFT_8; break;  // II (2度)
+        case 4:  keyCode = KEY_LEFT_9; break;  // III (3度)
+        case 5:  keyCode = KEY_LEFT_4; break;  // IV (4度)
+        case 7:  keyCode = KEY_LEFT_5; break;  // V (5度)
+        case 9:  keyCode = KEY_LEFT_6; break;  // VI (6度)
+        case 11: keyCode = KEY_LEFT_1; break;  // VII (7度)
+        default: keyCode = KEY_LEFT_7; break;  // デフォルトは I
+    }
+    
+    // 該当するキーを明るく光らせる
+    if (keyCode != 0)
+    {
+        chordLeds[keyCode] = LED_BRIGHT;
+    }
+    
+    // マイナーコードの場合は右手側のキーも光らせる
+    if (currentChord.option & Chord::Minor)
+    {
+        chordLeds[KEY_RIGHT_8] = LED_BRIGHT; // マイナー表示
+    }
+    
+    // セブンスコードの場合
+    if (currentChord.option & (Chord::Seventh | Chord::MajorSeventh))
+    {
+        chordLeds[KEY_RIGHT_4] = LED_BRIGHT; // セブンス表示
+    }
+
+    // LEDを一括更新
+    if (ledLayer) {
+        ledLayer->setLeds(chordLeds);
+        if (context && context->keypad) {
+            context->keypad->markLedNeedsUpdate();
+        }
+    }
 }

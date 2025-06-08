@@ -5,6 +5,7 @@
 #include "Chord.h"
 #include "Scale.h"
 #include "Foundation/MusicalTime.h"
+#include "../Keypad.h"
 #include <vector>
 
 class AppAutoPlay : public AppBase
@@ -134,6 +135,9 @@ private:
     bool isActive = false;
     bool isShowingGui = false;
     
+    // LED Layer Management
+    std::shared_ptr<LedLayer> ledLayer = nullptr;
+    
     // 現在読み込まれている譜面
     Score currentScore;
     
@@ -179,6 +183,10 @@ private:
     void updateProgress();
     void updateStatus();
     void updateCurrentChord();
+    
+    // LED管理メソッド
+    void setupLedPattern();     // 自動演奏用のLEDパターンを設定
+    void updateLedForCurrentChord(); // 現在のコードに基づいてLEDを更新
     
     // イベントハンドラ
     static void playButtonEventHandler(lv_event_t * e);
