@@ -6,6 +6,7 @@
 #include <map>
 #include <vector>
 #include <memory>
+#include <array>
 
 #define KEYPAD_I2C_ADDR 0x09
 
@@ -126,6 +127,59 @@ public:
     bool isKey(uint8_t keyCode) const { return getKeyCode() == keyCode; }
 };
 
+// LED Layer class for managing LED states
+class LedLayer {
+public:
+    // Constructor with optional name for debugging
+    LedLayer(const String& name = "Unknown") : layerName(name) {
+        // Initialize all LEDs to OFF by default
+        ledStates.fill(LED_OFF);
+    }
+    
+    virtual ~LedLayer() = default;
+    
+    // Set LED brightness for a specific key
+    void setLed(uint8_t keyCode, uint8_t brightness) {
+        if (keyCode < ledStates.size()) {
+            // Ensure brightness is within valid range
+            if (brightness > LED_OFF) {
+                brightness = LED_OFF;
+            }
+            ledStates[keyCode] = brightness;
+        }
+    }
+    
+    // Get LED brightness for a specific key
+    uint8_t getLed(uint8_t keyCode) const {
+        if (keyCode < ledStates.size()) {
+            return ledStates[keyCode];
+        }
+        return LED_OFF;
+    }
+    
+    // Set multiple LEDs at once
+    void setLeds(const std::map<uint8_t, uint8_t>& leds) {
+        for (const auto& led : leds) {
+            setLed(led.first, led.second);
+        }
+    }
+
+    // Fill all LEDs (set to specified brightness, default is OFF)
+    void fillLeds(uint8_t brightness = LED_OFF) {
+        ledStates.fill(brightness);
+    }
+    
+    // Get layer name for debugging
+    const String& getName() const { return layerName; }
+    
+    // Get all LED states
+    const std::array<uint8_t, 256>& getAllLeds() const { return ledStates; }
+
+protected:
+    std::array<uint8_t, 256> ledStates;  // Support all possible key codes (0-255)
+    String layerName;
+};
+
 class CapsuleChordKeypad {
 public: 
     class Key;
@@ -147,6 +201,17 @@ public:
 private:
     std::map<int,Key> keys;
     std::vector<std::shared_ptr<KeyEventListener>> _listeners;
+    
+    // Set LED brightness for a specific key
+    void setLedBrightness(uint8_t keyCode, uint8_t brightness);
+    // Update all LEDs based on the current top layer
+    void updateLeds();
+    // Get the current top LED layer (for debugging)
+    std::shared_ptr<LedLayer> getTopLedLayer() const;
+
+    // LED Layer Management
+    std::vector<std::shared_ptr<LedLayer>> _ledLayers;
+    bool _needsLedUpdate = true;
 
 public:
     void begin();
@@ -160,9 +225,15 @@ public:
     
     // Process a key event through the listener stack
     bool processKeyEvent(const KeyEvent& event);
+    
+    // LED Layer Management
+    // Push a new LED layer to the top of the stack
+    void pushLedLayer(std::shared_ptr<LedLayer> layer);
+    
+    // Remove a specific LED layer from anywhere in the stack
+    void removeLedLayer(std::shared_ptr<LedLayer> layer);
 
-    // Set LED brightness for a specific key
-    void setLedBrightness(uint8_t keyCode, uint8_t brightness);
+    void markLedNeedsUpdate();
     
     class Key {
         private:

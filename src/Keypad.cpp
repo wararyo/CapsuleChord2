@@ -14,6 +14,11 @@ void CapsuleChordKeypad::begin() {
         if (!Wire.available()) break;
         if (Wire.read() == 0) break;
     }
+
+    // LEDベースレイヤーを登録
+    auto baseLayer = std::make_shared<LedLayer>("Base Layer");
+    baseLayer->fillLeds(LED_DIM);
+    pushLedLayer(baseLayer);
 }
 
 void CapsuleChordKeypad::update() {
@@ -48,6 +53,12 @@ void CapsuleChordKeypad::update() {
                 continue;
             }
         }
+    }
+    
+    // Update LEDs if needed
+    if (_needsLedUpdate) {
+        updateLeds();
+        _needsLedUpdate = false;
     }
 }
 
@@ -104,6 +115,64 @@ void CapsuleChordKeypad::removeKeyEventListener(std::shared_ptr<KeyEventListener
             ++it;
         }
     }
+}
+
+// LED Layer Management
+void CapsuleChordKeypad::pushLedLayer(std::shared_ptr<LedLayer> layer) {
+    if (!layer) return;
+    
+    _ledLayers.push_back(layer);
+    _needsLedUpdate = true;
+    Serial.printf("LED Layer pushed: %s (stack size: %d)\n", 
+                  layer->getName().c_str(), _ledLayers.size());
+}
+
+void CapsuleChordKeypad::removeLedLayer(std::shared_ptr<LedLayer> layer) {
+    if (!layer) return;
+    
+    for (auto it = _ledLayers.begin(); it != _ledLayers.end(); ++it) {
+        if (*it == layer) {
+            _ledLayers.erase(it);
+            _needsLedUpdate = true;
+            Serial.printf("LED Layer removed: %s (stack size: %d)\n", 
+                          layer->getName().c_str(), _ledLayers.size());
+            break;
+        }
+    }
+}
+
+void CapsuleChordKeypad::markLedNeedsUpdate() {
+    _needsLedUpdate = true;
+}
+
+void CapsuleChordKeypad::updateLeds() {
+    if (_ledLayers.empty()) return;
+    
+    // Use the topmost layer's LED states
+    auto topLayer = _ledLayers.back();
+    const auto& ledStates = topLayer->getAllLeds();
+    
+    // Apply LED states for all known keys
+    static const uint8_t allKeys[] = {
+        KEY_LEFT_1, KEY_LEFT_2, KEY_LEFT_3, KEY_LEFT_4, KEY_LEFT_5,
+        KEY_LEFT_6, KEY_LEFT_7, KEY_LEFT_8, KEY_LEFT_9,
+        KEY_RIGHT_1, KEY_RIGHT_2, KEY_RIGHT_3, KEY_RIGHT_4, KEY_RIGHT_5,
+        KEY_RIGHT_6, KEY_RIGHT_7, KEY_RIGHT_8, KEY_RIGHT_9,
+        KEY_L, KEY_R, KEY_LT, KEY_RT
+    };
+    
+    for (uint8_t keyCode : allKeys) {
+        setLedBrightness(keyCode, ledStates[keyCode]);
+    }
+    
+    Serial.printf("LEDs updated from layer: %s\n", topLayer->getName().c_str());
+}
+
+std::shared_ptr<LedLayer> CapsuleChordKeypad::getTopLedLayer() const {
+    if (_ledLayers.empty()) {
+        return nullptr;
+    }
+    return _ledLayers.back();
 }
 
 void CapsuleChordKeypad::Key::press() {
