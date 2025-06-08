@@ -7,6 +7,7 @@
 #include "Foundation/MusicalTime.h"
 #include "../Keypad.h"
 #include <vector>
+#include <optional>
 
 class AppAutoPlay : public AppBase
 {
@@ -163,7 +164,7 @@ private:
     bool needsStatusUpdate = false;
     bool needsChordUpdate = false;
     musical_time_t currentProgress = 0;
-    Chord currentChord;
+    std::optional<Chord> currentChord;
     
     // 演奏制御メソッド
     void startPlayback();

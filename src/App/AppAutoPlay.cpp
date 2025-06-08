@@ -310,7 +310,7 @@ void AppAutoPlay::executeCommand(const AutoPlayCommand& command)
             Serial.printf("CHORD_END\n");
             // コード演奏終了
             context->pipeline->stopChord();
-            currentChord = Chord(); // 空のコード
+            currentChord = std::nullopt; // コードなし
             needsChordUpdate = true;
             
             // LEDをクリア
@@ -418,9 +418,14 @@ void AppAutoPlay::updateCurrentChord()
 {
     if (!currentChordLabel) return;
     
-    String chordText = currentChord.toString();
-    if (chordText.isEmpty() || chordText == "")
-    {
+    String chordText;
+    if (currentChord.has_value()) {
+        chordText = currentChord->toString();
+    } else {
+        chordText = "---";
+    }
+    
+    if (chordText.isEmpty()) {
         chordText = "---";
     }
     
@@ -456,9 +461,8 @@ void AppAutoPlay::updateLedForCurrentChord()
 {
     if (!ledLayer) return;
     
-    // 現在のコードが空の場合はクリア
-    String chordText = currentChord.toString();
-    if (chordText.isEmpty() || chordText == "")
+    // 現在のコードがない場合はクリア
+    if (!currentChord.has_value())
     {
         setupLedPattern(); // 基本パターンに戻す
         return;
@@ -470,7 +474,7 @@ void AppAutoPlay::updateLedForCurrentChord()
     // 現在演奏中のコードを示すために、コードの度数に対応するキーを光らせる
     // これは楽器の学習にも役立つ
     uint8_t scaleKey = currentScore.scaleKey;
-    uint8_t chordRoot = currentChord.root;
+    uint8_t chordRoot = currentChord->root;
     
     // スケールキーからの相対的な度数を計算
     int8_t degree = (chordRoot - scaleKey + 12) % 12;
@@ -496,13 +500,13 @@ void AppAutoPlay::updateLedForCurrentChord()
     }
     
     // マイナーコードの場合は右手側のキーも光らせる
-    if (currentChord.option & Chord::Minor)
+    if (currentChord->option & Chord::Minor)
     {
         chordLeds[KEY_RIGHT_8] = LED_BRIGHT; // マイナー表示
     }
     
     // セブンスコードの場合
-    if (currentChord.option & (Chord::Seventh | Chord::MajorSeventh))
+    if (currentChord->option & (Chord::Seventh | Chord::MajorSeventh))
     {
         chordLeds[KEY_RIGHT_4] = LED_BRIGHT; // セブンス表示
     }
