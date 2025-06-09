@@ -18,6 +18,7 @@
 #include "Widget/TempoDialog.h"
 #include "App/AppManager.h"
 #include "Widget/AppLauncher.h"
+#include "I2CHandler.h"
 
 #define GPIO_NUM_BACK GPIO_NUM_7
 #define GPIO_NUM_HOME GPIO_NUM_5
@@ -126,6 +127,9 @@ void setup() {
   BtnHome.setHoldThresh(3000);
   Keypad.begin();
 
+  // I2Cハンドラーを開始（M5.update、Keypad.update、タッチ処理を専用スレッドで実行）
+  I2C.begin();
+
   Serial.begin(115200);
   Serial.println("Hello.");
 
@@ -218,7 +222,7 @@ void setup() {
 
 void loop()
 {
-  M5.update();
+  // M5.update()とKeypad.update()はI2Cスレッドで処理される
   
   unsigned long ms = millis();
   BtnBack.setRawState(ms, digitalRead(GPIO_NUM_BACK) == 0);
@@ -245,8 +249,6 @@ void loop()
   {
     Output.Internal.NoteOff(60 + scale->key, 0, 0);
   }
-
-  Keypad.update();
 
   // ヘッドフォン抜き差し
   static bool isHeadphonePreviously = digitalRead(GPIO_NUM_18);
