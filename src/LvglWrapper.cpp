@@ -24,6 +24,7 @@ static void my_touchpad_read( lv_indev_drv_t * indev_driver, lv_indev_data_t * d
         data->state = LV_INDEV_STATE_PR;
         data->point.x = touchData.x;
         data->point.y = touchData.y;
+        I2C.resetTouchData();
     }
 }
 

@@ -58,13 +58,26 @@ bool I2CHandler::getTouchData(TouchData* touchData) {
     return false;
 }
 
+bool I2CHandler::resetTouchData() {
+    if (touchDataMutex == nullptr) return false;
+
+    // ミューテックスを取得してタッチデータをリセット
+    if (xSemaphoreTake(touchDataMutex, pdMS_TO_TICKS(10)) == pdTRUE) {
+        resetTouchDataRequested = true;
+        xSemaphoreGive(touchDataMutex);
+        return true;
+    }
+
+    return false;
+}
+
 void I2CHandler::i2cTaskLoop(void* parameter) {
     I2CHandler* handler = static_cast<I2CHandler*>(parameter);
     handler->i2cLoop();
 }
 
 void I2CHandler::i2cLoop() {
-    const TickType_t xDelay = pdMS_TO_TICKS(5); // 5ms間隔で実行
+    const TickType_t xDelay = pdMS_TO_TICKS(1);
     
     Serial.println("I2C thread loop started");
     
@@ -108,8 +121,12 @@ void I2CHandler::updateTouchData() {
 
     // ミューテックスを取得してタッチデータを更新（ブロッキングを避けるため短時間でタイムアウト）
     if (xSemaphoreTake(touchDataMutex, pdMS_TO_TICKS(2)) == pdTRUE) {
-        currentTouchData.isTouched = isTouched;
+        if (resetTouchDataRequested) {
+            currentTouchData.isTouched = false;
+            resetTouchDataRequested = false;
+        }
         if (isTouched) {
+            currentTouchData.isTouched = true;
             currentTouchData.x = touchX;
             currentTouchData.y = touchY;
         }

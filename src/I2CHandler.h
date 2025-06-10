@@ -33,6 +33,8 @@ public:
      */
     bool getTouchData(TouchData* touchData);
 
+    bool resetTouchData();
+
 private:
     static void i2cTaskLoop(void* parameter);
     void i2cLoop();
@@ -41,6 +43,7 @@ private:
     TaskHandle_t i2cTaskHandle = nullptr;
     SemaphoreHandle_t touchDataMutex = nullptr;
     TouchData currentTouchData = {false, 0, 0};
+    bool resetTouchDataRequested = false;
 };
 
 extern I2CHandler I2C;
