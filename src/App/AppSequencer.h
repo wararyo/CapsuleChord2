@@ -22,6 +22,13 @@ public:
         uint8_t data1;
         uint8_t data2;
     };
+
+    // シーケンスのメタデータ
+    struct Sequence
+    {
+        std::shared_ptr<std::list<SequenceItem>> items;
+        std::list<musical_time_t> transitionPoints; // コード切り替えのタイミング
+    };
     char *getAppName() { return "シーケンサー"; }
     lv_img_dsc_t *getIcon() override { return (lv_img_dsc_t *)&app_sequencer; }
     bool runsInBackground() { return true; }
@@ -77,9 +84,10 @@ private:
     uint8_t inputProcessed[12] = {60};
     std::list<uint8_t> output; // 出力した発音中のノート
     portMUX_TYPE mutex = portMUX_INITIALIZER_UNLOCKED;
-    std::shared_ptr<std::list<SequenceItem>> currentSequence;
+    std::shared_ptr<Sequence> currentSequence;
 
     void updateUi();
     void updatePlayingNotes();
     void processItem(const SequenceItem &item);
+    bool isTransitionPoint(musical_time_t previousTime, musical_time_t currentTime) const;
 };

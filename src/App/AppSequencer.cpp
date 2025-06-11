@@ -2,7 +2,7 @@
 #include <M5Unified.h>
 #include <Output/MidiOutput.h>
 
-const auto sequencePiano = std::make_shared<std::list<AppSequencer::SequenceItem>>(std::list<AppSequencer::SequenceItem>{
+const auto sequencePianoItems = std::make_shared<std::list<AppSequencer::SequenceItem>>(std::list<AppSequencer::SequenceItem>{
 {0,0x90,0x3C,0x6B},
 {240,0x90,0x3D,0x5C},
 {480,0x90,0x3E,0x64},
@@ -21,7 +21,12 @@ const auto sequencePiano = std::make_shared<std::list<AppSequencer::SequenceItem
 {1920,0x80,0x3C,0x40}
 });
 
-const auto sequenceGuitar = std::make_shared<std::list<AppSequencer::SequenceItem>>(std::list<AppSequencer::SequenceItem>{
+const auto sequencePiano = std::make_shared<AppSequencer::Sequence>(AppSequencer::Sequence{
+    sequencePianoItems,
+    {0, 480, 960, 1440} // 4分音符間隔のTransition Points
+});
+
+const auto sequenceGuitarItems = std::make_shared<std::list<AppSequencer::SequenceItem>>(std::list<AppSequencer::SequenceItem>{
 {0,0x90,0x30,0x69},
 {0,0x90,0x32,0x5D},
 {0,0x90,0x3C,0x69},
@@ -103,7 +108,12 @@ const auto sequenceGuitar = std::make_shared<std::list<AppSequencer::SequenceIte
 {1920,0x80,0x3F,0x40}
 });
 
-const auto sequenceSynth = std::make_shared<std::list<AppSequencer::SequenceItem>>(std::list<AppSequencer::SequenceItem>{
+const auto sequenceGuitar = std::make_shared<AppSequencer::Sequence>(AppSequencer::Sequence{
+    sequenceGuitarItems,
+    {0, 840}
+});
+
+const auto sequenceSynthItems = std::make_shared<std::list<AppSequencer::SequenceItem>>(std::list<AppSequencer::SequenceItem>{
 {0,0x90,0x30,0x41},
 {0,0x90,0x32,0x41},
 {0,0x90,0x3C,0x74},
@@ -164,6 +174,11 @@ const auto sequenceSynth = std::make_shared<std::list<AppSequencer::SequenceItem
 {1680,0x80,0x3D,0x40},
 {1680,0x80,0x3E,0x40},
 {1680,0x80,0x3F,0x40}
+});
+
+const auto sequenceSynth = std::make_shared<AppSequencer::Sequence>(AppSequencer::Sequence{
+    sequenceSynthItems,
+    {0, 720, 1200}
 });
 
 void AppSequencer::updateUi()
@@ -347,6 +362,21 @@ void AppSequencer::updatePlayingNotes()
     }
 }
 
+// Transition Pointsを通過したかどうかを判定する
+bool AppSequencer::isTransitionPoint(musical_time_t previousTime, musical_time_t currentTime) const
+{
+    if (!currentSequence) return false;
+    
+    for (musical_time_t transitionPoint : currentSequence->transitionPoints)
+    {
+        if (previousTime < transitionPoint && currentTime >= transitionPoint)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
 void AppSequencer::processItem(const AppSequencer::SequenceItem &item)
 {
     uint_fast8_t data1 = item.data1;
@@ -370,9 +400,9 @@ void AppSequencer::processItem(const AppSequencer::SequenceItem &item)
 void AppSequencer::TempoCallbacks::onTick(TempoController::tick_timing_t timing, musical_time_t time)
 {
     const musical_time_t timeInBar = time_in_bar(time);
-    // コードを切り替えるときに音が途切れないようにするために、4分音符の間隔で入力を更新する
+    // コードを切り替えるときに音が途切れないようにするために、Transition Pointsで入力を更新する
     // ただし直前が無音だった場合は即座に鳴らす
-    if ((timing & TempoController::TICK_TIMING_FULL) ||
+    if (app->isTransitionPoint(app->previousTime, timeInBar) ||
         (app->output.empty() && !app->inputBuffer.empty()))
     {
         app->input = app->inputBuffer;
@@ -396,14 +426,14 @@ void AppSequencer::TempoCallbacks::onTick(TempoController::tick_timing_t timing,
     if (timeInBar == 0) {
         // 小節終わりのノート(ノートオフ想定)を発音する
         if (previousTime > 0) {
-            for (const AppSequencer::SequenceItem &item : *(app->currentSequence))
+            for (const AppSequencer::SequenceItem &item : *(app->currentSequence->items))
             {
                 if (previousTime < item.time && item.time <= 1920) app->processItem(item);
                 else if (item.time > 1920) break;
             }
         }
         // 小節頭のノートを発音する
-        for (const AppSequencer::SequenceItem &item : *(app->currentSequence))
+        for (const AppSequencer::SequenceItem &item : *(app->currentSequence->items))
         {
             if (item.time <= 0) app->processItem(item);
             else if (item.time > 0) break;
@@ -412,7 +442,7 @@ void AppSequencer::TempoCallbacks::onTick(TempoController::tick_timing_t timing,
     else
     {
         // previousTimeより後でcurrentTimeと同じかそれより前のノートを発音する
-        for (const AppSequencer::SequenceItem &item : *(app->currentSequence))
+        for (const AppSequencer::SequenceItem &item : *(app->currentSequence->items))
         {
             if (previousTime < item.time && item.time <= timeInBar) app->processItem(item);
             else if (item.time > timeInBar) break;
