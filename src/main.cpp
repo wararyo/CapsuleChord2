@@ -120,17 +120,17 @@ class MainChordFilter: public ChordPipeline::ChordFilter {
 
 void setup() {
   M5.begin();
-
-  Serial.begin(115200);
-  Serial.println("Hello.");
-
-  I2C.begin();
   
   M5.Display.setRotation(M5.Display.getRotation() ^ 1);
   Lvgl.begin();
 
   BtnHome.setHoldThresh(3000);
   Keypad.begin();
+
+  Serial.begin(115200);
+  Serial.println("Hello.");
+
+  I2C.begin();
 
   // Load settings
   // if(!settings.load()){
