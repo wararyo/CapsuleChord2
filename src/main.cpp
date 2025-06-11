@@ -18,6 +18,7 @@
 #include "Widget/TempoDialog.h"
 #include "App/AppManager.h"
 #include "Widget/AppLauncher.h"
+#include "I2CHandler.h"
 
 #define GPIO_NUM_BACK GPIO_NUM_7
 #define GPIO_NUM_HOME GPIO_NUM_5
@@ -120,14 +121,16 @@ class MainChordFilter: public ChordPipeline::ChordFilter {
 void setup() {
   M5.begin();
 
+  Serial.begin(115200);
+  Serial.println("Hello.");
+
+  I2C.begin();
+  
   M5.Display.setRotation(M5.Display.getRotation() ^ 1);
   Lvgl.begin();
 
   BtnHome.setHoldThresh(3000);
   Keypad.begin();
-
-  Serial.begin(115200);
-  Serial.println("Hello.");
 
   // Load settings
   // if(!settings.load()){
@@ -218,7 +221,7 @@ void setup() {
 
 void loop()
 {
-  M5.update();
+  // M5.update()とKeypad.update()はI2Cスレッドで処理される
   
   unsigned long ms = millis();
   BtnBack.setRawState(ms, digitalRead(GPIO_NUM_BACK) == 0);
@@ -245,8 +248,6 @@ void loop()
   {
     Output.Internal.NoteOff(60 + scale->key, 0, 0);
   }
-
-  Keypad.update();
 
   // ヘッドフォン抜き差し
   static bool isHeadphonePreviously = digitalRead(GPIO_NUM_18);

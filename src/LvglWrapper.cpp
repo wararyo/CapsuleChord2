@@ -1,5 +1,6 @@
 #include "LvglWrapper.h"
 #include "M5Unified.h"
+#include "I2CHandler.h"
 
 static void my_disp_flush( lv_disp_drv_t *disp, const lv_area_t *area, lv_color_t *color_p )
 {
@@ -16,17 +17,14 @@ static void my_disp_flush( lv_disp_drv_t *disp, const lv_area_t *area, lv_color_
 }
 static void my_touchpad_read( lv_indev_drv_t * indev_driver, lv_indev_data_t * data )
 {
-    uint16_t touchX, touchY;
-
     data->state = LV_INDEV_STATE_REL;
 
-    if( M5.Display.getTouch( &touchX, &touchY ) )
-    {
+    I2CHandler::TouchData touchData;
+    if (I2C.getTouchData(&touchData) && touchData.isTouched) {
         data->state = LV_INDEV_STATE_PR;
-
-        /*Set the coordinates*/
-        data->point.x = touchX;
-        data->point.y = touchY;
+        data->point.x = touchData.x;
+        data->point.y = touchData.y;
+        I2C.resetTouchData();
     }
 }
 
