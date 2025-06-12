@@ -18,6 +18,7 @@
 #include "Widget/TempoDialog.h"
 #include "App/AppManager.h"
 #include "Widget/AppLauncher.h"
+#include "Widget/PlayScreen.h"
 #include "I2CHandler.h"
 
 #define GPIO_NUM_BACK GPIO_NUM_7
@@ -30,16 +31,11 @@ m5::Button_Class BtnBack;
 m5::Button_Class BtnHome;
 m5::Button_Class BtnMenu;
 
-lv_obj_t *chordlabel;
-lv_obj_t *battery;
-lv_obj_t *scale_label;
-lv_obj_t *tempo_label;
-lv_obj_t *tickframe;
-lv_obj_t *btn_label_left;   // Label for left button (Key-)
-lv_obj_t *btn_label_center; // Label for center button (Apps)
-lv_obj_t *btn_label_right;  // Label for right button (Key+)
-TempoDialog tempoDialog;
+PlayScreen playScreen;
 AppLauncher appLauncher;
+
+// PlayScreen表示状態の管理用
+bool shouldShowPlayScreen = true;
 
 // Initialize at setup()
 Scale *scale;
@@ -66,21 +62,38 @@ Settings settings(si{
 });
 
 void update_battery() {
-  // バッテリー残量を取得
-  int32_t level = M5.Power.getBatteryLevel();
-  bool isCharging = M5.Power.isCharging();
-  lv_battery_set_level(battery, level);
-  lv_battery_set_charging(battery, isCharging);
+  if (playScreen.isShown()) {
+    playScreen.updateBattery();
+  }
 }
 
 void update_scale() {
-  lv_label_set_text(scale_label, scale->toString().c_str());
+  if (playScreen.isShown()) {
+    playScreen.updateScale(scale->toString().c_str());
+  }
 }
 
 void update_tempo() {
-  char text[64] = {'\0'};
-  sprintf(text, "%d 4/4", Tempo.getTempo());
-  lv_label_set_text(tempo_label, text);
+  if (playScreen.isShown()) {
+    playScreen.updateTempo();
+  }
+}
+
+// PlayScreenの表示状態を管理する関数
+void updatePlayScreenVisibility() {
+  bool shouldShow = !appLauncher.getShown() && (App.getCurrentApp() == nullptr);
+  
+  if (shouldShow && !playScreen.isShown()) {
+    // PlayScreenを表示する必要があり、現在非表示の場合
+    playScreen.create();
+    // UI状態を更新
+    update_battery();
+    update_scale();
+    update_tempo();
+  } else if (!shouldShow && playScreen.isShown()) {
+    // PlayScreenを非表示にする必要があり、現在表示中の場合
+    playScreen.del();
+  }
 }
 
 // TickFrameの更新フラグ
@@ -111,7 +124,9 @@ class MainChordFilter: public ChordPipeline::ChordFilter {
     }
     void onChordOn(Chord chord) override
     {
-      lv_chordlabel_set_chord(chordlabel, chord);
+      if (playScreen.isShown()) {
+        playScreen.setChord(chord);
+      }
     }
     void onChordOff() override
     {
@@ -176,44 +191,15 @@ void setup() {
   bool isHeadphone = digitalRead(GPIO_NUM_18);
   Output.Internal.begin(isHeadphone ? OutputInternal::AudioOutput::headphone : OutputInternal::AudioOutput::speaker);
 
-  // LVGLウィジェットの初期化
-  tickframe = lv_tickframe_create(lv_scr_act());
-  lv_obj_set_size(tickframe, 240, 320);
-  lv_obj_align(tickframe, LV_ALIGN_TOP_LEFT, 0, 0);
-  lv_obj_clear_flag(tickframe, LV_OBJ_FLAG_CLICKABLE);
-  chordlabel = lv_chordlabel_create(lv_scr_act());
-  lv_chordlabel_set_chord(chordlabel, Chord());
-  lv_obj_center(chordlabel);
-  battery = lv_battery_create(lv_scr_act());
-  lv_obj_align(battery, LV_ALIGN_TOP_RIGHT, -4, 4);
-  scale_label = lv_label_create(lv_scr_act());
-  lv_obj_align(scale_label, LV_ALIGN_TOP_LEFT, 4, 28);
-  tempo_label = lv_label_create(lv_scr_act());
-  lv_obj_align(tempo_label, LV_ALIGN_TOP_RIGHT, -8, 32);
-  lv_obj_add_flag(tempo_label, LV_OBJ_FLAG_CLICKABLE);
-  lv_obj_set_ext_click_area(tempo_label, 16);
-  lv_obj_add_event_cb(tempo_label, [](lv_event_t *e) {
-      tempoDialog.create();
-  }, LV_EVENT_CLICKED, NULL);
-
-  // ボタン操作説明用ラベルの初期化
-  btn_label_left = lv_label_create(lv_scr_act());
-  lv_label_set_text(btn_label_left, "Key-");
-  lv_obj_align(btn_label_left, LV_ALIGN_BOTTOM_MID, -80, -8);
-
-  btn_label_center = lv_label_create(lv_scr_act());
-  lv_label_set_text(btn_label_center, "Apps");
-  lv_obj_align(btn_label_center, LV_ALIGN_BOTTOM_MID, 0, -8);
-
-  btn_label_right = lv_label_create(lv_scr_act());
-  lv_label_set_text(btn_label_right, "Key+");
-  lv_obj_align(btn_label_right, LV_ALIGN_BOTTOM_MID, 80, -8);
+  // PlayScreen UI の初期化
+  playScreen.create();
 
   // コードが鳴ったときにコード名を表示する
   Pipeline.addChordFilter(new MainChordFilter());
   // テンポが変更されたときに表示を更新する
   Tempo.addListener(new MainTempoCallbacks());
 
+  // 初期UI状態の更新
   update_battery();
   update_scale();
   update_tempo();
@@ -275,8 +261,8 @@ void loop()
 
   // ホームボタンを押したらアプリ一覧
   if (BtnHome.wasPressed()) {
-    if (tempoDialog.getShown()) {
-      tempoDialog.del();
+    if (playScreen.getTempoDialog().getShown()) {
+      playScreen.getTempoDialog().del();
     }
     else if (App.getCurrentApp() != nullptr)
     {
@@ -292,6 +278,8 @@ void loop()
   }
 
   // UI更新
+  updatePlayScreenVisibility();
+  
   if (appLauncher.getShown()) {
     appLauncher.update();
   }
@@ -299,8 +287,8 @@ void loop()
   if (currentApp != nullptr) {
     currentApp->onUpdateGui();
   }
-  if (needsTickUpdate) {
-    lv_tickframe_tick(tickframe, lastTickTiming & TempoController::TICK_TIMING_BAR);
+  if (needsTickUpdate && playScreen.isShown()) {
+    playScreen.updateTick(lastTickTiming & TempoController::TICK_TIMING_BAR);
     needsTickUpdate = false;
   }
   lv_task_handler();
