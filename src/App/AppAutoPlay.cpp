@@ -10,6 +10,9 @@ void AppAutoPlay::onCreate()
     // 初期化処理
     tempoCallbacks.app = this;
     
+    // 楽曲データを初期化
+    initializeSongs();
+    
     // 演奏状態を初期化
     resetPlayback();
     
@@ -48,7 +51,7 @@ void AppAutoPlay::onShowGui(lv_obj_t *container)
     
     // タイトルラベル
     titleLabel = lv_label_create(container);
-    lv_label_set_text(titleLabel, currentScore.title.c_str());
+    lv_label_set_text(titleLabel, getAppName());
     lv_obj_align(titleLabel, LV_ALIGN_TOP_MID, 0, 10);
     
     // ステータスラベル
@@ -61,10 +64,39 @@ void AppAutoPlay::onShowGui(lv_obj_t *container)
     lv_label_set_text(currentChordLabel, "---");
     lv_obj_align(currentChordLabel, LV_ALIGN_TOP_MID, 0, 60);
     
+    // 楽曲選択ドロップダウン
+    songSelectionDropdown = lv_dropdown_create(container);
+    
+    // 楽曲リストをドロップダウンに設定
+    String songList = "";
+    for (size_t i = 0; i < availableSongs.size(); i++) {
+        if (i > 0) songList += "\n";
+        songList += availableSongs[i].title;
+    }
+    lv_dropdown_set_options(songSelectionDropdown, songList.c_str());
+    lv_dropdown_set_selected(songSelectionDropdown, selectedSongIndex);
+    
+    lv_obj_set_size(songSelectionDropdown, 150, 35);
+    lv_obj_align(songSelectionDropdown, LV_ALIGN_TOP_MID, 0, 85);
+    lv_obj_add_event_cb(songSelectionDropdown, songSelectionEventHandler, LV_EVENT_VALUE_CHANGED, this);
+    
+    // 連続再生モードスイッチ
+    continuousModeSwitch = lv_switch_create(container);
+    lv_obj_set_size(continuousModeSwitch, 50, 25);
+    lv_obj_align(continuousModeSwitch, LV_ALIGN_TOP_MID, 0, 125);
+    lv_obj_add_event_cb(continuousModeSwitch, continuousModeEventHandler, LV_EVENT_VALUE_CHANGED, this);
+    if (isContinuousMode) lv_obj_add_state(continuousModeSwitch, LV_STATE_CHECKED);
+    else lv_obj_clear_state(continuousModeSwitch, LV_STATE_CHECKED);
+    
+    // 連続再生モードラベル
+    lv_obj_t* continuousLabel = lv_label_create(container);
+    lv_label_set_text(continuousLabel, "連続再生");
+    lv_obj_align(continuousLabel, LV_ALIGN_TOP_MID, 0, 155);
+    
     // 再生ボタン
     playButton = lv_btn_create(container);
     lv_obj_set_size(playButton, 80, 40);
-    lv_obj_align(playButton, LV_ALIGN_CENTER, -50, -10);
+    lv_obj_align(playButton, LV_ALIGN_CENTER, -50, 50);
     lv_obj_add_event_cb(playButton, playButtonEventHandler, LV_EVENT_CLICKED, this);
     
     lv_obj_t* playLabel = lv_label_create(playButton);
@@ -74,7 +106,7 @@ void AppAutoPlay::onShowGui(lv_obj_t *container)
     // 停止ボタン
     stopButton = lv_btn_create(container);
     lv_obj_set_size(stopButton, 80, 40);
-    lv_obj_align(stopButton, LV_ALIGN_CENTER, 50, -10);
+    lv_obj_align(stopButton, LV_ALIGN_CENTER, 50, 50);
     lv_obj_add_event_cb(stopButton, stopButtonEventHandler, LV_EVENT_CLICKED, this);
     
     lv_obj_t* stopLabel = lv_label_create(stopButton);
@@ -84,7 +116,7 @@ void AppAutoPlay::onShowGui(lv_obj_t *container)
     // プログレスバー
     progressBar = lv_bar_create(container);
     lv_obj_set_size(progressBar, 200, 20);
-    lv_obj_align(progressBar, LV_ALIGN_CENTER, 0, 40);
+    lv_obj_align(progressBar, LV_ALIGN_CENTER, 0, 100);
     lv_bar_set_range(progressBar, 0, 100);
     lv_bar_set_value(progressBar, 0, LV_ANIM_OFF);
     
@@ -107,6 +139,8 @@ void AppAutoPlay::onHideGui()
     if (titleLabel) lv_obj_del(titleLabel);
     if (statusLabel) lv_obj_del(statusLabel);
     if (currentChordLabel) lv_obj_del(currentChordLabel);
+    if (songSelectionDropdown) lv_obj_del(songSelectionDropdown);
+    if (continuousModeSwitch) lv_obj_del(continuousModeSwitch);
     if (playButton) lv_obj_del(playButton);
     if (stopButton) lv_obj_del(stopButton);
     if (progressBar) lv_obj_del(progressBar);
@@ -114,6 +148,8 @@ void AppAutoPlay::onHideGui()
     titleLabel = nullptr;
     statusLabel = nullptr;
     currentChordLabel = nullptr;
+    songSelectionDropdown = nullptr;
+    continuousModeSwitch = nullptr;
     playButton = nullptr;
     stopButton = nullptr;
     progressBar = nullptr;
@@ -202,8 +238,8 @@ void AppAutoPlay::TempoCallbacks::onTick(TempoController::tick_timing_t timing, 
 void AppAutoPlay::startPlayback()
 {
     isActive = true;
-    // デフォルト譜面を読み込み
-    loadDefaultScore();
+    // 選択された譜面を読み込み
+    loadSelectedScore();
     if (!Tempo.getPlaying())
     {
         // 譜面のテンポを設定
@@ -270,15 +306,19 @@ void AppAutoPlay::processCommands(musical_time_t currentTime)
     }
     
     // ループ処理
-    if (isLooping && nextCommandIndex >= currentScore.commands.size())
+    if (nextCommandIndex >= currentScore.commands.size())
     {
         if (currentTime >= currentScore.duration)
         {
-            // 譜面の最後まで到達したらリセット
-            Tempo.stop();
-            resetPlayback();
-            if (Tempo.getPlaying())
+            // 譜面の最後まで到達
+            if (isContinuousMode)
             {
+                // 連続再生モードの場合、次の曲に移動
+                moveToNextSong();
+                // 新しい曲を開始
+                Tempo.stop();
+                resetPlayback();
+                Tempo.setTempo(currentScore.tempo);
                 Tempo.play();
             }
         }
@@ -341,11 +381,53 @@ void AppAutoPlay::executeCommand(const AutoPlayCommand& command)
 }
 
 // 譜面管理メソッド
-void AppAutoPlay::loadDefaultScore()
+void AppAutoPlay::initializeSongs()
 {
-    // 静的配列からデフォルト譜面を読み込み
-    loadScoreFromArray(DemoSong::DEMO_COMMANDS, DemoSong::DEMO_COMMAND_COUNT, 
-                      DemoSong::DEMO_TEMPO, "デモソング", DemoSong::DEMO_DURATION);
+    // 利用可能な楽曲を初期化
+    availableSongs.clear();
+    
+    // デモソング
+    availableSongs.push_back({
+        "デモソング",
+        DemoSong::DEMO_COMMANDS,
+        DemoSong::DEMO_COMMAND_COUNT,
+        DemoSong::DEMO_TEMPO,
+        DemoSong::DEMO_DURATION
+    });
+    
+    // バラード
+    availableSongs.push_back({
+        "バラード",
+        BalladSong::BALLAD_COMMANDS,
+        BalladSong::BALLAD_COMMAND_COUNT,
+        BalladSong::BALLAD_TEMPO,
+        BalladSong::BALLAD_DURATION
+    });
+    
+    // ロック
+    availableSongs.push_back({
+        "ロック",
+        RockSong::ROCK_COMMANDS,
+        RockSong::ROCK_COMMAND_COUNT,
+        RockSong::ROCK_TEMPO,
+        RockSong::ROCK_DURATION
+    });
+    
+    // 初期選択は最初の楽曲
+    selectedSongIndex = 0;
+}
+
+void AppAutoPlay::loadSelectedScore()
+{
+    if (selectedSongIndex >= availableSongs.size()) {
+        selectedSongIndex = 0; // 安全のため
+    }
+    
+    const SongData& song = availableSongs[selectedSongIndex];
+    
+    // 選択された楽曲を読み込み
+    loadScoreFromArray(song.commands, song.commandCount, 
+                      song.tempo, song.title, song.duration);
 }
 
 void AppAutoPlay::loadScoreFromArray(const AutoPlayCommand* commands, size_t commandCount, 
@@ -445,6 +527,24 @@ void AppAutoPlay::stopButtonEventHandler(lv_event_t * e)
     app->stopPlayback();
 }
 
+void AppAutoPlay::songSelectionEventHandler(lv_event_t * e)
+{
+    AppAutoPlay* app = (AppAutoPlay*)lv_event_get_user_data(e);
+    lv_obj_t* dropdown = lv_event_get_target(e);
+    
+    app->selectedSongIndex = lv_dropdown_get_selected(dropdown);
+    Serial.printf("Song selection changed to index: %zu\n", app->selectedSongIndex);
+}
+
+void AppAutoPlay::continuousModeEventHandler(lv_event_t * e)
+{
+    AppAutoPlay* app = (AppAutoPlay*)lv_event_get_user_data(e);
+    lv_obj_t* sw = lv_event_get_target(e);
+    
+    app->isContinuousMode = lv_obj_has_state(sw, LV_STATE_CHECKED);
+    Serial.printf("Continuous mode: %s\n", app->isContinuousMode ? "ON" : "OFF");
+}
+
 // LED管理メソッド
 void AppAutoPlay::setupLedPattern()
 {
@@ -518,4 +618,22 @@ void AppAutoPlay::updateLedForCurrentChord()
             context->keypad->markLedNeedsUpdate();
         }
     }
+}
+
+void AppAutoPlay::moveToNextSong()
+{
+    if (availableSongs.empty()) return;
+    
+    // 次の曲のインデックスを計算
+    selectedSongIndex = (selectedSongIndex + 1) % availableSongs.size();
+    
+    // 新しい楽曲を読み込み
+    loadSelectedScore();
+    
+    // UIのドロップダウンも更新
+    if (songSelectionDropdown && isShowingGui) {
+        lv_dropdown_set_selected(songSelectionDropdown, selectedSongIndex);
+    }
+    
+    Serial.printf("Next song: %s\n", currentScore.title.c_str());
 }

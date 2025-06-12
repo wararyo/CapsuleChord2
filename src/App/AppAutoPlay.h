@@ -96,6 +96,16 @@ public:
         }
     };
 
+    // 楽曲データ構造
+    struct SongData
+    {
+        String title;
+        const AutoPlayCommand* commands;
+        size_t commandCount;
+        TempoController::tempo_t tempo;
+        musical_time_t duration;
+    };
+
     // AppBase interface implementation
     char *getAppName() override { return "自動演奏"; }
     lv_img_dsc_t *getIcon() override { return nullptr; }
@@ -142,10 +152,14 @@ private:
     // 現在読み込まれている譜面
     Score currentScore;
     
+    // 楽曲選択関連
+    std::vector<SongData> availableSongs;  // 利用可能な楽曲リスト
+    size_t selectedSongIndex = 0;          // 現在選択されている楽曲のインデックス
+    bool isContinuousMode = true;         // 連続再生モード
+    
     // 演奏状態
     musical_time_t previousTime = 0;    // 前回のTick時の時間
     size_t nextCommandIndex = 0;        // 次に実行するコマンドのインデックス
-    bool isLooping = true;              // ループ再生するか
     
     // 割り込み処理の軽量化のための変数
     volatile musical_time_t latestTime = 0;  // 最新の時刻（割り込みから更新）
@@ -155,6 +169,8 @@ private:
     lv_obj_t *titleLabel;
     lv_obj_t *statusLabel;
     lv_obj_t *currentChordLabel;
+    lv_obj_t *songSelectionDropdown;    // 楽曲選択ドロップダウン
+    lv_obj_t *continuousModeSwitch;     // 連続再生モードスイッチ
     lv_obj_t *playButton;
     lv_obj_t *stopButton;
     lv_obj_t *progressBar;
@@ -174,7 +190,9 @@ private:
     void executeCommand(const AutoPlayCommand& command);
     
     // 譜面管理メソッド
-    void loadDefaultScore();    // デフォルト譜面の読み込み
+    void initializeSongs();             // 楽曲データを初期化
+    void loadSelectedScore();           // 選択された楽曲を読み込み
+    void moveToNextSong();              // 次の曲に移動
     void loadScoreFromArray(const AutoPlayCommand* commands, size_t commandCount, 
                            TempoController::tempo_t tempo, const String& title, 
                            musical_time_t duration); // 配列から譜面を読み込み
@@ -192,6 +210,8 @@ private:
     // イベントハンドラ
     static void playButtonEventHandler(lv_event_t * e);
     static void stopButtonEventHandler(lv_event_t * e);
+    static void songSelectionEventHandler(lv_event_t * e);  // 楽曲選択イベントハンドラ
+    static void continuousModeEventHandler(lv_event_t * e); // 連続再生モードイベントハンドラ
 };
 
 // サンプル譜面データ（8小節、C-Am-F-G進行）
@@ -361,4 +381,88 @@ namespace DemoSong {
     constexpr size_t DEMO_COMMAND_COUNT = sizeof(DEMO_COMMANDS) / sizeof(DEMO_COMMANDS[0]);
     constexpr musical_time_t DEMO_DURATION = BAR_LENGTH * 8;
     constexpr TempoController::tempo_t DEMO_TEMPO = 110;
+}
+
+// 追加楽曲1: バラード（4小節、vi-IV-I-V進行）
+namespace BalladSong {
+    using namespace DemoSong; // 基本定義を再利用
+    
+    const AppAutoPlay::AutoPlayCommand BALLAD_COMMANDS[] = {
+        // === コード進行 ===
+        // 1小節目: vi (A Minor)
+        {0, DegreeChord(DegreeChord::VI, Chord::Minor), AppAutoPlay::CommandType::CHORD_START},
+        {BAR_LENGTH - 1, DegreeChord(), AppAutoPlay::CommandType::CHORD_END},
+        
+        // 2小節目: IV (F Major)
+        {BAR_LENGTH, DegreeChord(DegreeChord::IV, Chord::Major), AppAutoPlay::CommandType::CHORD_START},
+        {BAR_LENGTH * 2 - 1, DegreeChord(), AppAutoPlay::CommandType::CHORD_END},
+        
+        // 3小節目: I (C Major)
+        {BAR_LENGTH * 2, DegreeChord(DegreeChord::I, Chord::Major), AppAutoPlay::CommandType::CHORD_START},
+        {BAR_LENGTH * 3 - 1, DegreeChord(), AppAutoPlay::CommandType::CHORD_END},
+        
+        // 4小節目: V (G Major)
+        {BAR_LENGTH * 3, DegreeChord(DegreeChord::V, Chord::Major), AppAutoPlay::CommandType::CHORD_START},
+        {BAR_LENGTH * 4 - 1, DegreeChord(), AppAutoPlay::CommandType::CHORD_END},
+        
+        // === ドラムパターン（よりシンプルなバラードパターン） ===
+        // 各小節にキックとスネアのみ
+        {0, 0x90, KICK, 80},                        // 1小節目
+        {QUARTER_NOTE * 2, 0x90, SNARE, 70},
+        
+        {BAR_LENGTH, 0x90, KICK, 80},               // 2小節目
+        {BAR_LENGTH + QUARTER_NOTE * 2, 0x90, SNARE, 70},
+        
+        {BAR_LENGTH * 2, 0x90, KICK, 80},           // 3小節目
+        {BAR_LENGTH * 2 + QUARTER_NOTE * 2, 0x90, SNARE, 70},
+        
+        {BAR_LENGTH * 3, 0x90, KICK, 80},           // 4小節目
+        {BAR_LENGTH * 3 + QUARTER_NOTE * 2, 0x90, SNARE, 70},
+    };
+    
+    constexpr size_t BALLAD_COMMAND_COUNT = sizeof(BALLAD_COMMANDS) / sizeof(BALLAD_COMMANDS[0]);
+    constexpr musical_time_t BALLAD_DURATION = BAR_LENGTH * 4;
+    constexpr TempoController::tempo_t BALLAD_TEMPO = 80;
+}
+
+// 追加楽曲2: ロック（2小節、I-V進行）
+namespace RockSong {
+    using namespace DemoSong; // 基本定義を再利用
+    
+    const AppAutoPlay::AutoPlayCommand ROCK_COMMANDS[] = {
+        // === コード進行 ===
+        // 1小節目: I (C Major)
+        {0, DegreeChord(DegreeChord::I, Chord::Major), AppAutoPlay::CommandType::CHORD_START},
+        {BAR_LENGTH - 1, DegreeChord(), AppAutoPlay::CommandType::CHORD_END},
+        
+        // 2小節目: V (G Major)
+        {BAR_LENGTH, DegreeChord(DegreeChord::V, Chord::Major), AppAutoPlay::CommandType::CHORD_START},
+        {BAR_LENGTH * 2 - 1, DegreeChord(), AppAutoPlay::CommandType::CHORD_END},
+        
+        // === ドラムパターン（激しいロックパターン） ===
+        // 1小節目 - より激しいパターン
+        {0, 0x90, KICK, 127},
+        {0, 0x90, CRASH, 127},
+        {EIGHTH_NOTE, 0x90, KICK, 100},
+        {QUARTER_NOTE, 0x90, SNARE, 120},
+        {QUARTER_NOTE + EIGHTH_NOTE, 0x90, KICK, 100},
+        {QUARTER_NOTE * 2, 0x90, KICK, 127},
+        {QUARTER_NOTE * 2 + EIGHTH_NOTE, 0x90, KICK, 100},
+        {QUARTER_NOTE * 3, 0x90, SNARE, 120},
+        {QUARTER_NOTE * 3 + EIGHTH_NOTE, 0x90, KICK, 100},
+        
+        // 2小節目
+        {BAR_LENGTH, 0x90, KICK, 127},
+        {BAR_LENGTH + EIGHTH_NOTE, 0x90, KICK, 100},
+        {BAR_LENGTH + QUARTER_NOTE, 0x90, SNARE, 120},
+        {BAR_LENGTH + QUARTER_NOTE + EIGHTH_NOTE, 0x90, KICK, 100},
+        {BAR_LENGTH + QUARTER_NOTE * 2, 0x90, KICK, 127},
+        {BAR_LENGTH + QUARTER_NOTE * 2 + EIGHTH_NOTE, 0x90, KICK, 100},
+        {BAR_LENGTH + QUARTER_NOTE * 3, 0x90, SNARE, 120},
+        {BAR_LENGTH + QUARTER_NOTE * 3 + EIGHTH_NOTE, 0x90, KICK, 100},
+    };
+    
+    constexpr size_t ROCK_COMMAND_COUNT = sizeof(ROCK_COMMANDS) / sizeof(ROCK_COMMANDS[0]);
+    constexpr musical_time_t ROCK_DURATION = BAR_LENGTH * 2;
+    constexpr TempoController::tempo_t ROCK_TEMPO = 140;
 }
