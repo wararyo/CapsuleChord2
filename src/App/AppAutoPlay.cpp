@@ -1,4 +1,8 @@
 #include "AppAutoPlay.h"
+#include "../Assets/DemoSong.h"
+#include "../Assets/BalladSong.h"
+#include "../Assets/RockSong.h"
+#include "../Assets/MarigoldSong.h"
 #include "../Tempo.h"
 #include "../ChordPipeline.h"
 #include <algorithm>
@@ -366,15 +370,17 @@ void AppAutoPlay::executeCommand(const AutoPlayCommand& command)
             Serial.printf("MIDI_NOTE: status=%02X, data1=%d, data2=%d\n", 
                           command.midiData.status, command.midiData.data1, command.midiData.data2);
             // MIDIノート送信
-            if (command.midiData.status == 0x90) // Note On
+            if ((command.midiData.status & 0xF0) == 0x90) // Note On
             {
+                uint8_t channel = command.midiData.status & 0x0F;
                 context->pipeline->sendNote(true, command.midiData.data1, 
-                                          command.midiData.data2, 9); // Channel 9 for drums
+                                          command.midiData.data2, channel); // Channel 9 for drums
             }
-            else if (command.midiData.status == 0x80) // Note Off
+            else if ((command.midiData.status & 0xF0) == 0x80) // Note Off
             {
+                uint8_t channel = command.midiData.status & 0x0F;
                 context->pipeline->sendNote(false, command.midiData.data1, 
-                                          command.midiData.data2, 9);
+                                          command.midiData.data2, channel);
             }
             break;
     }
@@ -389,28 +395,41 @@ void AppAutoPlay::initializeSongs()
     // デモソング
     availableSongs.push_back({
         "デモソング",
-        DemoSong::DEMO_COMMANDS,
-        DemoSong::DEMO_COMMAND_COUNT,
-        DemoSong::DEMO_TEMPO,
-        DemoSong::DEMO_DURATION
+        DEMO_COMMANDS,
+        DEMO_COMMAND_COUNT,
+        DEMO_TEMPO,
+        DEMO_DURATION,
+        Chord::C  // Cメジャー
     });
     
     // バラード
     availableSongs.push_back({
         "バラード",
-        BalladSong::BALLAD_COMMANDS,
-        BalladSong::BALLAD_COMMAND_COUNT,
-        BalladSong::BALLAD_TEMPO,
-        BalladSong::BALLAD_DURATION
+        BALLAD_COMMANDS,
+        BALLAD_COMMAND_COUNT,
+        BALLAD_TEMPO,
+        BALLAD_DURATION,
+        Chord::C  // Cメジャー
     });
     
     // ロック
     availableSongs.push_back({
         "ロック",
-        RockSong::ROCK_COMMANDS,
-        RockSong::ROCK_COMMAND_COUNT,
-        RockSong::ROCK_TEMPO,
-        RockSong::ROCK_DURATION
+        ROCK_COMMANDS,
+        ROCK_COMMAND_COUNT,
+        ROCK_TEMPO,
+        ROCK_DURATION,
+        Chord::C  // Cメジャー
+    });
+    
+    // マリーゴールド
+    availableSongs.push_back({
+        "マリーゴールド",
+        MARIGOLDSONG_COMMANDS,
+        MARIGOLDSONG_COMMAND_COUNT,
+        MARIGOLDSONG_TEMPO,
+        MARIGOLDSONG_DURATION,
+        MARIGOLDSONG_KEY  // Dメジャー（外部定義から取得）
     });
     
     // 初期選択は最初の楽曲
@@ -427,17 +446,17 @@ void AppAutoPlay::loadSelectedScore()
     
     // 選択された楽曲を読み込み
     loadScoreFromArray(song.commands, song.commandCount, 
-                      song.tempo, song.title, song.duration);
+                      song.tempo, song.title, song.duration, song.key);
 }
 
 void AppAutoPlay::loadScoreFromArray(const AutoPlayCommand* commands, size_t commandCount, 
                                     TempoController::tempo_t tempo, const String& title, 
-                                    musical_time_t duration)
+                                    musical_time_t duration, uint8_t key)
 {
-    Serial.printf("Loading score: %s, tempo=%d, duration=%d, commandCount=%zu\n", 
-                  title.c_str(), tempo, duration, commandCount);
+    Serial.printf("Loading score: %s, tempo=%d, duration=%d, commandCount=%zu, key=%d\n", 
+                  title.c_str(), tempo, duration, commandCount, key);
     
-    // MajorScaleを取得して設定（デフォルトでCメジャー）
+    // MajorScaleを取得して設定
     auto availableScales = Scale::getAvailableScales();
     ScaleBase* majorScale = nullptr;
     for (auto& scale : availableScales) {
@@ -448,7 +467,7 @@ void AppAutoPlay::loadScoreFromArray(const AutoPlayCommand* commands, size_t com
     }
     
     // 譜面の基本情報を設定
-    currentScore = Score(tempo, Chord::C, majorScale, title);
+    currentScore = Score(tempo, key, majorScale, title);
     currentScore.duration = duration;
     
     // コマンド配列をクリアして、新しいコマンドを追加
@@ -463,6 +482,15 @@ void AppAutoPlay::loadScoreFromArray(const AutoPlayCommand* commands, size_t com
     
     // コマンドを時間順にソート（配列が既にソート済みであっても安全のため）
     sortCommands();
+    
+    // contextのscaleにキー情報を反映
+    if (context && context->settings) {
+        Scale* globalScale = &((SettingItemScale*)context->settings->findSettingByKey(String("Scale")))->content;
+        if (globalScale) {
+            globalScale->key = key;
+            Serial.printf("Updated global scale key to: %d (%s)\n", key, Chord::rootStrings[key].c_str());
+        }
+    }
 }
 
 void AppAutoPlay::sortCommands()
@@ -534,6 +562,12 @@ void AppAutoPlay::songSelectionEventHandler(lv_event_t * e)
     
     app->selectedSongIndex = lv_dropdown_get_selected(dropdown);
     Serial.printf("Song selection changed to index: %zu\n", app->selectedSongIndex);
+    
+    // 楽曲が変更されたら、演奏を停止して新しい楽曲を読み込む
+    if (app->isActive) {
+        app->stopPlayback();
+        app->loadSelectedScore();  // 新しい楽曲のキー情報も反映される
+    }
 }
 
 void AppAutoPlay::continuousModeEventHandler(lv_event_t * e)
