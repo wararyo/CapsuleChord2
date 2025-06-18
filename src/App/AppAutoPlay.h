@@ -8,6 +8,8 @@
 #include "../Keypad.h"
 #include <vector>
 #include <optional>
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 
 class AppAutoPlay : public AppBase
 {
@@ -135,9 +137,9 @@ private:
             // すべてのタイミングで呼び出されるようにする（高精度な演奏のため）
             return TempoController::TICK_TIMING_BAR |
                    TempoController::TICK_TIMING_FULL |
-                   TempoController::TICK_TIMING_FULL_TRIPLET |
+                //    TempoController::TICK_TIMING_FULL_TRIPLET |
                    TempoController::TICK_TIMING_HALF |
-                   TempoController::TICK_TIMING_HALF_TRIPLET |
+                //    TempoController::TICK_TIMING_HALF_TRIPLET |
                    TempoController::TICK_TIMING_QUARTER |
                    TempoController::TICK_TIMING_EIGHTH;
         }
@@ -162,7 +164,11 @@ private:
     musical_time_t previousTime = 0;    // 前回のTick時の時間
     size_t nextCommandIndex = 0;        // 次に実行するコマンドのインデックス
     
-    // 割り込み処理の軽量化のための変数
+    // 演奏タスク関連
+    TaskHandle_t playbackTaskHandle = nullptr;     // 演奏タスクのハンドル
+    volatile bool playbackTaskRunning = false;    // 演奏タスクが動作中かのフラグ
+    
+    // 割り込み処理の軽量化のための変数（廃止予定）
     volatile musical_time_t latestTime = 0;  // 最新の時刻（割り込みから更新）
     volatile bool hasNewTime = false;        // 新しい時刻が更新されたか
     
@@ -187,8 +193,14 @@ private:
     void startPlayback();
     void stopPlayback();
     void resetPlayback();
-    void processCommands(musical_time_t currentTime);
     void executeCommand(const AutoPlayCommand& command);
+    
+    // 演奏タスク関連メソッド
+    void createPlaybackTask();          // 演奏タスクを作成
+    void destroyPlaybackTask();         // 演奏タスクを破棄
+    static void playbackTaskWrapper(void* parameter);  // 演奏タスクのラッパー関数
+    void playbackTaskMain();            // 演奏タスクのメイン処理
+    void processCommands(musical_time_t currentTime); // タスク内でのコマンド処理
     
     // 譜面管理メソッド
     void initializeSongs();             // 楽曲データを初期化

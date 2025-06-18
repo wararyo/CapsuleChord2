@@ -170,19 +170,8 @@ void AppAutoPlay::onDestroy()
 
 void AppAutoPlay::onUpdateGui()
 {
-    // 新しい時刻があるかチェック（割り込みからの更新）
-    if (hasNewTime)
-    {
-        hasNewTime = false;
-        musical_time_t currentTime = latestTime;
-        
-        // コマンドを処理（メインループで実行）
-        processCommands(currentTime);
-        
-        // プログレス更新
-        currentProgress = currentTime;
-        needsProgressUpdate = true;
-    }
+    // 新しい実装では演奏タスクが独立して動作するため、
+    // 従来のコマンド処理はここでは不要
     
     if (!isShowingGui) return;
     
@@ -229,11 +218,14 @@ void AppAutoPlay::TempoCallbacks::onTempoChanged(TempoController::tempo_t tempo)
 
 void AppAutoPlay::TempoCallbacks::onTick(TempoController::tick_timing_t timing, musical_time_t time)
 {
-    if (!app->isActive) return;
+    if (!app->isActive || !app->playbackTaskRunning) return;
     
-    // 割り込み内では最小限の処理のみ行う
-    app->latestTime = time;
-    app->hasNewTime = true;
+    // タスク通知を使って演奏タスクに時刻を送信
+    if (app->playbackTaskHandle != nullptr)
+    {
+        // 時刻をnotification valueとして直接送信
+        xTaskNotifyFromISR(app->playbackTaskHandle, (uint32_t)time, eSetValueWithOverwrite, nullptr);
+    }
     
     app->previousTime = time;
 }
@@ -242,6 +234,11 @@ void AppAutoPlay::TempoCallbacks::onTick(TempoController::tick_timing_t timing, 
 void AppAutoPlay::startPlayback()
 {
     isActive = true;
+
+    // 演奏タスクを開始
+    playbackTaskRunning = true;
+    createPlaybackTask();
+
     // 選択された譜面を読み込み
     loadSelectedScore();
     if (!Tempo.getPlaying())
@@ -258,6 +255,15 @@ void AppAutoPlay::startPlayback()
 void AppAutoPlay::stopPlayback()
 {
     isActive = false;
+
+    // 演奏タスクを停止
+    playbackTaskRunning = false;
+    if (playbackTaskHandle != nullptr)
+    {
+        vTaskDelete(playbackTaskHandle);
+        playbackTaskHandle = nullptr;
+    }
+    
     if (Tempo.getPlaying())
     {
         Tempo.stop();
@@ -276,59 +282,6 @@ void AppAutoPlay::resetPlayback()
     needsStatusUpdate = true;
 }
 
-void AppAutoPlay::processCommands(musical_time_t currentTime)
-{
-    const size_t scoreSize = currentScore.commands.size();
-    
-    // 安全策: 1回の処理で最大50コマンドまで
-    int processedCount = 0;
-    const int MAX_COMMANDS_PER_UPDATE = 50;
-    
-    // 現在時刻までのコマンドを順次実行
-    while (nextCommandIndex < scoreSize && processedCount < MAX_COMMANDS_PER_UPDATE)
-    {
-        const auto& command = currentScore.commands[nextCommandIndex];
-        
-        if (command.time <= currentTime)
-        {
-            Serial.printf("nextCommandIndex=%zu, command.time=%d, currentTime=%d\n", 
-                          nextCommandIndex, command.time, currentTime);
-            executeCommand(command);
-            nextCommandIndex++;
-            processedCount++;
-        }
-        else
-        {
-            break;
-        }
-    }
-    
-    // 処理制限に達した場合の警告
-    if (processedCount >= MAX_COMMANDS_PER_UPDATE)
-    {
-        Serial.println("Warning: Command processing limit reached");
-    }
-    
-    // ループ処理
-    if (nextCommandIndex >= currentScore.commands.size())
-    {
-        if (currentTime >= currentScore.duration)
-        {
-            // 譜面の最後まで到達
-            if (isContinuousMode)
-            {
-                // 連続再生モードの場合、次の曲に移動
-                moveToNextSong();
-                // 新しい曲を開始
-                Tempo.stop();
-                resetPlayback();
-                Tempo.setTempo(currentScore.tempo);
-                Tempo.play();
-            }
-        }
-    }
-}
-
 void AppAutoPlay::executeCommand(const AutoPlayCommand& command)
 {
     if (!context || !context->pipeline) return;
@@ -336,7 +289,7 @@ void AppAutoPlay::executeCommand(const AutoPlayCommand& command)
     switch (command.type)
     {
         case CommandType::CHORD_START:
-            Serial.printf("CHORD_START\n");
+            // Serial.printf("CHORD_START\n");
             // DegreeChordをChordに変換してから演奏開始
             {
                 Chord chord = currentScore.degreeToChord(command.chordData.degreeChord);
@@ -351,7 +304,7 @@ void AppAutoPlay::executeCommand(const AutoPlayCommand& command)
             break;
             
         case CommandType::CHORD_END:
-            Serial.printf("CHORD_END\n");
+            // Serial.printf("CHORD_END\n");QUARTER=136.36
             // コード演奏終了
             context->pipeline->stopChord();
             currentChord = std::nullopt; // コードなし
@@ -367,8 +320,8 @@ void AppAutoPlay::executeCommand(const AutoPlayCommand& command)
             break;
             
         case CommandType::MIDI_NOTE:
-            Serial.printf("MIDI_NOTE: status=%02X, data1=%d, data2=%d\n", 
-                          command.midiData.status, command.midiData.data1, command.midiData.data2);
+            // Serial.printf("MIDI_NOTE: status=%02X, data1=%d, data2=%d millis()=%lu\n", 
+            //               command.midiData.status, command.midiData.data1, command.midiData.data2, millis());
             // MIDIノート送信
             if ((command.midiData.status & 0xF0) == 0x90) // Note On
             {
@@ -670,4 +623,147 @@ void AppAutoPlay::moveToNextSong()
     }
     
     Serial.printf("Next song: %s\n", currentScore.title.c_str());
+}
+
+// 演奏タスク関連メソッド
+void AppAutoPlay::createPlaybackTask()
+{
+    if (playbackTaskHandle != nullptr) {
+        // 既にタスクが存在する場合は何もしない
+        return;
+    }
+    
+    // 演奏タスクを作成（優先度は高めに設定）
+    BaseType_t result = xTaskCreatePinnedToCore(
+        playbackTaskWrapper,          // タスク関数
+        "AutoPlayTask",               // タスク名
+        4096,                         // スタックサイズ
+        this,                         // パラメータ（thisポインタ）
+        3,                            // 優先度（高め）
+        &playbackTaskHandle,          // タスクハンドル
+        1
+    );
+    
+    if (result != pdPASS) {
+        Serial.println("Failed to create playback task");
+        playbackTaskHandle = nullptr;
+    } else {
+        Serial.println("Playback task created successfully");
+    }
+}
+
+void AppAutoPlay::destroyPlaybackTask()
+{
+    if (playbackTaskHandle == nullptr) {
+        return;
+    }
+    
+    // タスクの実行を停止
+    playbackTaskRunning = false;
+    
+    // タスクに通知を送って終了させる
+    xTaskNotify(playbackTaskHandle, 0, eNoAction);
+    
+    // 少し待ってからタスクを削除
+    vTaskDelay(pdMS_TO_TICKS(50));
+    
+    if (eTaskGetState(playbackTaskHandle) != eDeleted) {
+        vTaskDelete(playbackTaskHandle);
+    }
+    
+    playbackTaskHandle = nullptr;
+    Serial.println("Playback task destroyed");
+}
+
+void AppAutoPlay::playbackTaskWrapper(void* parameter)
+{
+    AppAutoPlay* app = static_cast<AppAutoPlay*>(parameter);
+    app->playbackTaskMain();
+    
+    // タスクが終了する場合はハンドルをクリア
+    app->playbackTaskHandle = nullptr;
+    vTaskDelete(nullptr);
+}
+
+void AppAutoPlay::playbackTaskMain()
+{
+    Serial.println("Playback task started");
+    
+    uint32_t notificationValue = 0;
+    musical_time_t currentTime = 0;
+    
+    while (playbackTaskRunning) {
+        // タスク通知を待機（最大100ms）
+        if (xTaskNotifyWait(0, ULONG_MAX, &notificationValue, pdMS_TO_TICKS(100)) == pdTRUE) {
+            // 通知を受信した場合、時刻を取得
+            currentTime = (musical_time_t)notificationValue;
+            
+            // コマンドを処理
+            processCommands(currentTime);
+            
+            // プログレス更新（UIスレッドで処理するためフラグを設定）
+            currentProgress = currentTime;
+            needsProgressUpdate = true;
+        }
+        
+        // タスクが停止指示を受けた場合は終了
+        if (!playbackTaskRunning) {
+            break;
+        }
+    }
+    
+    Serial.println("Playback task ended");
+}
+
+void AppAutoPlay::processCommands(musical_time_t currentTime)
+{
+    const size_t scoreSize = currentScore.commands.size();
+    
+    // 安全策: 1回の処理で最大50コマンドまで
+    int processedCount = 0;
+    const int MAX_COMMANDS_PER_UPDATE = 50;
+    
+    // 現在時刻までのコマンドを順次実行
+    while (nextCommandIndex < scoreSize && processedCount < MAX_COMMANDS_PER_UPDATE)
+    {
+        const auto& command = currentScore.commands[nextCommandIndex];
+        
+        if (command.time <= currentTime)
+        {
+            // Serial.printf("Task: nextCommandIndex=%zu, command.time=%d, currentTime=%d\n", 
+            //               nextCommandIndex, command.time, currentTime);
+            executeCommand(command);
+            nextCommandIndex++;
+            processedCount++;
+        }
+        else
+        {
+            break;
+        }
+    }
+    
+    // 処理制限に達した場合の警告
+    if (processedCount >= MAX_COMMANDS_PER_UPDATE)
+    {
+        Serial.println("Warning: Command processing limit reached in task");
+    }
+    
+    // ループ処理
+    if (nextCommandIndex >= currentScore.commands.size())
+    {
+        if (currentTime >= currentScore.duration)
+        {
+            // 譜面の最後まで到達
+            if (isContinuousMode)
+            {
+                // 連続再生モードの場合、次の曲に移動
+                moveToNextSong();
+                // 新しい曲を開始
+                Tempo.stop();
+                resetPlayback();
+                Tempo.setTempo(currentScore.tempo);
+                Tempo.play();
+            }
+        }
+    }
 }
