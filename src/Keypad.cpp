@@ -165,7 +165,7 @@ void CapsuleChordKeypad::updateLeds() {
         setLedBrightness(keyCode, ledStates[keyCode]);
     }
     
-    Serial.printf("LEDs updated from layer: %s\n", topLayer->getName().c_str());
+    // Serial.printf("LEDs updated from layer: %s\n", topLayer->getName().c_str());
 }
 
 std::shared_ptr<LedLayer> CapsuleChordKeypad::getTopLedLayer() const {

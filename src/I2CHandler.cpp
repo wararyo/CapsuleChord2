@@ -77,7 +77,7 @@ void I2CHandler::i2cTaskLoop(void* parameter) {
 }
 
 void I2CHandler::i2cLoop() {
-    const TickType_t xDelay = pdMS_TO_TICKS(1);
+    const TickType_t xDelay = pdMS_TO_TICKS(5);
     
     Serial.println("I2C thread loop started");
     
@@ -90,7 +90,7 @@ void I2CHandler::i2cLoop() {
         // M5の状態を更新（バッテリー、IMUなど）
         M5.update();
 
-        // キーパッドの状態を更新（10ms間隔で実行）
+        // キーパッドの状態を更新（15ms間隔で実行）
         if (startTime - lastKeypadUpdate >= keypadInterval) {
             Keypad.update();
             lastKeypadUpdate = startTime;
