@@ -14,6 +14,22 @@
 class AppAutoPlay : public AppBase
 {
 public:
+    // KeyEventListener for blocking key events during autoplay
+    class AutoPlayKeyListener : public CapsuleChordKeypad::KeyEventListener
+    {
+    public:
+        bool onKeyPressed(uint8_t keyCode) override
+        {
+            // すべてのキーイベントを消費して自動演奏を保護
+            return true;
+        }
+        
+        bool onKeyReleased(uint8_t keyCode) override
+        {
+            // すべてのキーイベントを消費して自動演奏を保護
+            return true;
+        }
+    };
     // 自動演奏コマンドの種類
     enum class CommandType : uint8_t
     {
@@ -151,6 +167,9 @@ private:
     
     // LED Layer Management
     std::shared_ptr<LedLayer> ledLayer = nullptr;
+    
+    // Key Event Listener for blocking key events during autoplay
+    std::shared_ptr<AutoPlayKeyListener> keyListener = nullptr;
     
     // 現在読み込まれている譜面
     Score currentScore;

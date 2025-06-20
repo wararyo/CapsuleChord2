@@ -23,6 +23,9 @@ void AppAutoPlay::onCreate()
     // LEDレイヤーを作成
     ledLayer = std::make_shared<LedLayer>("AutoPlay");
     
+    // KeyEventListenerを作成
+    keyListener = std::make_shared<AutoPlayKeyListener>();
+    
     // 自動演奏用のLEDパターンを設定
     setupLedPattern();
 }
@@ -166,6 +169,12 @@ void AppAutoPlay::onDestroy()
     // 終了処理
     onDeactivate();
     onHideGui();
+    
+    // KeyEventListenerをクリーンアップ
+    if (context && context->keypad && keyListener) {
+        context->keypad->removeKeyEventListener(keyListener);
+    }
+    keyListener = nullptr;
 }
 
 void AppAutoPlay::onUpdateGui()
@@ -235,6 +244,12 @@ void AppAutoPlay::startPlayback()
 {
     isActive = true;
 
+    // KeyEventListenerを登録して自動演奏を保護
+    if (context && context->keypad && keyListener) {
+        context->keypad->addKeyEventListener(keyListener);
+        Serial.println("AutoPlay: KeyEventListener registered");
+    }
+
     // 演奏タスクを開始
     playbackTaskRunning = true;
     createPlaybackTask();
@@ -255,6 +270,12 @@ void AppAutoPlay::startPlayback()
 void AppAutoPlay::stopPlayback()
 {
     isActive = false;
+
+    // KeyEventListenerを解除
+    if (context && context->keypad && keyListener) {
+        context->keypad->removeKeyEventListener(keyListener);
+        Serial.println("AutoPlay: KeyEventListener unregistered");
+    }
 
     // 演奏タスクを停止
     playbackTaskRunning = false;
@@ -345,35 +366,35 @@ void AppAutoPlay::initializeSongs()
     // 利用可能な楽曲を初期化
     availableSongs.clear();
     
-    // デモソング
-    availableSongs.push_back({
-        "デモソング",
-        DEMO_COMMANDS,
-        DEMO_COMMAND_COUNT,
-        DEMO_TEMPO,
-        DEMO_DURATION,
-        Chord::C  // Cメジャー
-    });
+    // // デモソング
+    // availableSongs.push_back({
+    //     "デモソング",
+    //     DEMO_COMMANDS,
+    //     DEMO_COMMAND_COUNT,
+    //     DEMO_TEMPO,
+    //     DEMO_DURATION,
+    //     Chord::C  // Cメジャー
+    // });
     
-    // バラード
-    availableSongs.push_back({
-        "バラード",
-        BALLAD_COMMANDS,
-        BALLAD_COMMAND_COUNT,
-        BALLAD_TEMPO,
-        BALLAD_DURATION,
-        Chord::C  // Cメジャー
-    });
+    // // バラード
+    // availableSongs.push_back({
+    //     "バラード",
+    //     BALLAD_COMMANDS,
+    //     BALLAD_COMMAND_COUNT,
+    //     BALLAD_TEMPO,
+    //     BALLAD_DURATION,
+    //     Chord::C  // Cメジャー
+    // });
     
-    // ロック
-    availableSongs.push_back({
-        "ロック",
-        ROCK_COMMANDS,
-        ROCK_COMMAND_COUNT,
-        ROCK_TEMPO,
-        ROCK_DURATION,
-        Chord::C  // Cメジャー
-    });
+    // // ロック
+    // availableSongs.push_back({
+    //     "ロック",
+    //     ROCK_COMMANDS,
+    //     ROCK_COMMAND_COUNT,
+    //     ROCK_TEMPO,
+    //     ROCK_DURATION,
+    //     Chord::C  // Cメジャー
+    // });
     
     // マリーゴールド
     availableSongs.push_back({
