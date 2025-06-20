@@ -366,6 +366,8 @@ void AppSequencer::updatePlayingNotes()
 bool AppSequencer::isTransitionPoint(musical_time_t previousTime, musical_time_t currentTime) const
 {
     if (!currentSequence) return false;
+
+    while (previousTime > currentTime) previousTime -= 1920; // 小節の長さで正規化
     
     for (musical_time_t transitionPoint : currentSequence->transitionPoints)
     {
