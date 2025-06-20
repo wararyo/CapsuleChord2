@@ -109,6 +109,11 @@ void I2CHandler::i2cLoop() {
             Serial.printf("I2C loop took %lu ms (warning threshold: 10ms)\n", elapsedTime);
         }
 
+        if (M5.BtnPWR.wasHold()) {
+            // 電源ボタンが長押しされた場合、シャットダウンを要求
+            M5.Power.powerOff();
+        }
+
         vTaskDelay(xDelay);
     }
 }
