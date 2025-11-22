@@ -5,6 +5,7 @@
 #undef min
 #include <vector>
 #include <string>
+#include <memory>
 #include <stdio.h>
 
 #define AUTO_NVP(T) #T, T
@@ -78,11 +79,17 @@ public:
     JsonObject getDocument(){
         return nestStack[nestStack.size()-1];
     }
-    void toJSON(char *out, bool isPretty = false){
-        char output[maxJsonFileSize];
-        if(isPretty) serializeJsonPretty(doc,output);
-        else serializeJson(doc,output);
-        out = std::move(output);
+    std::string toJSON(bool isPretty = false){
+        std::string output;
+        if(isPretty) {
+            output.reserve(maxJsonFileSize);
+            serializeJsonPretty(doc, output);
+        }
+        else {
+            output.reserve(maxJsonFileSize);
+            serializeJson(doc, output);
+        }
+        return output;
     }
 };
 
@@ -163,16 +170,16 @@ void deserialize(InputArchive &archive,const char *key,bool && value);
 template <class T, class A>
 void serialize(OutputArchive &archive,const char *key,std::vector<T, A> && list){
     archive.pushNest(key);
-    for(int i = 0;i < list.size();i++) {
-        archive("item",std::forward<T>(list[i]));
+    for(auto& item : list) {
+        archive("item", const_cast<T&>(item));
     }
     archive.popNest();
 }
 template <class T, class A>
 void deserialize(InputArchive &archive,const char *key,std::vector<T, A> && list){
     if(archive.pushNest(key)) {
-        for(int i = 0;i < list.size();i++) {
-            archive(AUTO_NVP(std::forward<T>(list[i])));
+        for(auto& item : list) {
+            archive("item", item);
         }
         archive.popNest();
     }
@@ -185,6 +192,28 @@ void serialize(OutputArchive &archive,const char *key,T* ptr){
 }
 template <class T>
 void deserialize(InputArchive &archive,const char *key,T* ptr){
+    archive(key,*ptr);
+}
+
+//std::unique_ptr
+template <class T>
+void serialize(OutputArchive &archive,const char *key,std::unique_ptr<T> & ptr){
+    archive(key,*ptr);
+}
+template <class T>
+void deserialize(InputArchive &archive,const char *key,std::unique_ptr<T> & ptr){
+    if(!ptr) ptr = std::make_unique<T>();
+    archive(key,*ptr);
+}
+
+//std::shared_ptr
+template <class T>
+void serialize(OutputArchive &archive,const char *key,std::shared_ptr<T> & ptr){
+    archive(key,*ptr);
+}
+template <class T>
+void deserialize(InputArchive &archive,const char *key,std::shared_ptr<T> & ptr){
+    if(!ptr) ptr = std::make_shared<T>();
     archive(key,*ptr);
 }
 

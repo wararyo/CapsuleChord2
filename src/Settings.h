@@ -4,6 +4,7 @@
 #include "SD.h"
 #undef min
 #include <vector>
+#include <memory>
 #include <stdio.h>
 #include "Archive.h"
 #include "Chord.h"
@@ -32,13 +33,13 @@ protected:
     }
 public:
     const char *name;
-    std::vector<SettingItem*> children;
+    std::vector<std::unique_ptr<SettingItem>> children;
     SettingItem(){}
     SettingItem(const char *name): name(name){}
-    SettingItem(const char *name,std::vector<SettingItem*> children){
-        this->name = name;
-        this->children = children;
-    }
+    SettingItem(const char *name,std::vector<std::unique_ptr<SettingItem>> children)
+        : name(name), children(std::move(children)) {}
+    // Virtual destructor for proper cleanup
+    virtual ~SettingItem() = default;
     virtual void serialize(OutputArchive &archive,const char *key) {
         if(children.empty()) {
             archive(name,"Empty Content");
@@ -58,7 +59,8 @@ class Settings : public SettingItem {
 private:
     uint version;
 public:
-    Settings(std::vector<SettingItem*> items,uint version=1) : SettingItem("Settings",items),version(version){}
+    Settings(std::vector<std::unique_ptr<SettingItem>> items,uint version=1)
+        : SettingItem("Settings",std::move(items)),version(version){}
     bool load(String path = jsonFilePath){
         //Read file
         char output[maxJsonFileSize] = {'\0'};
@@ -82,15 +84,14 @@ public:
         OutputArchive archive = OutputArchive();
         // archive("Version",std::forward<uint>(version));
         // archive(name,*this);
-        char output[maxJsonFileSize];
-        archive.toJSON(output,true);
+        std::string output = archive.toJSON(true);
         //Write to file
         File file = SD.open(path,FILE_WRITE);
         if(!file) {
             Serial.println("Something wrong happened with saving settings.");
             return false;
         }
-        file.print(output);
+        file.print(output.c_str());
         file.close();
         return true;
     }
@@ -110,10 +111,10 @@ public:
         SettingItem * cursor = this;
         for(String key : keys){
             if(key == String("\0")) break;
-            auto children = cursor->children;
-            for(SettingItem *k : cursor->children){
+            auto& children = cursor->children;
+            for(auto& k : cursor->children){
                 if(String(k->name) == key){
-                    cursor = k;
+                    cursor = k.get();
                     goto next_key; // forループを一気に抜けるための使用ならバチは当たらないはず…
                 }
             }
