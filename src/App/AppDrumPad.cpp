@@ -140,7 +140,7 @@ void AppDrumPad::playDrumSound(uint8_t keyCode)
     uint8_t noteNo = getNoteForKey(keyCode);
     if (noteNo > 0 && context && context->pipeline) {
         // Play drum sound with velocity 100 on channel 9 (standard MIDI drum channel)
-        context->pipeline->sendNote(true, noteNo, 100, 9);
+        context->pipeline->sendNote(true, noteNo, 127, 9);
     }
 }
 
