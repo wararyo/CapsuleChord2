@@ -255,13 +255,13 @@ void loop()
     AppBass* bassApp = nullptr;
     AppAutoPlay* autoPlayApp = nullptr;
     
-    for (AppBase* app : App.apps) {
+    for (const auto& app : App.apps) {
       if (strcmp(app->getAppName(), "シーケンサー") == 0) {
-        sequencerApp = static_cast<AppSequencer*>(app);
+        sequencerApp = static_cast<AppSequencer*>(app.get());
       } else if (strcmp(app->getAppName(), "ベース") == 0) {
-        bassApp = static_cast<AppBass*>(app);
+        bassApp = static_cast<AppBass*>(app.get());
       } else if (strcmp(app->getAppName(), "自動演奏") == 0) {
-        autoPlayApp = static_cast<AppAutoPlay*>(app);
+        autoPlayApp = static_cast<AppAutoPlay*>(app.get());
       }
     }
     
