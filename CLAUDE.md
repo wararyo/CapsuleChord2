@@ -32,6 +32,19 @@ PLATFORMIO_CORE_DIR=.pio pio run -t upload
 
 `shell` ツール実行時は `with_escalated_permissions: true` と  `justification: "Firmware upload requires unrestricted USB device access beyond sandbox permissions."` を必ず指定する。
 
+Linux環境では `Error: libusb_open() failed with LIBUSB_ERROR_ACCESS` というエラーが出ることがある。その際は 99-platformio-udev.rules を設定した後、デバイスを再度接続することをユーザーに求める。
+また、brlttyのアンインストールが必要な場合もある。
+
+```bash
+# udev rulesの設定
+curl -fsSL https://raw.githubusercontent.com/platformio/platformio-core/develop/platformio/assets/system/99-platformio-udev.rules | sudo tee /etc/udev/rules.d/99-platformio-udev.rules
+sudo adduser $USER dialout
+sudo service udev restart
+
+# brlttyのアンインストール
+sudo apt remove brltty
+```
+
 ### シリアルモニタ
 
 - PlatformIO のシリアルモニタはターミナル環境によって ioctl エラーになる場合があるため、代わりに PlatformIO 仮想環境に入って Python の `pyserial` を使用する。
