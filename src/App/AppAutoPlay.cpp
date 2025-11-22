@@ -51,11 +51,6 @@ void AppAutoPlay::onShowGui(lv_obj_t *container)
     
     isShowingGui = true;
     
-    // LEDレイヤーをアクティブにする
-    if (context && context->keypad && ledLayer) {
-        context->keypad->pushLedLayer(ledLayer);
-    }
-    
     // タイトルラベル
     titleLabel = lv_label_create(container);
     lv_label_set_text(titleLabel, getAppName());
@@ -137,11 +132,6 @@ void AppAutoPlay::onHideGui()
 {
     if (!isShowingGui) return;
     
-    // LEDレイヤーを非アクティブにする
-    if (context && context->keypad && ledLayer) {
-        context->keypad->removeLedLayer(ledLayer);
-    }
-    
     // UIオブジェクトを削除
     if (titleLabel) lv_obj_del(titleLabel);
     if (statusLabel) lv_obj_del(statusLabel);
@@ -179,9 +169,6 @@ void AppAutoPlay::onDestroy()
 
 void AppAutoPlay::onUpdateGui()
 {
-    // 新しい実装では演奏タスクが独立して動作するため、
-    // 従来のコマンド処理はここでは不要
-    
     if (!isShowingGui) return;
     
     // フラグに基づいてUIを更新
@@ -265,6 +252,11 @@ void AppAutoPlay::startPlayback()
         // 演奏開始
         Tempo.play();
     }
+
+    // LEDレイヤーをアクティブにする
+    if (context && context->keypad && ledLayer) {
+        context->keypad->pushLedLayer(ledLayer);
+    }
 }
 
 void AppAutoPlay::stopPlayback()
@@ -287,9 +279,14 @@ void AppAutoPlay::stopPlayback()
     
     if (Tempo.getPlaying())
     {
-        Tempo.stop();
+        // Tempo.stop();
         // Tempoコールバックを解除
         Tempo.removeListener(&tempoCallbacks);
+    }
+
+    // LEDレイヤーを非アクティブにする
+    if (context && context->keypad && ledLayer) {
+        context->keypad->removeLedLayer(ledLayer);
     }
 }
 
