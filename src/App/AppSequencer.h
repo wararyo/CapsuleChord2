@@ -42,6 +42,12 @@ public:
     void onDestroy() override;
 
     bool isPlayingNotes() { return !input.empty(); }
+    
+    // パターン設定用メソッド
+    void setGuitarPattern();
+    void setPianoPattern();
+    void setEPianoPattern();
+    void setSuperSawPattern();
 private:
     class TempoCallbacks : public TempoController::TempoCallbacks
     {

@@ -17,6 +17,9 @@
 #include "Widget/lv_tickframe.h"
 #include "Widget/TempoDialog.h"
 #include "App/AppManager.h"
+#include "App/AppSequencer.h"
+#include "App/AppBass.h"
+#include "App/AppAutoPlay.h"
 #include "Widget/AppLauncher.h"
 #include "Widget/PlayScreen.h"
 #include "I2CHandler.h"
@@ -139,7 +142,7 @@ void setup() {
   M5.Display.setRotation(M5.Display.getRotation() ^ 1);
   Lvgl.begin();
 
-  BtnHome.setHoldThresh(3000);
+  BtnHome.setHoldThresh(2500);
   Keypad.begin();
 
   Serial.begin(115200);
@@ -243,20 +246,54 @@ void loop()
     isHeadphonePreviously = isHeadphone;
   }
 
-  // 仮でホームボタンを押したらバッテリー残量が表示されるようにする
+  // 仮でホームボタンを押したらバッテリー残量が更新されるようにする
   if (BtnHome.wasPressed()) update_battery();
-  // if (BtnHome.wasPressed()) M5.Display.clear();
-
-  // 仮でホームボタン長押ししたらKantanChordと切り替えるようにする
+  // ホームボタン長押しでシーケンサー&ベース有効化 + 自動演奏開始 (展示用機能)
   if (BtnHome.wasHold()) {
-    if (currentKeyMap == KeyMap::getAvailableKeyMaps()[0].get()) {
-      currentKeyMap = KeyMap::getAvailableKeyMaps()[1].get();
-    } else {
-      currentKeyMap = KeyMap::getAvailableKeyMaps()[0].get();
+    // 1. シーケンサーアプリとベースアプリを有効にする
+    AppSequencer* sequencerApp = nullptr;
+    AppBass* bassApp = nullptr;
+    AppAutoPlay* autoPlayApp = nullptr;
+    
+    for (AppBase* app : App.apps) {
+      if (strcmp(app->getAppName(), "シーケンサー") == 0) {
+        sequencerApp = static_cast<AppSequencer*>(app);
+      } else if (strcmp(app->getAppName(), "ベース") == 0) {
+        bassApp = static_cast<AppBass*>(app);
+      } else if (strcmp(app->getAppName(), "自動演奏") == 0) {
+        autoPlayApp = static_cast<AppAutoPlay*>(app);
+      }
     }
-
-    // 一応、centerNoteNoを戻す
-    *centerNoteNo = 60;
+    
+    if (sequencerApp && bassApp && autoPlayApp) {
+      if (autoPlayApp->getActive())
+      {
+          autoPlayApp->onDeactivate();
+      }
+      else
+      {
+        // シーケンサーアプリを有効化
+        if (!sequencerApp->getActive()) {
+          sequencerApp->onActivate();
+        }
+        
+        // ベースアプリを有効化
+        if (!bassApp->getActive()) {
+          bassApp->onActivate();
+        }
+        
+        // 2. シーケンサーのパターンをアコギにする
+        sequencerApp->setGuitarPattern();
+        
+        // 3. 自動再生アプリを開く
+        // App.launchApp(autoPlayApp);
+        
+        // 4. 再生を開始する
+        if (!autoPlayApp->getActive()) {
+          autoPlayApp->onActivate();
+        }
+      }
+    }
   }
 
   // ホームボタンを押したらアプリ一覧

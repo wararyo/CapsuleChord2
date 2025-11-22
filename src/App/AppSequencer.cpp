@@ -460,3 +460,28 @@ void AppSequencer::TempoCallbacks::onTick(TempoController::tick_timing_t timing,
 
     app->previousTime = timeInBar;
 }
+
+// パターン設定用メソッドの実装
+void AppSequencer::setGuitarPattern()
+{
+    Output.Internal.loadAGuitar();
+    currentSequence = sequenceGuitar;
+}
+
+void AppSequencer::setPianoPattern()
+{
+    Output.Internal.loadPiano();
+    currentSequence = sequencePiano;
+}
+
+void AppSequencer::setEPianoPattern()
+{
+    Output.Internal.loadEPiano();
+    currentSequence = sequenceSynth;
+}
+
+void AppSequencer::setSuperSawPattern()
+{
+    Output.Internal.loadSuperSaw();
+    currentSequence = sequenceSynth;
+}
