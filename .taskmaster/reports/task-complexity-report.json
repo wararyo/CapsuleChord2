@@ -1,0 +1,93 @@
+{
+	"meta": {
+		"generatedAt": "2025-11-22T10:20:20.909Z",
+		"tasksAnalyzed": 10,
+		"totalTasks": 10,
+		"analysisCount": 10,
+		"thresholdScore": 5,
+		"projectName": "Taskmaster",
+		"usedResearch": false
+	},
+	"complexityAnalysis": [
+		{
+			"taskId": 1,
+			"taskTitle": "キーパッド入力システムの初期実装",
+			"complexityScore": 7,
+			"recommendedSubtasks": 5,
+			"expansionPrompt": "このタスクを、1. ハードウェア（GPIO、I2Cエクスパンダ）の初期化、2. 左キーパッド（3x3）のスキャンとデバウンス処理、3. 右キーパッド（3x3）のスキャンとデバウンス処理、4. LR/LT/RTボタンの状態読み取り、5. 検出したキーイベント（押下、長押し、解放）を共通のイベントキューに追加する、という5つのサブタスクに分割してください。",
+			"reasoning": "ハードウェアとの直接的な連携、多数のキー（キーパッド、LR/LT/RTボタン）の状態管理、チャタリング防止（デバウンス）の実装など、複数の技術的課題を含みます。既存のコードベースがないグリーンフィールド開発であり、物理的なテストが必須となる点も複雑性を高めています。"
+		},
+		{
+			"taskId": 2,
+			"taskTitle": "基本的な和音生成ロジックの実装",
+			"complexityScore": 5,
+			"recommendedSubtasks": 4,
+			"expansionPrompt": "このタスクを、1. `Key` `Scale` `Chord`のデータ構造の定義、2. 入力キーIDを音楽的なディグリーにマッピングするロジックの実装、3. スケールとディグリーからダイアトニックコードの構成音を計算する`ChordGenerator`クラスの実装、4. `ChordGenerator`を`ChordPipeline`に統合する、という4つのサブタスクに分割してください。",
+			"reasoning": "和音理論（スケール、ディグリー）をコードに変換するロジックの実装が中心となります。純粋なソフトウェアロジックであり、単体テストが可能ですが、`Chord`オブジェクトの設計や`ChordPipeline`との連携など、アーキテクチャの根幹に関わる部分であり、正確な実装が求められるため中程度の複雑性です。"
+		},
+		{
+			"taskId": 3,
+			"taskTitle": "内蔵音源への和音出力",
+			"complexityScore": 6,
+			"recommendedSubtasks": 4,
+			"expansionPrompt": "このタスクを、1. `CapsuleSampler`ライブラリの初期化と音声処理用FreeRTOSタスクのセットアップ、2. `OutputInternal`クラスに`playChord`および`releaseChord`メソッドを実装、3. `Chord`オブジェクトのノート情報に基づき`CapsuleSampler`の`noteOn`/`noteOff`を呼び出す処理の実装、4. 演奏時のレイテンシを測定し20ms以下を達成するための最適化、という4つのサブタスクに分割してください。",
+			"reasoning": "リアルタイムオーディオ処理とFreeRTOSタスク管理という専門的な知識を要します。`CapsuleSampler`ライブラリとの連携、および20ms以下という厳しいレイテンシ要件を満たすためのパフォーマンスチューニングが必要です。メインループをブロックしないための非同期処理の実装も課題となります。"
+		},
+		{
+			"taskId": 4,
+			"taskTitle": "LVGLベースのUIフレームワークとホーム画面の実装",
+			"complexityScore": 8,
+			"recommendedSubtasks": 5,
+			"expansionPrompt": "このタスクを、1. LVGLライブラリのプロジェクトへの統合とビルド設定、2. ディスプレイドライバと入力ドライバの初期化、および描画バッファの割り当て、3. ホーム画面の静的なレイアウト（ラベルやアイコンの配置）の実装、4. `Context`から状態を取得してUIを更新するデータバインディング関数の作成、5. UI更新処理を管理する専用のUIタスクの作成、という5つのサブタスクに分割してください。",
+			"reasoning": "LVGLライブラリの導入と初期設定（ディスプレイドライバ、メモリバッファ確保など）が非常に複雑です。UIのレイアウト実装に加え、`Context`からの状態を非同期でUIに反映させるデータバインディングの仕組みを構築する必要があります。UI描画が他のリアルタイム処理（音声出力など）を妨げないように、タスクの優先度やリソース管理を考慮する必要がある点も複雑性を高めています。"
+		},
+		{
+			"taskId": 6,
+			"taskTitle": "アプリ管理システムとメトロノームアプリの実装",
+			"complexityScore": 6,
+			"recommendedSubtasks": 4,
+			"expansionPrompt": "このタスクを、1. アプリのライフサイクル（`onEnable`, `onDisable`, `update`など）を定義した`AppBase`インターフェースの設計、2. 複数のアプリを登録し状態を管理する`AppManager`クラスの実装、3. `AppBase`を継承した`MetronomeApp`クラスの実装、4. `MetronomeApp`を`TempoController`の`onBeat`コールバックに接続しクリック音を再生する処理の実装、という4つのサブタスクに分割してください。",
+			"reasoning": "アプリケーションのライフサイクルを管理する`AppManager`という新しい抽象レイヤーを導入するため、アーキテクチャ設計の側面が強いタスクです。`MetronomeApp`自体の実装は単純ですが、それを支えるフレームワークの構築に手間がかかります。`TempoController`との連携など、コンポーネント間の依存関係も考慮する必要があります。"
+		},
+		{
+			"taskId": 7,
+			"taskTitle": "高度な和音修飾機能の実装",
+			"complexityScore": 6,
+			"recommendedSubtasks": 4,
+			"expansionPrompt": "このタスクを、1. `ChordPipeline`に挿入する`ChordModifier`ステージの作成、2. 各修飾キー（sus4, m7/M7, 転回, 転調）に対応する和音変換ロジックの実装、3. 複数の修飾キーが同時に押された場合の組み合わせロジックのハンドリング、4. 各修飾パターンに対応する単体テストの作成、という4つのサブタスクに分割してください。",
+			"reasoning": "複数の修飾キーの組み合わせを考慮する必要があり、ロジックが複雑化しやすいためです。和音理論に関する正確な知識が求められ、エッジケースの処理も必要となります。`ChordPipeline`に新しいステージを挿入するため、既存のデータフローへの影響も考慮しなければなりません。"
+		},
+		{
+			"taskId": 8,
+			"taskTitle": "複数出力デバイス（USB/BLE MIDI）のサポート",
+			"complexityScore": 9,
+			"recommendedSubtasks": 6,
+			"expansionPrompt": "このタスクを、1. `OutputBase`インターフェースの定義と`OutputInternal`のリファクタリング、2. `USB-MIDI`ライブラリを統合した`OutputUsbMidi`クラスの実装、3. `NimBLE-Arduino`を使いBLE MIDIサービスを定義した`OutputBleMidi`クラスの実装、4. `Context`に出力先を動的に切り替える`setOutputDevice`メソッドを実装、5. `ChordPipeline`が現在の出力デバイスを使用するように修正、6. UIに出力先選択機能を追加、という6つのサブタスクに分割してください。",
+			"reasoning": "`OutputBase`という抽象インターフェースを導入し、既存の出力処理をリファクタリングする必要があり影響範囲が広いです。USB MIDIとBLE MIDIという2つの異なるプロトコルとライブラリを新規に導入する必要があり、特にBLEは固有の複雑さを持ちます。アーキテクチャの変更と複数の外部ライブラリの統合が重なるため、非常に複雑性が高いです。"
+		},
+		{
+			"taskId": 9,
+			"taskTitle": "設定データの永続化",
+			"complexityScore": 5,
+			"recommendedSubtasks": 4,
+			"expansionPrompt": "このタスクを、1. 設定項目を保持する構造体の定義と`SettingsManager`クラスの作成、2. `ArduinoJson`を用いて設定をシリアライズする`save`メソッドの実装、3. 起動時にSDカードまたはSPIFFSから設定をデシリアライズする`load`メソッドの実装、4. `load`メソッドにSDカード優先のフォールバックロジックを組み込む、という4つのサブタスクに分割してください。",
+			"reasoning": "SDカードとSPIFFSという2つの異なるファイルシステムを扱い、フォールバックロジックを実装する必要があります。`ArduinoJson`ライブラリを使った設定項目のシリアライズ/デシリアライズ処理、および起動時と設定変更時のファイルI/Oを堅牢に実装する必要があります。ファイル破損などへの考慮も求められるため、中程度の複雑性です。"
+		},
+		{
+			"taskId": 10,
+			"taskTitle": "シーケンサーとドラムアプリのコア機能実装",
+			"complexityScore": 5,
+			"recommendedSubtasks": 4,
+			"expansionPrompt": "このタスクを、1. `TempoController`に16分音符ごとの`onTick`コールバックを追加、2. `onTick`にフックして固定アルペジオパターンを演奏する`SequencerApp`の実装、3. `onTick`にフックして固定ドラムパターンを演奏する`DrumApp`の実装、4. シーケンサー、ドラム、和音演奏が同期して動作することのテスト、という4つのサブタスクに分割してください。",
+			"reasoning": "`TempoController`からの高頻度なコールバックに同期して動作するリアルタイム処理が求められます。シーケンサーとドラムという2つのアプリを実装し、それらが同時に、かつ他の機能と協調して動作することを確認する必要があるため、タイミングの正確性が重要となります。"
+		},
+		{
+			"taskId": 11,
+			"taskTitle": "PC連携のためのUSB-CDC通信基盤構築",
+			"complexityScore": 4,
+			"recommendedSubtasks": 3,
+			"expansionPrompt": "このタスクを、1. USB-CDCを有効にし、メインループでシリアルポートからの入力を非同期で監視する仕組みの実装、2. 受信したJSON文字列をパースし、`command`フィールドに基づいて処理を振り分けるコマンドディスパッチャの作成、3. `ping`コマンドを処理し、応答JSONをシリアルポートに書き出すハンドラの実装、という3つのサブタスクに分割してください。",
+			"reasoning": "USB-CDCとJSONのパースという、比較的標準的な技術の組み合わせで実現できます。初期実装は`ping`コマンドのみでシンプルですが、非同期通信のハンドリングや、将来的なコマンド拡張を見越した堅牢なパーサーとディスパッチャの設計が必要となるため、単純なタスクよりは複雑性が高いです。"
+		}
+	]
+}
