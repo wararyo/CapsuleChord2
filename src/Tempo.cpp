@@ -31,9 +31,13 @@ void TempoController::play()
 
     timer = xTimerCreate("Tempo", pdMS_TO_TICKS(1), pdTRUE, this, timerWork);
     xTimerStart(timer, 0);
+
+    // Make a copy of listeners while holding the mutex to avoid race conditions
+    std::list<TempoCallbacks *> listenersCopy;
+    listenersCopy = listeners;
     portEXIT_CRITICAL(&mutex);
 
-    for (TempoCallbacks *listener : listeners)
+    for (TempoCallbacks *listener : listenersCopy)
     {
         listener->onPlayingStateChanged(true);
     }
@@ -46,9 +50,13 @@ void TempoController::stop() {
     xTimerDelete(timer, 0);
     timer = nullptr;
     musicalTime = 0;
+
+    // Make a copy of listeners while holding the mutex to avoid race conditions
+    std::list<TempoCallbacks *> listenersCopy;
+    listenersCopy = listeners;
     portEXIT_CRITICAL(&mutex);
 
-    for (TempoCallbacks *listener : listeners)
+    for (TempoCallbacks *listener : listenersCopy)
     {
         listener->onPlayingStateChanged(false);
     }
@@ -116,7 +124,12 @@ void TempoController::timerWorkInner()
     }
 
     // Tickを通知する
-    for (TempoCallbacks *listener : listeners)
+    // Make a copy of listeners while holding the mutex to avoid race conditions
+    portENTER_CRITICAL(&mutex);
+    std::list<TempoCallbacks *> listenersCopy = listeners;
+    portEXIT_CRITICAL(&mutex);
+
+    for (TempoCallbacks *listener : listenersCopy)
     {
         if (listener->getTimingMask() & beatToNotify)
         {
