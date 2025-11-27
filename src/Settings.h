@@ -46,13 +46,13 @@ public:
         if(children.empty()) {
             archive(name,"Empty Content");
         } else {
-            archive(name,std::forward<decltype(children)>(children));
+            archive(name,children);
         }
     }
     virtual void deserialize(InputArchive &archive,const char *key) {
         if(archive.getDocument().containsKey(key))
         {
-            archive(name,std::forward<decltype(children)>(children));
+            archive(name,children);
         }
     }
 };
@@ -148,7 +148,7 @@ public:
         archive(name,content);
     }
     void deserialize(InputArchive &archive,const char *key) override {
-        archive(name,std::forward<DegreeChord>(content));
+        archive(name,content);
     }
 };
 
@@ -166,7 +166,7 @@ public:
         archive(name,content);
     }
     void deserialize(InputArchive &archive,const char *key) override {
-        archive(name,std::forward<Scale>(content));
+        archive(name,content);
     }
 };
 
@@ -179,7 +179,7 @@ public:
         archive(name,content);
     }
     void deserialize(InputArchive &archive,const char *key) override {
-        archive(name,std::forward<bool>(content));
+        archive(name,content);
     }
 };
 
@@ -191,10 +191,10 @@ public:
     SettingItemNumeric(const char *name,int min, int max, int number)
         : SettingItem(name), number(number), min(min), max(max) {}
     void serialize(OutputArchive &archive,const char *key) override {
-        archive(name,std::forward<int>(number));
+        archive(name,number);
     }
     void deserialize(InputArchive &archive,const char *key) override {
-        archive(name,std::forward<int>(number));
+        archive(name,number);
     }
 };
 
@@ -210,7 +210,7 @@ public:
     }
     void deserialize(InputArchive &archive,const char *key) override {
         String memberName = "";
-        archive(name,std::forward<String>(memberName));
+        archive(name,memberName);
         for(int i = 0;i < memberNames.size();i++){
             String m = String(memberNames[i]);
             if(String(m).equals(memberName)) {

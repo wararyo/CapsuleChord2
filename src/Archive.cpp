@@ -4,7 +4,7 @@
 void serialize(OutputArchive &archive,const char *key,const char *string){
     archive.getDocument()[key] = string;
 }
-void deserialize(InputArchive &archive,const char *key,const char * && string){
+void deserialize(InputArchive &archive,const char *key,const char*& string){
     if(archive.getDocument().containsKey(key)) {
         string = archive.getDocument()[key];
     }
@@ -14,7 +14,7 @@ void deserialize(InputArchive &archive,const char *key,const char * && string){
 void serialize(OutputArchive &archive,const char *key,String string){
     archive.getDocument()[key] = string;
 }
-void deserialize(InputArchive &archive,const char *key,String && string){
+void deserialize(InputArchive &archive,const char *key,String& string){
     if(archive.getDocument().containsKey(key)) string = archive.getDocument()[key].as<String>();
 }
 
@@ -22,7 +22,7 @@ void deserialize(InputArchive &archive,const char *key,String && string){
 void serialize(OutputArchive &archive,const char *key,int number){
     archive.getDocument()[key] = number;
 }
-void deserialize(InputArchive &archive,const char *key,int && number){
+void deserialize(InputArchive &archive,const char *key,int& number){
     if(archive.getDocument().containsKey(key)) number = archive.getDocument()[key];
 }
 
@@ -30,7 +30,7 @@ void deserialize(InputArchive &archive,const char *key,int && number){
 void serialize(OutputArchive &archive,const char *key,uint number){
     archive.getDocument()[key] = number;
 }
-void deserialize(InputArchive &archive,const char *key,uint && number){
+void deserialize(InputArchive &archive,const char *key,uint& number){
     if(archive.getDocument().containsKey(key)) number = archive.getDocument()[key];
 }
 
@@ -38,7 +38,15 @@ void deserialize(InputArchive &archive,const char *key,uint && number){
 void serialize(OutputArchive &archive,const char *key,uint8_t number){
     archive.getDocument()[key] = number;
 }
-void deserialize(InputArchive &archive,const char *key,uint8_t && number){
+void deserialize(InputArchive &archive,const char *key,uint8_t& number){
+    if(archive.getDocument().containsKey(key)) number = archive.getDocument()[key];
+}
+
+//uint16_t
+void serialize(OutputArchive &archive,const char *key,uint16_t number){
+    archive.getDocument()[key] = number;
+}
+void deserialize(InputArchive &archive,const char *key,uint16_t& number){
     if(archive.getDocument().containsKey(key)) number = archive.getDocument()[key];
 }
 
@@ -46,7 +54,7 @@ void deserialize(InputArchive &archive,const char *key,uint8_t && number){
 void serialize(OutputArchive &archive,const char *key,float number){
     archive.getDocument()[key] = number;
 }
-void deserialize(InputArchive &archive,const char *key,float && number){
+void deserialize(InputArchive &archive,const char *key,float& number){
     if(archive.getDocument().containsKey(key)) number = archive.getDocument()[key];
 }
 
@@ -54,6 +62,6 @@ void deserialize(InputArchive &archive,const char *key,float && number){
 void serialize(OutputArchive &archive,const char *key,bool value){
     archive.getDocument()[key] = value;
 }
-void deserialize(InputArchive &archive,const char *key,bool && value){
+void deserialize(InputArchive &archive,const char *key,bool& value){
     if(archive.getDocument().containsKey(key)) value = archive.getDocument()[key];
 }

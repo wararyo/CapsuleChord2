@@ -133,14 +133,25 @@ public:
     InputArchive() {
         nestStack.push_back(doc.to<JsonObject>());
     }
+    // 右辺値参照オーバーロード
     template <class T, typename std::enable_if<is_serializable_internally<T>::value, std::nullptr_t>::type = nullptr>
-    inline void operator()(const char *key,T && arg) { 
+    inline void operator()(const char *key,T && arg) {
         arg.deserialize(*this,key);
     }
     template <class T, typename std::enable_if<is_serializable_externally<T>::value, std::nullptr_t>::type = nullptr>
     inline void operator()(const char *key,T && arg) {
         deserialize(*this,key,std::forward<T>(arg));
     }
+    // 左辺値参照オーバーロード
+    template <class T, typename std::enable_if<is_serializable_internally<T>::value, std::nullptr_t>::type = nullptr>
+    inline void operator()(const char *key, T& arg) {
+        arg.deserialize(*this,key);
+    }
+    template <class T, typename std::enable_if<is_serializable_externally<T>::value, std::nullptr_t>::type = nullptr>
+    inline void operator()(const char *key, T& arg) {
+        deserialize(*this,key,arg);
+    }
+
     bool pushNest(const char *key) {
         JsonObject top = nestStack[nestStack.size()-1];
         if(top.containsKey(key)){
@@ -168,35 +179,39 @@ public:
 
 //const char *
 void serialize(OutputArchive &archive,const char *key,const char *string);
-void deserialize(InputArchive &archive,const char *key,const char * && string);
+void deserialize(InputArchive &archive,const char *key,const char*& string);
 
 //String
 void serialize(OutputArchive &archive,const char *key,String string);
-void deserialize(InputArchive &archive,const char *key,String && string);
+void deserialize(InputArchive &archive,const char *key,String& string);
 
 //int
 void serialize(OutputArchive &archive,const char *key,int number);
-void deserialize(InputArchive &archive,const char *key,int && number);
+void deserialize(InputArchive &archive,const char *key,int& number);
 
 //uint
 void serialize(OutputArchive &archive,const char *key,uint number);
-void deserialize(InputArchive &archive,const char *key,uint && number);
+void deserialize(InputArchive &archive,const char *key,uint& number);
 
 //uint8_t
 void serialize(OutputArchive &archive,const char *key,uint8_t number);
-void deserialize(InputArchive &archive,const char *key,uint8_t && number);
+void deserialize(InputArchive &archive,const char *key,uint8_t& number);
+
+//uint16_t
+void serialize(OutputArchive &archive,const char *key,uint16_t number);
+void deserialize(InputArchive &archive,const char *key,uint16_t& number);
 
 //char
 void serialize(OutputArchive &archive,const char *key,char number);
-void deserialize(InputArchive &archive,const char *key,char && number);
+void deserialize(InputArchive &archive,const char *key,char& number);
 
 //float
 void serialize(OutputArchive &archive,const char *key,float number);
-void deserialize(InputArchive &archive,const char *key,float && number);
+void deserialize(InputArchive &archive,const char *key,float& number);
 
 //bool
 void serialize(OutputArchive &archive,const char *key,bool value);
-void deserialize(InputArchive &archive,const char *key,bool && value);
+void deserialize(InputArchive &archive,const char *key,bool& value);
 
 //std::vector
 template <class T, class A>
@@ -208,7 +223,7 @@ void serialize(OutputArchive &archive,const char *key,const std::vector<T, A>& l
     archive.popNest();
 }
 template <class T, class A>
-void deserialize(InputArchive &archive,const char *key,std::vector<T, A> && list){
+void deserialize(InputArchive &archive,const char *key,std::vector<T, A>& list){
     if(archive.pushNest(key)) {
         for(auto& item : list) {
             archive("item", item);
