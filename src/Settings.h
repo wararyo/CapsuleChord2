@@ -63,10 +63,20 @@ public:
         : SettingItem("Settings",std::move(items)),version(version){}
     bool load(String path = jsonFilePath){
         //Read file
-        char output[maxJsonFileSize] = {'\0'};
         File file = SD.open(path);
         if(!file) return false;
-        file.read((uint8_t *)output,maxJsonFileSize);
+
+        // Check file size to prevent buffer overflow
+        size_t fileSize = file.size();
+        if(fileSize >= maxJsonFileSize) {
+            Serial.printf("Settings file too large: %zu bytes (max: %d)\n", fileSize, maxJsonFileSize - 1);
+            file.close();
+            return false;
+        }
+
+        char output[maxJsonFileSize] = {'\0'};
+        size_t bytesRead = file.read((uint8_t *)output, fileSize);
+        output[bytesRead] = '\0';  // Ensure null termination
         file.close();
         //Deserialize
         Serial.println("Start deserialization");
