@@ -138,7 +138,7 @@ void AppLauncher::del()
 
     Context *context = Context::getContext();
     if (context != nullptr) {
-        context->addKnockListener(this);
+        context->removeKnockListener(this);
     }
 
     lv_obj_del(frame);
