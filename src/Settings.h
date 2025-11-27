@@ -29,7 +29,9 @@ protected:
         return -1;
     }
     void clearTag(int tag){ //Tagを開放する
-        tags[tag] = nullptr;
+        if(tag >= 0 && tag < MaxTagCount) {
+            tags[tag] = nullptr;
+        }
     }
 public:
     const char *name;
