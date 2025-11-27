@@ -39,6 +39,20 @@ struct is_serializable_impl {
     static auto check(...)->std::false_type;
 };
 
+// constオブジェクト用
+struct is_output_serializable_internally_impl {
+    template <class T>
+    static auto check(OutputArchive oa, const char * name, const T& x)->decltype(x.serialize(oa,name),std::true_type{});
+    template <class T>
+    static auto check(...)->std::false_type;
+};
+struct is_output_serializable_externally_impl {
+    template <class T>
+    static auto check(OutputArchive oa, const char * name, const T& x)->decltype(serialize(oa,name,x),std::true_type{});
+    template <class T>
+    static auto check(...)->std::false_type;
+};
+
 // Serializable internally or externally
 template <class T>
 class is_serializable :
@@ -51,6 +65,13 @@ template <class T>
 class is_serializable_externally :
     public decltype(is_serializable_externally_impl::check<T>(std::declval<OutputArchive>(), std::declval<InputArchive>(), std::declval<const char *>(), std::declval<T>())){};
 
+// constオブジェクト用
+template <class T>
+class is_output_serializable_internally :
+    public decltype(is_output_serializable_internally_impl::check<T>(std::declval<OutputArchive>(), std::declval<const char *>(), std::declval<const T>())){};
+template <class T>
+class is_output_serializable_externally :
+    public decltype(is_output_serializable_externally_impl::check<T>(std::declval<OutputArchive>(), std::declval<const char *>(), std::declval<const T>())){};
 
 /* Archive class */
 
@@ -62,6 +83,7 @@ public:
     OutputArchive() {
         nestStack.push_back(doc.to<JsonObject>());
     }
+    // 通常はこちらが使用される
     template <class T, typename std::enable_if<is_serializable_internally<T>::value, std::nullptr_t>::type = nullptr>
     inline void operator()(const char *key,T && arg) {
         arg.serialize(*this,key);
@@ -70,6 +92,16 @@ public:
     inline void operator()(const char *key,T && arg) {
         serialize(*this,key,std::forward<T>(arg));
     }
+    // 出力(シリアライズ)のみ、constオブジェクトを受け付けるオーバーロードを用意
+    template <class T, typename std::enable_if<is_output_serializable_internally<T>::value, std::nullptr_t>::type = nullptr>
+    inline void operator()(const char *key, const T& arg) {
+        arg.serialize(*this,key);
+    }
+    template <class T, typename std::enable_if<is_output_serializable_externally<T>::value, std::nullptr_t>::type = nullptr>
+    inline void operator()(const char *key, const T& arg) {
+        serialize(*this,key,arg);
+    }
+
     void pushNest(const char *key) {
         nestStack.push_back(nestStack[nestStack.size()-1].createNestedObject(key));
     }
@@ -168,10 +200,10 @@ void deserialize(InputArchive &archive,const char *key,bool && value);
 
 //std::vector
 template <class T, class A>
-void serialize(OutputArchive &archive,const char *key,std::vector<T, A> && list){
+void serialize(OutputArchive &archive,const char *key,const std::vector<T, A>& list){
     archive.pushNest(key);
-    for(auto& item : list) {
-        archive("item", const_cast<T&>(item));
+    for(const auto& item : list) {
+        archive("item", item);
     }
     archive.popNest();
 }
@@ -197,7 +229,7 @@ void deserialize(InputArchive &archive,const char *key,T* ptr){
 
 //std::unique_ptr
 template <class T>
-void serialize(OutputArchive &archive,const char *key,std::unique_ptr<T> & ptr){
+void serialize(OutputArchive &archive,const char *key,const std::unique_ptr<T>& ptr){
     archive(key,*ptr);
 }
 template <class T>
@@ -208,7 +240,7 @@ void deserialize(InputArchive &archive,const char *key,std::unique_ptr<T> & ptr)
 
 //std::shared_ptr
 template <class T>
-void serialize(OutputArchive &archive,const char *key,std::shared_ptr<T> & ptr){
+void serialize(OutputArchive &archive,const char *key,const std::shared_ptr<T>& ptr){
     archive(key,*ptr);
 }
 template <class T>
