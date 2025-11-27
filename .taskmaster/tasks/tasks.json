@@ -5,7 +5,7 @@
         "id": 1,
         "title": "キーパッド入力システムの初期実装",
         "description": "M5Unifiedライブラリを使用して、左右の3x3キーパッド、LRボタン、LT/RTボタンからの入力を読み取る基本的なシステムを構築します。これは、すべての和音演奏機能の基礎となります。",
-        "status": "pending",
+        "status": "done",
         "dependencies": [],
         "priority": "high",
         "details": "M5Stack CoreS3のハードウェアに基づき、M5Unifiedの`M5.BtnA`やGPIOピンのマトリックススキャンなどを利用して、キーの押下・長押し・解放イベントを検出するハンドラを作成します。検出されたイベントは、後続の処理パイプラインで利用できるよう、シンプルなイベントキューに格納します。\n\n```cpp\n// Pseudo-code in main loop\nvoid loop() {\n  M5.update();\n\n  // Check Left Keypad (example)\n  if (M5.BtnA.wasPressed()) {\n    event_queue.push({KEY_LEFT_1, KEY_PRESSED});\n  }\n\n  // ... check all other keys ...\n\n  process_input_events();\n}\n```",
@@ -17,7 +17,7 @@
             "description": "キーパッドとボタンの入力に必要なGPIOピンのモード設定と、I2Cポートエクスパンダ（使用する場合）の初期化処理を実装します。これはすべての入力処理の前提となります。",
             "dependencies": [],
             "details": "`setup()`関数内で、キーパッドマトリクスの行・列として使用するGPIOピンをそれぞれ`INPUT_PULLUP`や`OUTPUT`に設定します。I2Cエクスパンダを使用する場合は、`Wire.begin()`を呼び出し、エクスパンダの初期設定コマンドを送信します。",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "シリアルモニターに「Hardware initialized」などのログを出力し、`setup()`関数がエラーなく完了することを確認します。I2Cスキャナを実行し、接続されているエクスパンダが正しく認識されているかを確認します。"
           },
           {
@@ -28,7 +28,7 @@
               1
             ],
             "details": "マトリクスの列ピンを順番にLOWに設定し、各行ピンの状態を読み取ることで、押されているキーを特定する関数を実装します。読み取った状態は、時間ベースのデバウンスアルゴリズム（例：最後の状態変化から一定時間経過するまで状態を更新しない）を通して安定させます。",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "左キーパッドの各キーを押したときに、対応するキーIDと状態（押下/解放）がシリアルモニターに正しく出力されることを確認します。キーを素早く連打したり、軽く触れたりして、チャタリングによる誤入力が発生しないことをテストします。"
           },
           {
@@ -39,7 +39,7 @@
               1
             ],
             "details": "左キーパッド用に作成したスキャンとデバウンスのロジックを再利用し、右キーパッドのGPIOピン構成に合わせて適用します。ピン番号などを引数で渡せるように関数を共通化し、コードの重複を避けるように設計します。",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "右キーパッドの各キーを押したときに、対応するキーIDと状態（押下/解放）がシリアルモニターに正しく出力されることを確認します。左キーパッドと同様にデバウンス処理が適切に機能することも検証します。"
           },
           {
@@ -50,7 +50,7 @@
               1
             ],
             "details": "M5Unifiedライブラリが提供する`M5.BtnA`, `M5.BtnB`, `M5.BtnC`などのボタンオブジェクトや、直接GPIOを読み取る`digitalRead()`を使用します。`wasPressed()`, `wasReleased()`, `isHolding()`などの便利な関数を活用して、各種イベントを効率的に検出します。",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "LR/LT/RTの各ボタンに対して、短押し、長押し、解放の操作を行い、それぞれのイベントがシリアルモニターに正しくログ出力されることを確認します。複数のボタンを同時に押した場合の動作もテストします。"
           },
           {
@@ -63,7 +63,7 @@
               4
             ],
             "details": "キーIDとイベントタイプ（例：`enum KeyAction { PRESS, RELEASE, HOLD }`）を持つ構造体を定義します。各入力ソースのハンドラは、イベントを検出した際にこの構造体のインスタンスを作成し、スレッドセーフなキュー（例：FreeRTOSの`xQueue`）に追加します。これにより、後続の処理系がイベントを順番に処理できるようになります。",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "様々なキー（キーパッド、ボタン）をランダムに操作し、イベントが正しい順序と内容でイベントキューに追加され、その内容がシリアルモニターに表示されることを確認します。複数のキーを同時に押した場合でも、すべてのイベントが欠落なくキューに入ることをテストします。"
           }
         ]
@@ -72,7 +72,7 @@
         "id": 2,
         "title": "基本的な和音生成ロジックの実装",
         "description": "左キーパッドの入力に基づき、現在のキーとスケール（初期はCメジャーに固定）からダイアトニックコードを生成します。この処理は既存の`ChordPipeline`システムに統合されます。",
-        "status": "pending",
+        "status": "done",
         "dependencies": [
           1
         ],
@@ -86,7 +86,7 @@
             "description": "和音生成ロジックの基礎となる、キー、スケール、および和音を表すC++のクラスまたは構造体を定義します。これには構成音のMIDIノート番号やコードの種類などの情報が含まれます。",
             "dependencies": [],
             "details": "Chordクラスは構成音のMIDIノート番号を`std::vector<int>`で保持し、それを取得するメソッドを提供します。Scaleクラスはルート音とスケールの種類（メジャー、マイナー等）を定義します。KeyIdはキーパッドの入力を示すenumとして定義します。",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Chordオブジェクトに特定のMIDIノートのベクターをセットし、ゲッターメソッドで正しく取得できるかを確認する単体テストを作成します。Scaleオブジェクトの初期化が正しく行えるかもテストします。"
           },
           {
@@ -97,7 +97,7 @@
               1
             ],
             "details": "`mapKeyToDegree(KeyId key)`関数を実装します。この関数は、switch文または`std::map`を使用して、各`KeyId`に対応する整数（1から7）を返します。このマッピングは初期レイアウトに基づきます。",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "`mapKeyToDegree`関数に対し、定義済みの各キーIDが期待されるディグリー（1〜7の整数）を返すかを検証する単体テストを作成します。範囲外のIDに対する挙動もテストします。"
           },
           {
@@ -109,7 +109,7 @@
               2
             ],
             "details": "`ChordGenerator`クラスに`generateDiatonicChord(KeyId key)`メソッドを実装します。内部で`mapKeyToDegree`を呼び出しディグリーを取得後、`Context`から現在のスケールを取得し、ルート音と三和音の構成音を計算して`Chord`オブジェクトを返します。",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Cメジャースケールを設定した状態で、ディグリーIのキーIDを入力するとC-E-Gに対応するMIDIノート群を持つChordが返されること、ディグリーIIならD-F-Aが返されることなどを検証する単体テストを作成します。"
           },
           {
@@ -120,7 +120,7 @@
               3
             ],
             "details": "ChordPipelineの初期ステージとして`ChordGenerator`を配置します。キー入力イベントハンドラがChordGeneratorの`generateDiatonicChord`を呼び出し、その戻り値である`Chord`オブジェクトをパイプラインの次の処理（例: `ChordModifier`や出力ステージ）に渡すように接続します。",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "統合テストとして、キー入力イベントをシミュレートし、`ChordPipeline`を通じて`ChordGenerator`が呼び出され、最終的に期待される`Chord`オブジェクトが出力ステージに到達することをモックオブジェクトやログ出力を用いて確認します。"
           }
         ]
@@ -129,7 +129,7 @@
         "id": 3,
         "title": "内蔵音源への和音出力",
         "description": "`ChordPipeline`から渡された和音情報を、`OutputInternal`コンポーネントと`CapsuleSampler`ライブラリを介して内蔵スピーカーから音声として出力します。これにより、最低限の和音演奏が可能になります。",
-        "status": "pending",
+        "status": "done",
         "dependencies": [
           2
         ],
@@ -143,7 +143,7 @@
             "description": "アプリケーション起動時にCapsuleSamplerライブラリを初期化し、音声処理を専門に行うためのFreeRTOSタスクを作成・設定します。これにより、メインループをブロックしない非同期な音声出力基盤を確立します。",
             "dependencies": [],
             "details": "setup()関数内でCapsuleSamplerのインスタンスを生成し、基本的な設定（サンプリングレート、バッファサイズ等）を適用します。xTaskCreatePinnedToCoreを使用して、音声処理タスクを特定のコアに割り当て、適切なスタックサイズと優先度を設定します。",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "シリアルモニタにログを出力し、CapsuleSamplerがエラーなく初期化され、FreeRTOSタスクが正常に起動することを確認します。タスクの実行状態をデバッガで監視します。"
           },
           {
@@ -154,7 +154,7 @@
               1
             ],
             "details": "OutputInternal.hに`void playChord(const Chord& chord);`と`void releaseChord(const Chord& chord);`のプロトタイプ宣言を追加します。OutputInternal.cppに空のメソッド実装を作成します。これらのメソッドはスレッドセーフである必要があるため、FreeRTOSのキューやセマフォを使って音声処理タスクにデータを渡す設計を検討します。",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "スタブテストを作成し、playChordとreleaseChordが外部から呼び出せることを確認します。現時点では、メソッドが呼び出された際にシリアルログが出力されることを確認するだけで十分です。"
           },
           {
@@ -165,7 +165,7 @@
               2
             ],
             "details": "playChord内で、chord.getNotes()からノートのリストを取得し、forループで各ノートに対してsampler->noteOn()を呼び出します。releaseChordも同様にsampler->noteOff()を呼び出します。チャンネルは0、ベロシティは100に固定して実装します。これらのAPI呼び出しは、音声処理タスクのコンテキストで実行されるようにします。",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "実機でキーパッドを操作し、playChordが呼ばれたときに和音が発音され、キーを離してreleaseChordが呼ばれたときに音が停止することを確認します。ロジックアナライザで、noteOn呼び出しから実際の音声出力までの遅延を概算します。"
           },
           {
@@ -176,7 +176,7 @@
               3
             ],
             "details": "GPIOピンのトグルとロジックアナライザを使用して、キー入力割り込み発生時点と音声出力開始時点のタイムスタンプを記録し、差分を計算します。最適化の際には、FreeRTOSのキューを介したデータコピーを最小限に抑える、タスクの優先度を上げるなどの手法を検討します。",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "最適化後、再度レイテンシを測定し、平均および最悪ケースで20ms以下に収まっていることを確認します。連続して高速にキーを操作しても、音の途切れや遅延の増大が発生しないことをストレステストで検証します。"
           }
         ]
@@ -185,7 +185,7 @@
         "id": 4,
         "title": "LVGLベースのUIフレームワークとホーム画面の実装",
         "description": "LVGLライブラリを用いて、UIの基本構造とホーム画面を実装します。ホーム画面には、演奏中の和音名、テンポ、スケール、出力先、バッテリー残量などのプレースホルダを表示します。",
-        "status": "pending",
+        "status": "done",
         "dependencies": [
           3
         ],
@@ -199,7 +199,7 @@
             "description": "LVGLグラフィックライブラリをプロジェクトに追加し、ビルドシステム（例：PlatformIO）がライブラリを正しくコンパイルおよびリンクできるように設定します。",
             "dependencies": [],
             "details": "platformio.iniのlib_depsにLVGLを追加し、lv_conf.hをプロジェクト内にコピーして設定を有効化します。カラーデプスやフォントなどの基本設定を構成します。",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "プロジェクトがLVGLのヘッダーをインクルードして正常にビルドできることを確認します。lv_init()を呼び出すだけの最小限のコードでコンパイルが通ることを検証します。"
           },
           {
@@ -210,7 +210,7 @@
               1
             ],
             "details": "ディスプレイの仕様に合わせてSPI通信を設定します。lv_display_tをセットアップし、flush_cbコールバック関数を実装します。lv_display_draw_buf_initを使用して、1つまたは2つの描画バッファを割り当てます。",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "初期化後、画面全体を特定の色で塗りつぶすテストコードを実行し、ディスプレイが正しく制御できていることを確認します。バッファ割り当てに失敗しないこともログで確認します。"
           },
           {
@@ -221,7 +221,7 @@
               2
             ],
             "details": "lv_obj_createでホーム画面オブジェクトを作成します。lv_label_createで各情報表示用のラベルを作成し、lv_obj_alignやレイアウト機能を使用して配置します。この時点では静的なテキストを表示します。",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "デバイスを起動した際に、設計書通りのレイアウトでホーム画面が表示されることを目視で確認します。すべてのラベルが正しい位置に、正しいプレースホルダテキストで表示されていることを検証します。"
           },
           {
@@ -232,7 +232,7 @@
               3
             ],
             "details": "update_ui()のような関数を作成し、その中でContext::getInstance()からデータを取得します。取得したデータを文字列に変換し、lv_label_set_textを使用して対応するラベルを更新します。",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Contextの状態をデバッガやダミーのセッターで変更し、UI表示がそれに追従して更新されることを確認します。手動でupdate_ui()を呼び出してテストします。"
           },
           {
@@ -243,7 +243,7 @@
               4
             ],
             "details": "xTaskCreateを使用してUIタスクを生成します。タスクのループ内で、lv_timer_handler()を定期的に呼び出します。また、データバインディング用のupdate_ui()関数も一定間隔で呼び出すように実装します。",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "デバイスを起動し、ホーム画面が自動的に表示され、安定して描画され続けることを確認します。他の機能（例：和音入力）を動作させながら、UIの応答性が損なわれないかを検証します。"
           }
         ]
@@ -252,7 +252,7 @@
         "id": 6,
         "title": "アプリ管理システムとメトロノームアプリの実装",
         "description": "既存の`AppBase`クラスを継承し、アプリのライフサイクル（起動、停止、バックグラウンド実行）を管理するシステムを構築します。最初のアプリとして、`TempoController`と連携して動作するメトロノームアプリを実装します。",
-        "status": "pending",
+        "status": "done",
         "dependencies": [
           3
         ],
@@ -266,7 +266,7 @@
             "description": "全てのアプリケーションの基底となる抽象クラス`AppBase`を設計します。アプリのライフサイクル（有効化、無効化、更新処理など）を管理するための仮想関数を定義します。",
             "dependencies": [],
             "details": "`AppBase.h`ファイルを作成し、`onEnable()`, `onDisable()`, `update()`, `onBeat()` などの純粋仮想関数または空の仮想関数を持つ`AppBase`クラスを定義します。これにより、すべての派生アプリが共通のインターフェースを持つことを保証します。",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "このタスクはインターフェース定義のみのため、直接的なテストは行いません。後続のサブタスクでこのインターフェースを実装するクラスを作成し、その動作を検証することで間接的に確認します。"
           },
           {
@@ -277,7 +277,7 @@
               1
             ],
             "details": "`AppManager`クラスは`std::vector<AppBase*>`のような形でアプリのリストを保持します。`registerApp`, `enableApp`, `disableApp` といったメソッドを実装し、有効なアプリに対して`update`や`onBeat`などのライフサイクルメソッドを呼び出すロジックを構築します。",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "単体テストで`AppManager`にモックアプリを登録し、有効化/無効化が正しく状態に反映されることを確認します。有効化されたアプリの`update`や`onBeat`メソッドが呼び出されることを検証します。"
           },
           {
@@ -288,7 +288,7 @@
               1
             ],
             "details": "`MetronomeApp.h` と `MetronomeApp.cpp` を作成します。`AppBase`から`onEnable`, `onDisable`, `onBeat`をオーバーライドします。`onEnable`内で`TempoController`へのコールバック登録を行い、`onDisable`で解除する処理の骨格を記述します。",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "`MetronomeApp`のインスタンスが作成でき、`AppManager`に正常に登録できることを確認します。この時点では、音を鳴らす具体的なロジックは未実装で構いません。"
           },
           {
@@ -300,7 +300,7 @@
               3
             ],
             "details": "`MetronomeApp::onBeat`メソッド内で、ビートカウントに基づき`Context::getInstance().getSampler()->noteOn()`を呼び出します。強拍（例: 4拍子の1拍目）と弱拍で異なるノート番号やベロシティを使い分け、クリック音を再生します。システム音専用チャンネル（15）を使用することを徹底します。",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "`AppManager`経由で`MetronomeApp`を有効化し、`TempoController`が動作している状態で、設定されたBPMに合わせてメトロノーム音が鳴ることを確認します。また、アプリを無効化すると音が停止することもテストします。"
           }
         ]
@@ -308,102 +308,103 @@
       {
         "id": 7,
         "title": "高度な和音修飾機能の実装",
-        "description": "右キーパッド（sus4, m7/M7など）およびLR/LT/RTボタン（半音上げ下げ、転回）による和音修飾機能を実装します。これにより、ダイアトニックコード以外の多彩なコードが演奏可能になります。",
+        "description": "既存の`ChordFilter`インターフェース、`Chord`クラスのオプションフラグ、`KeyMap`システムを活用し、右キーパッドおよびLR/LT/RTボタンによる和音修飾機能を完成させます。基本機能の基盤は実装済みのため、本タスクではキー入力と修飾ロジックの具体的な紐付けと動作確認が中心となります。",
         "status": "pending",
         "dependencies": [
           2
         ],
         "priority": "medium",
-        "details": "`ChordPipeline`に`ChordModifier`ステージを追加します。このステージは、右キーパッドやLRボタンの状態を`Context`から読み取り、入力された`Chord`オブジェクトを変化させます。例えば、sus4ボタンが押されていれば3度の音を4度に置き換え、Rボタンが押されていれば全ての構成音を半音上げます。\n\n```cpp\n// Part of ChordModifier logic\nChord modifyChord(const Chord& inputChord) {\n  Chord outputChord = inputChord;\n  if (Context::getInstance().isModifierPressed(MOD_SUS4)) {\n    outputChord.applySuspended4th();\n  }\n  if (Context::getInstance().isModifierPressed(MOD_TRANSPOSE_UP)) {\n    outputChord.transpose(1);\n  }\n  if (Context::getInstance().isModifierPressed(MOD_INVERSION_UP)) {\n    outputChord.applyInversion(1);\n  }\n  return outputChord;\n}\n```",
-        "testStrategy": "単体テストで、基本和音と修飾キーの組み合わせに対して正しい構成音の`Chord`オブジェクトが生成されることを確認します。実機で右キーパッドやLRキーを押しながら左キーパッドを操作し、意図した通りの修飾された和音が発音されるか、また画面上のコードネームが正しく更新されるかをテストします。",
+        "details": "現在の実装では、`KeyMap`（例: `CapsuleChordKeyMap.cpp`）がキー入力を`MusicEvent`に変換し、`ChordPipeline`内の`ChordFilter`が和音を修飾します。この仕組みを利用します。右キーパッドのキー（例: sus4, m7）が押された際に、対応する`Chord::Option`フラグ（例: `Chord::Option::Sus4`, `Chord::Option::Seventh`）を設定するようなイベントを`KeyMap`で生成するように実装します。`ChordFilter`は、これらのフラグを検知し、`Chord`オブジェクトの構成音を決定します。転調や転回も同様に、LR/LT/RTボタンに対応するイベントを生成し、`ChordFilter`または`NoteFilter`で処理します。",
+        "testStrategy": "`KeyMap`が修飾キー入力に対して正しい`MusicEvent`（Chord::Optionフラグを含む）を生成することを単体テストで確認します。次に、特定の`Option`フラグがセットされた`Chord`オブジェクトが、理論通り正しい構成音を持つことを検証します。最終的に実機で各修飾キーを操作し、意図した和音が発音され、LVGLで表示されるコードネームが正しく更新される（例: \"C7sus4\"）ことを確認します。",
         "subtasks": [
           {
             "id": 1,
-            "title": "`ChordPipeline`に`ChordModifier`ステージを作成する",
-            "description": "`ChordPipeline`に組み込むための新しいステージ`ChordModifier`クラスを作成します。このステージは、`Context`からキー入力状態を読み取り、和音データを修飾する役割を担います。",
+            "title": "既存のキーマッピングと和音修飾機構の調査",
+            "description": "`KeyMap`システム（`CapsuleChordKeyMap.cpp`等）と`ChordPipeline`内の`ChordFilter`/`NoteFilter`の現在の実装を分析します。修飾キー（右キーパッド、LR/LT/RT）の入力を検知し、和音修飾フラグを`Chord`オブジェクトに渡すための最適な実装方法を特定します。",
             "dependencies": [],
-            "details": "`PipelineStage`インターフェースを実装した`ChordModifier`クラスを作成します。`process(Chord& chord)`メソッド内で、`Context`から修飾キーの状態を取得し、後続のタスクで実装される変換ロジックを呼び出すための骨格を準備します。まずは`ChordPipeline`にこのステージを正しく挿入し、データが通過することを確認します。",
+            "details": "コードを読み、キー入力が`MusicEvent`に変換され、パイプラインを通過して最終的なMIDIノート番号になるまでの流れを追跡します。`Chord::Option`ビットフラグがどのように和音生成に影響を与えるかを確認し、新しい修飾キーを組み込むための改修箇所を明確にします。",
             "status": "pending",
-            "testStrategy": "`ChordModifier`ステージをパイプラインに追加した状態で、修飾キーを押さずに基本和音が正しく通過し、出力されることを確認します。ダミーの修飾ロジック（例：ログ出力）を実装し、修飾キーを押した際にそのロジックが呼び出されることを確認します。"
+            "testStrategy": "`KeyMap`と`ChordPipeline`の関連コードをデバッガやログ出力を用いてステップ実行し、データフローを文書化します。`Chord::Option`の各フラグを個別に有効にした場合の和音構成音の変化を確認する実験的コードを作成します。"
           },
           {
             "id": 2,
-            "title": "各修飾キーに対応する個別の和音変換ロジックを実装する",
-            "description": "sus4, m7, M7, 半音上げ/下げ（転調）、転回といった個別の和音修飾に対応する変換ロジックを`Chord`クラスまたはヘルパー関数に実装します。",
+            "title": "右キーパッドの修飾機能マッピング",
+            "description": "右キーパッドの各キーに、sus4, m7, M7, 6thなどの和音修飾機能を割り当てます。",
             "dependencies": [
               1
             ],
-            "details": "`Chord`クラスに`applySuspended4th()`, `applyMinor7th()`, `applyMajor7th()`, `transpose(int semitones)`, `applyInversion(int direction)`などのメソッドを追加します。それぞれのメソッドは、和音の構成音（MIDIノート番号）を和音理論に基づいて正しく変更します。例えば`applySuspended4th()`は3度の音を完全4度の音に置き換えます。",
+            "details": "`KeyMap`クラス（主に`CapsuleChordKeyMap`）を修正し、右キーパッドのキー押下イベントを捕捉します。キーが押されている間、後続の`ChordFilter`で解釈される`Chord::Option`フラグ（`Sus4`, `Seventh`, `MajorSeventh`等）を`MusicEvent`に付与するロジックを実装します。複数同時押し（例: sus4 + m7）にも対応できるよう、ビット演算でフラグを組み合わせます。",
             "status": "pending",
-            "testStrategy": "各変換メソッドに対して単体テストを作成します。例えば、Cメジャーコード（C, E, G）に`applySuspended4th()`を適用すると（C, F, G）になること、`transpose(1)`を適用すると（C#, F, G#）になることをMIDIノート番号レベルで検証します。"
+            "testStrategy": "単体テストで、右キーパッドの各キーを押した場合に、対応する`Chord::Option`フラグを含む`MusicEvent`が生成されることを確認します。複数のキーを同時押しした際に、フラグが正しく合成される（ORされる）こともテストします。"
           },
           {
             "id": 3,
-            "title": "複数修飾キーの同時押し組み合わせロジックを実装する",
-            "description": "`ChordModifier`ステージ内で、複数の修飾キーが同時に押された場合の処理順序とロジックを実装します。例えば、「sus4」と「m7」が同時に押された場合など、有効な組み合わせを定義し処理します。",
+            "title": "LR/LT/RTボタンによる転調・転回機能の実装",
+            "description": "LRボタンに半音単位の転調（トランスポーズ）機能、LT/RTボタンに和音の転回形を切り替える機能を実装します。",
             "dependencies": [
-              2
+              1
             ],
-            "details": "`ChordModifier::process`メソッド内で、修飾の適用順序を決定します。一般的には、音程構造を変える修飾（sus4, m7など）を先に行い、その後で転回や転調を適用するのが自然です。`if-else`や優先度付けを用いて、どの修飾をどの順番で適用するかを制御します。例えば、`C + sus4 + m7` -> `C, F, G, A#` (C7sus4) のような正しい構成音を生成するロジックを構築します。",
+            "details": "`KeyMap`でLR/LT/RTボタンのイベントを捕捉します。転調は、`ChordFilter`または`NoteFilter`で最終的なノート番号を増減させることで実装します。転回は、`Chord`クラスに実装済みの転回ロジックを呼び出すか、`NoteFilter`でオクターブシフトを適用することで実装します。これらの操作が他の修飾と正しく組み合わさることを確認します。",
             "status": "pending",
-            "testStrategy": "複数の修飾キーの組み合わせパターンについて、単体テストを追加します。Cメジャーコードに対し、(sus4, m7), (転回, M7), (転調, sus4) などの組み合わせを適用し、期待される構成音が出力されることを確認します。実機で同時押しを行い、意図しない動作やクラッシュが発生しないかもテストします。"
+            "testStrategy": "転調ボタンを押しながら和音を弾き、出力されるMIDIノート番号がすべて半音単位で上下することを確認します。転回ボタンを押すたびに、構成音のオクターブが期待通りに変化し、ルート音が維持されることを確認します。これらの機能の単体テストも作成します。"
           },
           {
             "id": 4,
-            "title": "全修飾パターンに対応する単体テストを作成・拡充する",
-            "description": "実装した全ての単一および組み合わせ修飾パターンについて、網羅的な単体テストを作成します。これにより、将来のリファクタリングや機能追加に対するコードの堅牢性を確保します。",
+            "title": "動作確認とテストの拡充",
+            "description": "実装した全ての修飾機能について、単体テストと実機での統合テストを実施します。",
             "dependencies": [
+              2,
               3
             ],
-            "details": "テストフレームワークを使用し、主要な基本コード（メジャー、マイナー）に対して、実装された全ての修飾キーの単一適用パターンと、現実的にありえる組み合わせパターンをテストするテストケースを追加します。ルート音がC以外の場合（例：F#, Bb）でも正しく動作することを確認するテストも作成します。",
+            "details": "`Chord`クラスと`ChordFilter`に対する単体テストを拡充し、各`Option`フラグやその組み合わせが正しい構成音を生成することを網羅的に検証します。実機で様々な基本コードと修飾キーの組み合わせを試し、発音、UIのコードネーム表示がすべて期待通りに動作することを確認します。特に、キーの押しっぱなしや同時押しでの意図しない動作がないかを入念にテストします。",
             "status": "pending",
-            "testStrategy": "テストカバレッジツールを導入し、`ChordModifier`と`Chord`の関連メソッドのカバレッジが目標値（例: 90%以上）に達することを確認します。全てのテストがパスすることをもって、このサブタスクの完了とします。"
+            "testStrategy": "テストカバレッジツールを使用し、変更箇所のカバレッジが目標値に達していることを確認します。リグレッションテストとして、修飾キーを押さない状態での基本動作が損なわれていないことを再確認します。すべてのテストがパスすることをもって完了とします。"
           }
         ]
       },
       {
         "id": 8,
         "title": "複数出力デバイス（USB/BLE MIDI）のサポート",
-        "description": "和音の出力先を内蔵音源、USB MIDI、BLE MIDIから選択できるようにします。各MIDI出力の基本的な実装を行い、ホーム画面から切り替えられるようにします。",
+        "description": "和音の出力先を内蔵音源、USB MIDI、BLE MIDIから選択できるようにします。既存のBLE MIDI実装を統合し、USB MIDI機能を追加実装します。ホーム画面から出力先を切り替えられるようにUIとシステムを連携させます。",
         "status": "pending",
         "dependencies": [
           3,
           4
         ],
         "priority": "medium",
-        "details": "`OutputBase`インターフェースを定義し、`OutputInternal`, `OutputUsbMidi`, `OutputBleMidi`の3つの具象クラスを作成します。`Context`が出力先を管理し、`ChordPipeline`の最終段は現在の出力先の`playChord`メソッドを呼び出します。USB MIDIはArduinoの`USB-MIDI`ライブラリを、BLE MIDIは`NimBLE-Arduino`ライブラリを利用して実装します。\n\n```cpp\n// Context.h\nclass Context {\n  // ...\n  OutputBase* currentOutput;\npublic:\n  void setOutputDevice(DeviceType type);\n  OutputBase* getOutputDevice() { return currentOutput; }\n};\n\n// ChordPipeline's final stage\nContext::getInstance().getOutputDevice()->playChord(chord);\n```",
-        "testStrategy": "ホーム画面のUI（またはメニュー）から出力先を切り替えられることを確認します。USB MIDIを選択し、PCのDAWに接続してCapsuleChordの演奏がMIDIノートとして入力されることをテストします。BLE MIDIを選択し、スマートフォンやPCとペアリングして同様にMIDIが受信できることをテストします。",
+        "details": "既存の`src/Output/MidiOutput.h`を、すべての出力形式の基底クラス（インターフェース）として整備します。このインターフェースを実装する`OutputUsbMidi`クラスを新規に実装し、既存の`src/BLEMidi.h`の機能をラップする`OutputBleMidi`クラスを作成します。`Context`が出力先を管理し、`ChordPipeline`の最終段は`Context`経由で現在の出力先の`noteOn`/`noteOff`メソッドを呼び出します。\n\n```cpp\n// Context.h\nclass Context {\n  // ...\n  MidiOutput* currentOutput;\npublic:\n  void setOutputDevice(DeviceType type);\n  MidiOutput* getOutputDevice() { return currentOutput; }\n};\n\n// ChordPipeline's final stage\nContext::getInstance().getOutputDevice()->noteOn(note, velocity);\n```",
+        "testStrategy": "ホーム画面のUI（またはメニュー）から出力先を切り替えられることを確認します。USB MIDIを選択し、PCのDAWに接続してCapsuleChordの演奏がMIDIノートとして入力されることをテストします。BLE MIDIを選択し、スマートフォンやPCとペアリングして同様にMIDIが受信できることをテストします。内蔵音源への切り替えも正しく動作することを確認します。",
         "subtasks": [
           {
             "id": 1,
-            "title": "OutputBaseインターフェースの定義とOutputInternalのリファクタリング",
-            "description": "すべての出力デバイスの共通インターフェースとなる`OutputBase`抽象クラスを定義します。既存の内蔵音源出力処理を、このインターフェースを実装する`OutputInternal`クラスにリファクタリングします。",
+            "title": "MidiOutput基底クラスの定義",
+            "description": "`src/Output/MidiOutput.h`を元に、すべての出力デバイスの共通インターフェースとなる`MidiOutput`抽象クラスを正式に定義します。このインターフェースには、`noteOn`や`noteOff`などの純粋仮想メソッドが含まれます。既存の`OutputInternal`がこのインターフェースに準拠していることを確認します。",
             "dependencies": [],
-            "details": "`playChord(Chord chord)`などの純粋仮想メソッドを持つ`OutputBase.h`を作成します。現在の内蔵音源ロジックを`OutputInternal.cpp`に移動し、`OutputBase`を継承させます。",
+            "details": "`MidiOutput.h`に`virtual void noteOn(uint8_t note, uint8_t velocity, uint8_t channel) = 0;`のような純粋仮想関数を定義します。`OutputInternal`クラスが`MidiOutput`を継承し、これらのメソッドを実装するように修正します。",
             "status": "pending",
             "testStrategy": "リファクタリング後も、これまで通り内蔵音源から和音が正しく再生されることを確認します。"
           },
           {
             "id": 2,
             "title": "USB MIDI出力クラス`OutputUsbMidi`の実装",
-            "description": "Arduinoの`USB-MIDI`ライブラリをプロジェクトに統合し、`OutputBase`を継承した`OutputUsbMidi`クラスを作成します。和音データをMIDIノートメッセージに変換してUSB経由で送信する機能を実装します。",
+            "description": "`platformio.ini`に`USB-MIDI`ライブラリを追加し、`MidiOutput`を継承した`OutputUsbMidi`クラスを実装します。`src/Output/MidiOutput.h`でコメントアウトされている雛形を元に、和音データをMIDIノートメッセージに変換してUSB経由で送信する機能を実装します。",
             "dependencies": [
               1
             ],
-            "details": "`platformio.ini`に`USB-MIDI`ライブラリを追加します。`OutputUsbMidi`クラス内で`MIDI.sendNoteOn()`と`MIDI.sendNoteOff()`を呼び出す`playChord`メソッドを実装します。",
+            "details": "`OutputUsbMidi`クラス内で`MIDI.sendNoteOn()`と`MIDI.sendNoteOff()`を呼び出す`noteOn`/`noteOff`メソッドを実装します。USBデバイスとして正しく認識されるための設定も行います。",
             "status": "pending",
             "testStrategy": "テストコードで`OutputUsbMidi`を直接使用し、PCのDAWソフトウェアでMIDIノートが受信できることを確認します。"
           },
           {
             "id": 3,
-            "title": "BLE MIDI出力クラス`OutputBleMidi`の実装",
-            "description": "`NimBLE-Arduino`ライブラリを利用して、Bluetooth Low Energy (BLE) MIDIサービスを実装します。`OutputBase`を継承した`OutputBleMidi`クラスを作成し、BLE経由でMIDIデータを送信する機能を実装します。",
+            "title": "既存BLE MIDI機能の`OutputBleMidi`クラスへの統合",
+            "description": "既に実装されている`src/BLEMidi.h`の機能を`MidiOutput`インターフェースに適合させるためのラッパークラス`OutputBleMidi`を作成します。このクラスは`MidiOutput`を継承し、内部で`BLEMidi`クラスのインスタンスを呼び出します。",
             "dependencies": [
               1
             ],
-            "details": "`platformio.ini`に`NimBLE-Arduino`ライブラリを追加します。BLEサーバー、サービス、キャラクタリスティックを定義し、BLE MIDIの仕様に準拠したデータ送信処理を`playChord`メソッド内に実装します。",
+            "details": "`OutputBleMidi`クラスを作成し、`MidiOutput`を継承させます。`noteOn`や`noteOff`メソッドの実装内で、`src/BLEMidi.h`で定義されている`sendNote()`などのメソッドを呼び出すようにします。BLEの接続状態管理も考慮に入れます。",
             "status": "pending",
-            "testStrategy": "スマートフォンアプリやPCとBLEでペアリングし、MIDIデバイスとして認識されることを確認します。和音を演奏し、MIDIノートが正しく受信されることをテストします。"
+            "testStrategy": "統合後、BLE経由でスマートフォンアプリやPCとペアリングし、MIDIデバイスとして認識され、和音を演奏するとMIDIノートが正しく受信されることをテストします。"
           },
           {
             "id": 4,
@@ -414,7 +415,7 @@
               2,
               3
             ],
-            "details": "`Context`クラスに`OutputBase* currentOutput`メンバー変数を追加します。`setOutputDevice(DeviceType type)`メソッド内で、指定されたタイプに応じて各出力クラスのインスタンスを生成（または選択）し、`currentOutput`に設定します。",
+            "details": "`Context`クラスに`MidiOutput* currentOutput`メンバー変数を追加します。`setOutputDevice(DeviceType type)`メソッド内で、指定されたタイプに応じて各出力クラスのインスタンスを生成（または選択）し、`currentOutput`に設定します。",
             "status": "pending",
             "testStrategy": "テスト用のコードで`setOutputDevice`を呼び出し、`getOutputDevice`が期待されるインスタンスを返すことを確認します。"
           },
@@ -425,7 +426,7 @@
             "dependencies": [
               4
             ],
-            "details": "`ChordPipeline`の最終処理を行う箇所で、`Context::getInstance().getOutputDevice()->playChord(chord);` のように、`Context`経由で出力デバイスのメソッドを呼び出すようにコードを修正します。",
+            "details": "`ChordPipeline`の最終処理を行う箇所で、`Context::getInstance().getOutputDevice()->noteOn(note, velocity);` のように、`Context`経由で出力デバイスのメソッドを呼び出すようにコードを修正します。",
             "status": "pending",
             "testStrategy": "`Context`で出力先をUSB MIDIに設定した状態で和音を演奏し、USB経由でMIDIデータが送信されることを確認します。他の出力先でも同様に動作することを確認します。"
           },
@@ -436,7 +437,7 @@
             "dependencies": [
               4
             ],
-            "details": "ホーム画面または設定メニューに、出力先を選択するためのボタンやリストを追加します。UIイベントをハンドリングし、選択に応じて`Context::getInstance().setOutputDevice()`を呼び出します。",
+            "details": "ホーム画面または設定メニューに、出力先を選択するためのボタンやリストを追加します。LVGLのイベントをハンドリングし、選択に応じて`Context::getInstance().setOutputDevice()`を呼び出します。",
             "status": "pending",
             "testStrategy": "UIから各出力先（Internal, USB, BLE）を選択し、実際に出力先が切り替わることを確認します。現在の選択状態がUIに正しく反映されることを確認します。"
           }
@@ -445,56 +446,57 @@
       {
         "id": 9,
         "title": "設定データの永続化",
-        "description": "音量、画面の明るさ、キー、最後に使用した出力先などのユーザー設定を、SDカードまたはSPIFFSにJSON形式で保存・読み込みする機能を実装します。",
+        "description": "既存の`Settings`クラスフレームワーク (`src/Settings.h`) を利用して、ユーザー設定を永続化する機能を完成させます。主な作業は、SDカードおよびSPIFFSへのファイルI/O層の実装と、設定変更時の自動保存トリガーの組み込みです。設定は`/capsulechord/settings.json`というパスにJSON形式で保存します。",
         "status": "pending",
         "dependencies": [
           8
         ],
         "priority": "medium",
-        "details": "設定項目を管理する`SettingsManager`クラスを作成します。このクラスは`ArduinoJson`ライブラリを使用して設定のシリアライズ/デシリアライズを行います。起動時にSDカードをチェックし、存在すればそこから、なければSPIFFSから`settings.json`を読み込み`Context`に適用します。設定変更時には、`SettingsManager`を通じてJSONファイルに書き込みます。\n\n```cpp\n// SettingsManager.cpp\nvoid SettingsManager::save() {\n  JsonDocument doc;\n  doc[\"volume\"] = Context::getInstance().getVolume();\n  doc[\"key\"] = Context::getInstance().getKey();\n  \n  File file = SD.open(\"/settings.json\", FILE_WRITE);\n  serializeJson(doc, file);\n  file.close();\n}\n\nvoid SettingsManager::load() {\n  // ... load from SD or SPIFFS and apply to Context ...\n}\n```",
-        "testStrategy": "メニューから音量やキーを変更し、デバイスを再起動しても設定が保持されていることを確認します。SDカードを抜いた状態で設定を変更・再起動し、設定がSPIFFSに保存・復元されることを確認します。その後、SDカードを挿入して再起動し、SDカードが優先されることをテストします。",
+        "details": "`src/Settings.h`で定義済みの`Settings`クラスは、ネストされた設定項目をツリー構造で管理し、`serialize()`/`deserialize()`メソッドを通じてJSONデータとの変換が可能です。本タスクでは、`main.cpp`内で現在コメントアウトされている`settings.load()`と`settings.save()`の呼び出しを有効化し、その内部実装を行います。\n\n実装は、まずSDカードへの読み書きを試み、SDカードが利用できない場合にはSPIFFSにフォールバックするロジックを含みます。設定値の変更はUI操作などから行われるため、変更を検知して自動的に`settings.save()`を呼び出すトリガー機構も必要です。\n\n```cpp\n// main.cpp の変更イメージ\nvoid setup() {\n  // ... M5.begin(), etc.\n\n  // SDカードを初期化し、設定をロードする\n  // この中でSD/SPIFFSのフォールバック処理を行う\n  settings.load(\"/capsulechord/settings.json\");\n\n  // ... UI setup, etc.\n}\n\n// 設定変更が行われた際のコールバック関数（例）\nvoid onSettingChanged() {\n  // 変更をSDカード（またはSPIFFS）に保存する\n  settings.save(\"/capsulechord/settings.json\");\n}\n```",
+        "testStrategy": "1. UIから設定（例: スケールのキー）を変更し、デバイスを再起動しても設定が`/capsulechord/settings.json`に保存され、正しく復元されることを確認します。\n2. SDカードを抜いた状態で設定を変更・再起動し、設定がSPIFFSに保存・復元されるフォールバック機能を確認します。\n3. SPIFFSとSDカードの両方に異なる設定ファイルが存在する場合、SDカードの設定が優先して読み込まれることを確認します。",
         "subtasks": [
           {
             "id": 1,
-            "title": "SettingsManagerクラスと設定データ構造の定義",
-            "description": "設定項目（音量、画面輝度など）を保持する構造体またはクラスを定義し、それらを管理する`SettingsManager`クラスの基本的なスケルトンを作成します。",
+            "title": "既存の設定フレームワークの確認と適用",
+            "description": "`src/Settings.h`に定義済みの`Settings`クラスと`SettingItem`のツリー構造フレームワークを確認します。`serialize`/`deserialize`インターフェースを持つことが確認されたため、これを活用します。",
             "dependencies": [],
-            "details": "`SettingsManager.h`ファイルを作成し、シングルトンパターンまたは静的クラスとして`SettingsManager`を定義します。音量、キー、画面輝度などの設定値をメンバ変数として持つ構造体`UserSettings`を定義します。",
-            "status": "pending",
-            "testStrategy": "コンパイルが通り、クラスと構造体の定義が正しいことを確認します。この段階では実行時のテストはありません。"
+            "details": "既存のクラス設計（`Settings`および`SettingItem`の派生クラス群）は完了しており、本タスクの以降のサブタスクはこのフレームワークを前提として、実際のファイルI/O部分の実装に焦点を当てます。",
+            "status": "done",
+            "testStrategy": "N/A (設計完了済み)"
           },
           {
             "id": 2,
-            "title": "saveメソッドによる設定のJSONシリアライズ実装",
-            "description": "`ArduinoJson`ライブラリを使用して、現在の設定内容をJSON形式にシリアライズし、指定されたファイルシステム（SDカードまたはSPIFFS）に`settings.json`として保存する`save`メソッドを実装します。",
+            "title": "saveメソッドによる設定のファイル書き出し実装",
+            "description": "`main.cpp`内の`settings.save()`呼び出しを有効化し、`Settings::serialize()`から得られるJSONデータをファイルに書き出す機能を実装します。まずは単一のファイルシステム（SDカード）を対象とします。",
             "dependencies": [
               1
             ],
-            "details": "`SettingsManager::save()`内で`JsonDocument`を作成し、`Context`から設定値を取得してドキュメントに格納します。`serializeJson()`を使ってファイルに書き込みます。ファイル書き込みのエラーハンドリングも考慮します。",
+            "details": "パスは`/capsulechord/settings.json`を使用します。`Settings::serialize()`を呼び出し、返された`JsonDocument`を`serializeJson()`でファイルストリームに書き込みます。ファイルI/Oのエラーハンドリングを行ってください。",
             "status": "pending",
-            "testStrategy": "`save`メソッドを呼び出した後、ファイルシステムの内容を確認し、正しい形式の`settings.json`ファイルが生成されていることを（例えばファイルダンプやシリアル出力などで）確認します。"
+            "testStrategy": "手動で`save`関数を呼び出した後、シリアル経由でファイルシステムの内容をダンプするか、PCでSDカードを読み取り、`/capsulechord/settings.json`が正しく生成されていることを確認します。"
           },
           {
             "id": 3,
-            "title": "loadメソッドによる設定のJSONデシリアライズ実装",
-            "description": "起動時に`settings.json`ファイルを読み込み、`ArduinoJson`を使ってデシリアライズし、その内容をアプリケーションの`Context`に適用する`load`メソッドを実装します。ファイルが存在しない場合のデフォルト値設定も行います。",
+            "title": "loadメソッドによる設定のファイル読み込み実装",
+            "description": "`main.cpp`の`settings.load()`を有効化し、ファイルからJSONデータを読み込み`Settings::deserialize()`で設定に復元する機能を実装します。まずは単一のファイルシステム（SDカード）を対象とします。",
             "dependencies": [
               1
             ],
-            "details": "`SettingsManager::load()`内でファイルを開き、`deserializeJson()`を使って`JsonDocument`に内容を読み込みます。パースが成功したら、各キーの値を取得して`Context`の対応するセッターメソッドを呼び出します。ファイルが存在しない、またはパースに失敗した場合は、ログを出力してデフォルト設定を適用します。",
+            "details": "パス`/capsulechord/settings.json`からファイルを読み込み、`deserializeJson()`で`JsonDocument`にパースした後、`Settings::deserialize()`に渡します。ファイルが存在しない場合やパースに失敗した場合は、ログを出力しデフォルト設定が維持されるようにします。",
             "status": "pending",
-            "testStrategy": "手動で作成した`settings.json`をSPIFFSに配置し、`load`メソッドを実行して設定が正しく`Context`に反映されるか確認します。また、ファイルを削除した状態で起動し、デフォルト値が適用されることも確認します。"
+            "testStrategy": "手動で作成した`settings.json`をSDカードに配置し、`load`メソッドを実行して設定が正しく反映されるか確認します。また、ファイルを削除した状態で起動し、デフォルト値が適用されることも確認します。"
           },
           {
             "id": 4,
-            "title": "loadメソッドにSDカード優先のフォールバックロジックを実装",
-            "description": "`load`メソッドを拡張し、まずSDカードの存在をチェックして`settings.json`を読み込み、SDカードが存在しないかファイルがない場合にのみSPIFFSからの読み込みを試みるフォールバックロジックを実装します。",
+            "title": "SDカード優先のフォールバックと自動保存トリガーの実装",
+            "description": "`save`と`load`処理を拡張し、SDカードを優先しSPIFFSにフォールバックするロジックを組み込みます。また、設定変更時に自動で保存が走るトリガーを実装します。",
             "dependencies": [
+              2,
               3
             ],
-            "details": "`load`メソッドの先頭でSDカードの初期化とマウントを試みます。成功すれば`/settings.json`の読み込みを試行します。SDカードが利用できない、またはファイルが見つからない場合は、次にSPIFFSから読み込む処理に移行します。`save`メソッドも同様にSDカードを優先するように修正します。",
+            "details": "`load`時はまずSDカードを試行し、失敗したらSPIFFSを試します。`save`時も同様にSDカードを優先します。自動保存トリガーは、`SettingItem`のセッターに`save`を呼び出すコールバックを仕込む等の方法で実装します。",
             "status": "pending",
-            "testStrategy": "1. SPIFFSのみに設定ファイルがある状態で起動し、設定が読み込まれることを確認。 2. SDカードとSPIFFSの両方に異なる設定ファイルがある状態で起動し、SDカードの設定が優先されることを確認。 3. SDカードを抜いて起動し、SPIFFSの設定が読み込まれることを確認。"
+            "testStrategy": "1. SDを抜いた状態で設定変更・再起動し、SPIFFSへの保存・復元を確認。 2. SDとSPIFFS両方に設定ファイルがある場合、SD側が優先されることを確認。 3. UIで設定変更後、再起動して変更が維持されていることで自動保存を確認。"
           }
         ]
       },
@@ -502,7 +504,7 @@
         "id": 10,
         "title": "シーケンサーとドラムアプリのコア機能実装",
         "description": "シーケンサーアプリとドラムアプリの基本的な再生機能を実装します。この段階では、ハードコードされた固定パターンを再生できることを目標とします。パターンの編集や保存は対象外です。",
-        "status": "pending",
+        "status": "done",
         "dependencies": [
           6
         ],
@@ -516,7 +518,7 @@
             "description": "現在のテンポ設定に基づき、16分音符ごとに登録されたコールバック関数を呼び出す機能をTempoControllerに実装します。これはシーケンサーとドラムアプリの動作の基礎となります。",
             "dependencies": [],
             "details": "TempoControllerクラスに、オブザーバー（コールバックを持つオブジェクト）を登録・解除する仕組みを追加します。内部タイマーやメインループでの時間管理を用いて、BPMから計算された16分音符のタイミングで onTick(int tick) を呼び出します。tickは0から15のカウンターとします。",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "デバッグ用のシンプルなコールバックを登録し、シリアルモニターにtickの値（0-15）がテンポ通りに正確に出力されることを確認します。BPMを変更して、コールバックの周期が正しく変わることもテストします。"
           },
           {
@@ -527,7 +529,7 @@
               1
             ],
             "details": "AppBaseを継承したSequencerAppクラスを作成します。このクラスはTempoControllerのonTickコールバックを購読します。onTickが呼び出されるたびに、Contextから現在の和音情報を取得し、その構成音を順番に（例：上昇パターン）noteOn/noteOffで発音します。アルペジオのパターンはソースコード内にハードコードします。",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "SequencerAppを有効にして和音を押さえます。MIDI出力や内蔵シンセから、テンポに同期したアルペジオが再生されることを聴覚的に確認します。異なる和音を押さえた際に、アルペジオの構成音が正しく変化することも確認します。"
           },
           {
@@ -538,7 +540,7 @@
               1
             ],
             "details": "AppBaseを継承したDrumAppクラスを作成します。キックドラムのパターンを16要素のブール値配列として定義します。onTick(int tick)コールバック内で、pattern[tick]がtrueの場合にContext経由でSamplerのnoteOnを呼び出し、指定されたノートナンバー（例：KICK_NOTE = 36）のドラムサンプルを再生します。",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "DrumAppを有効にします。定義されたパターン（例：四つ打ち）がテンポ通りに再生されることを確認します。シリアルモニターに発音イベントをログ出力し、tickとパターンの対応が正しいか検証します。"
           },
           {
@@ -550,7 +552,7 @@
               3
             ],
             "details": "SequencerAppとDrumAppの両方を有効にした状態でテストを実行します。左キーパッドで和音を押さえてアルペジオを鳴らしつつ、ドラムパターンが同時に再生される状態を作ります。この状態で、処理落ちによる音の遅延や乱れ、音の欠落がないかを確認します。",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "実際のデバイス上で、アルペジオとドラムパターンを同時に再生します。メトロノームアプリやDAWとBPMを合わせて再生し、タイミングがずれていかないかを聴覚的に確認します。特に、小節の頭（tick=0）で全てのサウンドが揃っているかに注意します。"
           }
         ]
@@ -558,32 +560,32 @@
       {
         "id": 11,
         "title": "PC連携のためのUSB-CDC通信基盤構築",
-        "description": "コンパニオンアプリとの連携の第一歩として、USB-CDC（シリアル通信）プロトコルの基盤を構築します。JSON形式でコマンドの受信と応答ができるシンプルな仕組みを実装します。",
+        "description": "コンパニオンアプリとの連携に向け、既存のデバッグ用シリアル通信を拡張し、JSON-RPC風のコマンドプロトコルを実装します。ESP32-S3のネイティブUSB機能(USB-CDC)を活用し、コマンドの受信、解析、応答の基盤を構築します。",
         "status": "pending",
         "dependencies": [
           9
         ],
         "priority": "low",
-        "details": "USB-CDCを有効にし、シリアルポート経由でデータを受信します。改行文字をデリミタとしてJSON文字列を読み取ります。`ArduinoJson`ライブラリを使い、受信したJSONをパースして`command`フィールドを解釈します。コマンドに応じた処理を行い、結果をJSON形式でシリアルポートに書き戻します。最初に`ping`コマンドを実装します。\n\n```cpp\n// in main loop()\nif (Serial.available() > 0) {\n  String line = Serial.readStringUntil('\\n');\n  JsonDocument doc;\n  deserializeJson(doc, line);\n  \n  String command = doc[\"command\"];\n  if (command == \"ping\") {\n    JsonDocument response;\n    response[\"status\"] = \"ok\";\n    response[\"response\"] = \"pong\";\n    serializeJson(response, Serial);\n    Serial.println();\n  }\n}\n```",
-        "testStrategy": "デバイスをUSBでPCに接続し、Arduino IDEのシリアルモニタや`minicom`などのツールを使用します。`{\"command\":\"ping\"}`というJSON文字列を送信し、デバイスから`{\"status\":\"ok\",\"response\":\"pong\"}`のような応答が返ってくることを確認します。",
+        "details": "`main.cpp`の`setup()`で`Serial.begin(115200)`が既に呼び出されているため、このタスクでは`loop()`内でのコマンド受信ループの実装から開始します。改行文字をデリミタとして`Serial.readStringUntil()`でJSON文字列を読み取り、`ArduinoJson`ライブラリでパースします。`command`フィールドの値に基づき、`ping`、`get_status`、`set_setting`などのコマンドハンドラを呼び出すディスパッチャを実装します。処理結果は、`status`フィールドを含むJSON形式でシリアルポートに書き戻します。\n\n```cpp\n// in main loop()\nif (Serial.available() > 0) {\n  String line = Serial.readStringUntil('\\n');\n  JsonDocument doc;\n  deserializeJson(doc, line);\n  \n  String command = doc[\"command\"];\n  if (command == \"ping\") {\n    JsonDocument response;\n    response[\"status\"] = \"ok\";\n    response[\"response\"] = \"pong\";\n    serializeJson(response, Serial);\n    Serial.println();\n  }\n}\n```",
+        "testStrategy": "Arduino IDEのシリアルモニタ等を使用します。まず `{\"command\":\"ping\"}` を送信し、`{\"status\":\"ok\",\"response\":\"pong\"}` が返ることを確認します。次に、`{\"command\":\"get_status\"}` を送信して現在のデバイス状態（スケール、テンポ等）を含むJSONが返ることを確認します。さらに `{\"command\":\"set_setting\",\"payload\":{\"key\":\"tempo.bpm\",\"value\":125}}` のようなコマンドで設定が変更できることをテストします。",
         "subtasks": [
           {
             "id": 1,
-            "title": "USB-CDCの有効化と非同期シリアル入力監視の実装",
-            "description": "USB-CDC通信を有効化し、メインループ内でシリアルポートからの入力をブロッキングせずに監視する仕組みを構築します。改行文字をデリミタとして、完全なJSON文字列を受信できるようにします。",
+            "title": "メインループでのシリアル入力監視とコマンド文字列の読み取り",
+            "description": "`setup()`で初期化済みのUSB-CDCを使い、`loop()`内で`Serial.available()`をポーリングして、シリアルポートからの入力を非同期に監視します。改行文字をデリミタとして完全なコマンド文字列（JSON形式）を読み取る機能を実装します。",
             "dependencies": [],
-            "details": "setup()関数内でSerial.begin()を呼び出し、USB-CDCを初期化します。loop()内では、Serial.available() > 0をチェックし、Serial.readStringUntil('\\n')を使って非同期にデータを読み取ります。これにより、他の処理を妨げることなくコマンド受信が可能になります。",
+            "details": "`loop()`関数内で `if (Serial.available() > 0)` のチェックを追加し、`Serial.readStringUntil('\\n')` を使ってデータ行を読み取ります。これにより、他のリアルタイム処理（キー入力スキャンなど）をブロックせずにコマンドを受信できます。読み取った文字列は後続のパーサに渡します。",
             "status": "pending",
-            "testStrategy": "デバイスをPCに接続し、シリアルモニタから任意の文字列（例：「hello」）を改行付きで送信します。デバイス側のシリアルモニタに同じ文字列がログ出力されることを確認し、基本的な送受信が機能していることを検証します。"
+            "testStrategy": "シリアルモニタからJSON形式の文字列（例：`{\"command\":\"ping\"}`）を改行付きで送信します。デバイス側のデバッグログに、送信した文字列が正確に受信・表示されることを確認します。"
           },
           {
             "id": 2,
-            "title": "受信JSONを解析するコマンドディスパッチャの作成",
-            "description": "受信した文字列を`ArduinoJson`ライブラリを用いてパースし、JSON内の`command`フィールドの値に基づいて適切な処理ハンドラを呼び出すディスパッチャ機構を実装します。",
+            "title": "受信JSONの解析とコマンドディスパッチャの実装",
+            "description": "受信したJSON文字列を`ArduinoJson`ライブラリでパースし、`command`フィールドの値に基づいて対応する処理ハンドラを呼び出すディスパッチャ機構を実装します。",
             "dependencies": [
               1
             ],
-            "details": "サブタスク1で受信した文字列を`deserializeJson()`に渡します。パースが成功したら、`doc[\"command\"].as<String>()`でコマンド名を取得します。if-else文または関数ポインタのマップを使用して、コマンド名に対応する関数を呼び出す仕組みを作ります。不明なコマンドの場合はエラー応答を返すようにします。",
+            "details": "`deserializeJson()`でJSONをパース後、`doc[\"command\"]`でコマンド名を取得します。`if-else`文や`std::map<String, handler_func>`などを用いて、コマンド名に応じた関数を呼び出す仕組みを構築します。未定義のコマンドに対しては、エラー応答JSONを生成するようにします。",
             "status": "pending",
             "testStrategy": "`{\"command\":\"unknown_cmd\"}` のような、未実装のコマンドを含むJSONを送信します。デバイスからコマンドが見つからない旨のエラーメッセージ（例：`{\"status\":\"error\",\"message\":\"Unknown command\"}`）が返ってくることを確認します。"
           },
@@ -597,13 +599,132 @@
             "details": "`ping`コマンド専用の関数（例：`handlePing()`)を作成します。この関数内で`JsonDocument`オブジェクトを新規に作成し、`status`と`response`フィールドを設定します。`serializeJson()`を使ってドキュメントをシリアルポートに書き出し、最後に`Serial.println()`で終端を送信します。",
             "status": "pending",
             "testStrategy": "PCのシリアルモニタから `{\"command\":\"ping\"}` というJSON文字列を送信します。デバイスから `{\"status\":\"ok\",\"response\":\"pong\"}` という応答が（改行付きで）正確に返ってくることを確認します。"
+          },
+          {
+            "id": 4,
+            "title": "追加コマンドハンドラの実装 (`get_status`, `set_setting`)",
+            "description": "デバイスの現在の状態を取得する`get_status`コマンドと、設定を変更する`set_setting`コマンドのハンドラを実装します。これらは将来的にコンパニオンアプリとの連携で中心的な役割を果たします。",
+            "dependencies": [
+              2
+            ],
+            "details": "`get_status`ハンドラは、現在のスケール、キー、テンポなどの情報をJSON形式で返します。`set_setting`ハンドラは、`payload`オブジェクト内のキーと値に基づいて`Settings`クラスのインスタンスを更新し、`settings.save()`を呼び出して変更を永続化します。",
+            "status": "pending",
+            "testStrategy": "`{\"command\":\"get_status\"}`を送信し、現在の設定値を含むJSONが返ることを確認します。`{\"command\":\"set_setting\", \"payload\":{\"key\":\"tempo.bpm\", \"value\":130}}`のようなコマンドを送信し、再度`get_status`で設定が変更されたことを確認します。デバイス再起動後も設定が維持されていることを検証します。"
           }
         ]
+      },
+      {
+        "id": 12,
+        "title": "メニュー画面UIの実装",
+        "description": "メニューボタン押下時に表示されるメニュー画面を実装します。PRDに記載された設定項目（出力先選択、音量調整、画面明るさ、言語、ファームウェア情報等）へのアクセスを提供します。既存のLVGLベースUIフレームワークを利用して構築します。",
+        "details": "現在BtnMenuはスケールキーの変更にのみ使われています。これをメニュー画面への遷移トリガーに変更し、階層的なメニューUIを実装します。メニュー項目はPRD 166-195行に記載されています：操作（カスタムキー割り当て）、演奏（調、キー）、出力（出力先、BT接続解除、音量）、表示（明るさ、コード表記）、システム（機内モード、言語、ライセンス、ファームウェア情報、初期化）。LVGLのlv_listやlv_menuウィジェットを使用して実装します。",
+        "testStrategy": "",
+        "status": "pending",
+        "dependencies": [
+          4,
+          9
+        ],
+        "priority": "medium",
+        "subtasks": []
+      },
+      {
+        "id": 13,
+        "title": "ジャイロセンサーによる転調機能",
+        "description": "6軸IMU（加速度センサー+ジャイロセンサー）を使用して、デバイスの傾きや動きにより調（キー）を変更できる機能を実装します。これによりハンズフリーでの転調が可能になります。",
+        "details": "M5Stack CoreS3の内蔵IMUを使用します。AppBallでは既にIMU/加速度センサーが使用されているため、そのコードを参考にします。特定のジェスチャー（例：左右に傾ける）を検知して調を半音単位で上下させます。誤操作防止のため、しきい値やディレイを適切に設定します。設定でこの機能のON/OFFを切り替えられるようにします。",
+        "testStrategy": "",
+        "status": "pending",
+        "dependencies": [
+          1
+        ],
+        "priority": "low",
+        "subtasks": []
+      },
+      {
+        "id": 14,
+        "title": "ホーム画面からの音色変更機能",
+        "description": "ホーム画面から直接内蔵音源の音色を切り替えられる機能を実装します。メニューに入らずに素早く音色を変更できるようにします。",
+        "details": "PlayScreenウィジェットを拡張し、タッチ操作またはボタン操作で音色選択UIを表示します。利用可能な音色（ピアノ、アコースティックギター、ベース、エレピ、スーパーソー等）から選択できるようにします。選択した音色はOutputInternalのチャンネル設定に反映させます。",
+        "testStrategy": "",
+        "status": "pending",
+        "dependencies": [
+          3,
+          4
+        ],
+        "priority": "low",
+        "subtasks": []
+      },
+      {
+        "id": 15,
+        "title": "タップテンポ機能",
+        "description": "画面タップまたはボタン操作で、タップの間隔からBPMを自動計算し設定するタップテンポ機能を実装します。",
+        "details": "TempoDialogまたはホーム画面で、複数回のタップ間隔を計測してBPMを算出します。一般的には3-4回のタップの平均間隔からBPMを計算します。既存のTempoControllerに設定値を反映させます。UIはLVGLで実装し、タップ中は視覚的フィードバックを表示します。",
+        "testStrategy": "",
+        "status": "pending",
+        "dependencies": [
+          4
+        ],
+        "priority": "low",
+        "subtasks": []
+      },
+      {
+        "id": 16,
+        "title": "オープン/クローズボイシング選択機能",
+        "description": "和音のボイシング（音の配置）をオープンボイシングとクローズボイシングから選択できる機能を実装します。",
+        "details": "クローズボイシングは構成音を密集させた配置、オープンボイシングは広げた配置です。Chordクラスまたは新規のボイシング処理クラスで、構成音のオクターブ配置を調整するロジックを実装します。ChordPipelineまたはNoteFilterでボイシング変換を適用します。設定からボイシングモードを切り替えられるようにします。",
+        "testStrategy": "",
+        "status": "pending",
+        "dependencies": [
+          2
+        ],
+        "priority": "low",
+        "subtasks": []
+      },
+      {
+        "id": 17,
+        "title": "スムーズなボイスリーディング",
+        "description": "直前に演奏した和音から次の和音へ自然につながるように、転回形を自動的に選択するボイスリーディング機能を実装します。",
+        "details": "和音変更時に、前の和音の構成音との音程差が最小になるような転回形を自動で選択するアルゴリズムを実装します。各ボイスの移動距離の合計を最小化する手法が一般的です。ChordFilterまたはNoteFilterとして実装し、ChordPipelineに組み込みます。この機能はON/OFFを設定で切り替えられるようにします。",
+        "testStrategy": "",
+        "status": "pending",
+        "dependencies": [
+          2,
+          16
+        ],
+        "priority": "low",
+        "subtasks": []
+      },
+      {
+        "id": 18,
+        "title": "MIDIクロック同期機能",
+        "description": "外部MIDIデバイスとのテンポ同期のため、MIDIクロックの送受信機能を実装します。",
+        "details": "MIDI Timing Clockメッセージ（0xF8）を24PPQNで送信し、外部シーケンサーやDAWと同期できるようにします。また、外部からのMIDIクロックを受信してTempoControllerを同期させるスレーブモードも実装します。USB MIDIおよびBLE MIDI両方で対応します。Start(0xFA)/Stop(0xFC)/Continue(0xFB)メッセージもサポートします。",
+        "testStrategy": "",
+        "status": "pending",
+        "dependencies": [
+          8
+        ],
+        "priority": "low",
+        "subtasks": []
+      },
+      {
+        "id": 19,
+        "title": "パターン管理機能（保存・読み込み・編集）",
+        "description": "シーケンサー、ドラム、ベース、コードガイドアプリのパターンをSDカード/SPIFFSに保存・読み込みし、端末上で編集できる機能を実装します。",
+        "details": "各アプリのパターンデータを1パターン1JSONファイルとして保存します。SDカードを優先し、SPIFFSにフォールバックします。パターン選択UI、新規作成、編集画面を各アプリに追加します。パターン数の上限は128程度を想定。既存の設定永続化（タスク9）の仕組みを流用してファイルI/Oを実装します。",
+        "testStrategy": "",
+        "status": "pending",
+        "dependencies": [
+          9,
+          10
+        ],
+        "priority": "low",
+        "subtasks": []
       }
     ],
     "metadata": {
       "created": "2025-11-22T10:17:39.880Z",
-      "updated": "2025-11-22T10:17:39.880Z",
+      "updated": "2025-11-27T12:18:34.391Z",
       "description": "Tasks for master context"
     }
   },
