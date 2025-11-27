@@ -133,7 +133,7 @@ static void lv_chordlabel_event(const lv_obj_class_t *class_p, lv_event_t *e)
         lv_point_t size;
         lv_chordlabel_t *cl = (lv_chordlabel_t *)obj;
         char text[64] = {0};
-        strcpy(text, cl->chord.toString().c_str());
+        snprintf(text, sizeof(text), "%s", cl->chord.toString().c_str());
         const lv_font_t *font = lv_obj_get_style_text_font(obj, LV_PART_MAIN);
         lv_coord_t letter_space = lv_obj_get_style_text_letter_space(obj, LV_PART_MAIN);
         lv_coord_t line_space = lv_obj_get_style_text_line_space(obj, LV_PART_MAIN);
@@ -250,7 +250,7 @@ static void draw_main(lv_event_t *e)
     lv_obj_t *obj = lv_event_get_target(e);
     lv_chordlabel_t *cl = (lv_chordlabel_t *)obj;
     char text[64] = {0};
-    strcpy(text, chord_to_string(cl->chord).c_str());
+    snprintf(text, sizeof(text), "%s", chord_to_string(cl->chord).c_str());
     lv_draw_ctx_t *draw_ctx = lv_event_get_draw_ctx(e);
 
     lv_area_t txt_coords;
