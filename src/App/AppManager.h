@@ -51,6 +51,9 @@ public:
     }
 
     std::list<std::unique_ptr<AppBase>> apps;
+
+    // GUIを表示してアプリを起動する
+    // ポインタはappsから取得する必要があります
     void launchApp(AppBase *app);
     void hideApp();
     AppBase *getCurrentApp()
