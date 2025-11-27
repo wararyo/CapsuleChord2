@@ -30,6 +30,9 @@ public:
 
     Context() : pipeline(nullptr), keypad(nullptr) {
         knockMutex = xSemaphoreCreateMutex();
+        if (!knockMutex) {
+            Serial.println("FATAL: Failed to create Context knockMutex");
+        }
     } // デフォルトコンストラクタ(通常は使用しない)
 
     // 通常はこちらのコンストラクタを使用する
@@ -37,8 +40,18 @@ public:
         : settings(settings), pipeline(pipeline), keypad(keypad)
     {
         knockMutex = xSemaphoreCreateMutex();
+        if (!knockMutex) {
+            Serial.println("FATAL: Failed to create Context knockMutex");
+        }
         scale = &((SettingItemScale *)settings->findSettingByKey(String("Scale")))->content;
         centerNoteNo = &((SettingItemNumeric *)settings->findSettingByKey(String("CenterNoteNo")))->number;
+    }
+
+    ~Context() {
+        if (knockMutex) {
+            vSemaphoreDelete(knockMutex);
+            knockMutex = nullptr;
+        }
     }
 
     // Register a listener for knock events

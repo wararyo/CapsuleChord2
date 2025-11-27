@@ -12,7 +12,18 @@ class ChordPipeline
 public:
     ChordPipeline() {
         filterMutex = xSemaphoreCreateMutex();
+        if (!filterMutex) {
+            Serial.println("FATAL: Failed to create ChordPipeline filterMutex");
+        }
     }
+
+    ~ChordPipeline() {
+        if (filterMutex) {
+            vSemaphoreDelete(filterMutex);
+            filterMutex = nullptr;
+        }
+    }
+
     // 鳴っているコードの変更を受け取ったり変更するためのフィルター
     class ChordFilter
     {
