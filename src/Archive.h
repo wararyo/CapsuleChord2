@@ -8,6 +8,10 @@
 #include <memory>
 #include <stdio.h>
 
+#ifdef NATIVE_TEST
+    #include "../test/mocks/StubArduino.h"
+#endif
+
 #define AUTO_NVP(T) #T, T
 
 const int maxJsonCapacity = JSON_OBJECT_SIZE(64);

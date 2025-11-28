@@ -45,6 +45,13 @@ sudo service udev restart
 sudo apt remove brltty
 ```
 
+### テスト
+
+```bash
+# PC上でテスト
+PLATFORMIO_CORE_DIR=.pio pio test -e native-test
+```
+
 ### シリアルモニタ
 
 - PlatformIO のシリアルモニタはターミナル環境によって ioctl エラーになる場合があるため、代わりに PlatformIO 仮想環境に入って Python の `pyserial` を使用する。

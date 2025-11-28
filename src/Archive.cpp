@@ -12,10 +12,21 @@ void deserialize(InputArchive &archive,const char *key,const char*& string){
 
 //String
 void serialize(OutputArchive &archive,const char *key,String string){
+#ifdef NATIVE_TEST
+    archive.getDocument()[key] = string.c_str();
+#else
     archive.getDocument()[key] = string;
+#endif
 }
 void deserialize(InputArchive &archive,const char *key,String& string){
+#ifdef NATIVE_TEST
+    if(archive.getDocument().containsKey(key)) {
+        const char* str = archive.getDocument()[key];
+        string = String(str);
+    }
+#else
     if(archive.getDocument().containsKey(key)) string = archive.getDocument()[key].as<String>();
+#endif
 }
 
 //int
