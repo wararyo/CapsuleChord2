@@ -720,11 +720,27 @@
         ],
         "priority": "low",
         "subtasks": []
+      },
+      {
+        "id": 20,
+        "title": "出力デバイス設定ダイアログと音量調節機能",
+        "description": "ホーム画面から出力デバイスの選択と内蔵音源の音量調節を行えるダイアログを実装します。設定した音量値は永続化されます。",
+        "details": "1. **ホーム画面の変更**: Task 4で実装されたホーム画面（PlayScreen）に、現在の出力デバイス（例：「内蔵音源」）を表示する`lv_label`を追加します。このラベルにクリックイベントハンドラをアタッチし、クリックされると後述のダイアログを表示するようにします。\n2. **出力デバイス設定ダイアログの実装**: LVGLを使用してモーダルダイアログを作成します。ダイアログ内には、Task 8で実装される出力デバイス（内蔵音源, USB MIDI, BLE MIDI）を選択するためのドロップダウンリスト（`lv_dropdown`）を配置します。選択が変更されたら、`Context::setOutputDevice()`を呼び出してデバイスを切り替えます。\n3. **音量スライダーの実装**: ダイアログ内に`lv_slider`ウィジェットを追加します。このスライダーは、現在の出力デバイスが「内蔵音源」の場合のみ表示・操作可能にします。他のデバイスが選択されている場合は、`lv_obj_add_state(slider, LV_STATE_DISABLED)`で非アクティブ化します。スライダーの値（0-127の範囲）が変更された際に、`OutputInternal::setMasterVolume()`をリアルタイムで呼び出します。\n4. **音量制御ロジックの実装**: `OutputInternal`クラス（Task 3で実装）に`void setMasterVolume(uint8_t volume)`メソッドを追加します。このメソッド内で`CapsuleSampler`のマスターボリューム制御APIを呼び出します。\n5. **設定の永続化**: 音量スライダーの値が変更された際、`settings.setValue(\"audio.internal_volume\", new_volume)`のように設定値を更新し、Task 9で実装される永続化機構を通じて保存します。起動時にはこの値を読み込み、`OutputInternal`とUIスライダーの初期値に設定します。\n\n```cpp\n// ダイアログ内のイベントハンドラ（イメージ）\nstatic void slider_event_cb(lv_event_t * e) {\n    lv_obj_t* slider = lv_event_get_target(e);\n    uint8_t volume = (uint8_t)lv_slider_get_value(slider);\n\n    // ContextからOutputInternalインスタンスを取得して音量を設定\n    auto output_internal = get_internal_output_instance();\n    if (output_internal) {\n        output_internal->setMasterVolume(volume);\n        settings.setValue(\"audio.internal_volume\", volume); // Task 9との連携\n    }\n}\n\n// OutputInternal.cpp\nvoid OutputInternal::setMasterVolume(uint8_t volume) {\n    this->masterVolume = volume;\n    // CapsuleSamplerのAPIを呼び出す\n    Context::getInstance().getSampler()->setMasterVolume(volume);\n}\n```",
+        "testStrategy": "1. ホーム画面に現在の出力デバイス名が表示されることを確認します。\n2. デバイス名表示エリアをタッチすると、出力デバイス設定ダイアログが正しく表示されることを確認します。\n3. ダイアログ内のドロップダウンで出力デバイス（内蔵音源/USB/BLE）を切り替えられることを確認します（Task 8の機能と連携）。\n4. 出力デバイスが「内蔵音源」の場合、音量スライダーが表示され、操作できることを確認します。\n5. スライダーを動かすと、内蔵音源から再生される和音の音量がリアルタイムに変化することを確認します。\n6. 出力デバイスをUSB MIDIやBLE MIDIに切り替えた際、音量スライダーが非表示または操作不能（グレーアウト）になることを確認します。\n7. 音量を特定のレベルに設定した後、デバイスを再起動してもその音量設定が維持されていることを確認します（Task 9の永続化機能と連携）。",
+        "status": "pending",
+        "dependencies": [
+          3,
+          4,
+          8,
+          9
+        ],
+        "priority": "medium",
+        "subtasks": []
       }
     ],
     "metadata": {
       "created": "2025-11-22T10:17:39.880Z",
-      "updated": "2025-11-27T12:18:34.391Z",
+      "updated": "2025-11-28T17:43:19.083Z",
       "description": "Tasks for master context"
     }
   },
