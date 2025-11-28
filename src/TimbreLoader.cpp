@@ -86,7 +86,8 @@ std::shared_ptr<Timbre> TimbreLoader::loadTimbre(fs::FS &fs, const char *path)
     std::string fullPath(path);
     std::string directoryPath = fullPath.substr(0, fullPath.find_last_of('/'));
 
-    std::vector<std::unique_ptr<Timbre::MappedSample>> *samples = new std::vector<std::unique_ptr<Timbre::MappedSample>>();
+    // Use unique_ptr to ensure proper cleanup on all code paths
+    auto samples = std::make_unique<std::vector<std::unique_ptr<Timbre::MappedSample>>>();
 
     JsonArray samplesJson = doc["samples"].as<JsonArray>();
     for (JsonVariant sampleJson : samplesJson)
@@ -131,7 +132,7 @@ std::shared_ptr<Timbre> TimbreLoader::loadTimbre(fs::FS &fs, const char *path)
     }
 
     file.close();
-    return std::make_shared<Timbre>(samples);
+    return std::make_shared<Timbre>(samples.release());
 }
 
 TimbreLoader Loader;

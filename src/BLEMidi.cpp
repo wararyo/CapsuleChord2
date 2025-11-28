@@ -33,10 +33,11 @@ void BLEMidi::begin(std::string deviceName,
     advertising->setAdvertisementData(advertisementData);
     advertising->addServiceUUID(MIDI_SERVICE_UUID);
 
-    BLESecurity *security = new BLESecurity();
-    security->setAuthenticationMode(ESP_LE_AUTH_BOND);
-    security->setCapability(ESP_IO_CAP_NONE);
-    security->setInitEncryptionKey(ESP_BLE_ENC_KEY_MASK | ESP_BLE_ID_KEY_MASK);
+    // Use stack-allocated BLESecurity - settings persist in ESP-IDF after configuration
+    BLESecurity security;
+    security.setAuthenticationMode(ESP_LE_AUTH_BOND);
+    security.setCapability(ESP_IO_CAP_NONE);
+    security.setInitEncryptionKey(ESP_BLE_ENC_KEY_MASK | ESP_BLE_ID_KEY_MASK);
 
     advertising->start();
 }

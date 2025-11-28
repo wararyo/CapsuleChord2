@@ -333,21 +333,25 @@ void AppBall::updateNotesDisplay()
     }
     
     char notesStr[64] = "Notes: ";
-    char *ptr = notesStr + 7;  // Start after "Notes: "
-    
+    size_t offset = 7;  // Start after "Notes: "
+    const size_t bufSize = sizeof(notesStr);
+
     int count = 0;
     for (uint8_t note : activeNotes) {
-        if (count < 5) {  // Limit to showing 5 notes to avoid overflow
-            ptr += sprintf(ptr, "%d ", note);
+        if (count < 5 && offset < bufSize - 1) {  // Limit to showing 5 notes to avoid overflow
+            int written = snprintf(notesStr + offset, bufSize - offset, "%d ", note);
+            if (written > 0) {
+                offset += written;
+            }
             count++;
-        } else {
-            ptr += sprintf(ptr, "...");
+        } else if (count >= 5 && offset < bufSize - 4) {
+            snprintf(notesStr + offset, bufSize - offset, "...");
             break;
         }
     }
-    
-    if (activeNotes.empty()) {
-        strcpy(ptr, "None");
+
+    if (activeNotes.empty() && offset < bufSize - 5) {
+        snprintf(notesStr + offset, bufSize - offset, "None");
     }
     
     lv_label_set_text(notesLabel, notesStr);

@@ -4,6 +4,7 @@
 #include "SD.h"
 #undef min
 #include <vector>
+#include <memory>
 #include <stdio.h>
 #include "Archive.h"
 #include "Chord.h"
@@ -28,28 +29,30 @@ protected:
         return -1;
     }
     void clearTag(int tag){ //Tagを開放する
-        tags[tag] = nullptr;
+        if(tag >= 0 && tag < MaxTagCount) {
+            tags[tag] = nullptr;
+        }
     }
 public:
     const char *name;
-    std::vector<SettingItem*> children;
+    std::vector<std::unique_ptr<SettingItem>> children;
     SettingItem(){}
     SettingItem(const char *name): name(name){}
-    SettingItem(const char *name,std::vector<SettingItem*> children){
-        this->name = name;
-        this->children = children;
-    }
+    SettingItem(const char *name,std::vector<std::unique_ptr<SettingItem>> children)
+        : name(name), children(std::move(children)) {}
+    // Virtual destructor for proper cleanup
+    virtual ~SettingItem() = default;
     virtual void serialize(OutputArchive &archive,const char *key) {
         if(children.empty()) {
             archive(name,"Empty Content");
         } else {
-            archive(name,std::forward<decltype(children)>(children));
+            archive(name,children);
         }
     }
     virtual void deserialize(InputArchive &archive,const char *key) {
         if(archive.getDocument().containsKey(key))
         {
-            archive(name,std::forward<decltype(children)>(children));
+            archive(name,children);
         }
     }
 };
@@ -58,13 +61,24 @@ class Settings : public SettingItem {
 private:
     uint version;
 public:
-    Settings(std::vector<SettingItem*> items,uint version=1) : SettingItem("Settings",items),version(version){}
+    Settings(std::vector<std::unique_ptr<SettingItem>> items,uint version=1)
+        : SettingItem("Settings",std::move(items)),version(version){}
     bool load(String path = jsonFilePath){
         //Read file
-        char output[maxJsonFileSize] = {'\0'};
         File file = SD.open(path);
         if(!file) return false;
-        file.read((uint8_t *)output,maxJsonFileSize);
+
+        // Check file size to prevent buffer overflow
+        size_t fileSize = file.size();
+        if(fileSize >= maxJsonFileSize) {
+            Serial.printf("Settings file too large: %zu bytes (max: %d)\n", fileSize, maxJsonFileSize - 1);
+            file.close();
+            return false;
+        }
+
+        char output[maxJsonFileSize] = {'\0'};
+        size_t bytesRead = file.read((uint8_t *)output, fileSize);
+        output[bytesRead] = '\0';  // Ensure null termination
         file.close();
         //Deserialize
         Serial.println("Start deserialization");
@@ -82,15 +96,14 @@ public:
         OutputArchive archive = OutputArchive();
         // archive("Version",std::forward<uint>(version));
         // archive(name,*this);
-        char output[maxJsonFileSize];
-        archive.toJSON(output,true);
+        std::string output = archive.toJSON(true);
         //Write to file
         File file = SD.open(path,FILE_WRITE);
         if(!file) {
             Serial.println("Something wrong happened with saving settings.");
             return false;
         }
-        file.print(output);
+        file.print(output.c_str());
         file.close();
         return true;
     }
@@ -110,10 +123,10 @@ public:
         SettingItem * cursor = this;
         for(String key : keys){
             if(key == String("\0")) break;
-            auto children = cursor->children;
-            for(SettingItem *k : cursor->children){
+            auto& children = cursor->children;
+            for(auto& k : cursor->children){
                 if(String(k->name) == key){
-                    cursor = k;
+                    cursor = k.get();
                     goto next_key; // forループを一気に抜けるための使用ならバチは当たらないはず…
                 }
             }
@@ -135,7 +148,7 @@ public:
         archive(name,content);
     }
     void deserialize(InputArchive &archive,const char *key) override {
-        archive(name,std::forward<DegreeChord>(content));
+        archive(name,content);
     }
 };
 
@@ -153,7 +166,7 @@ public:
         archive(name,content);
     }
     void deserialize(InputArchive &archive,const char *key) override {
-        archive(name,std::forward<Scale>(content));
+        archive(name,content);
     }
 };
 
@@ -166,7 +179,7 @@ public:
         archive(name,content);
     }
     void deserialize(InputArchive &archive,const char *key) override {
-        archive(name,std::forward<bool>(content));
+        archive(name,content);
     }
 };
 
@@ -178,10 +191,10 @@ public:
     SettingItemNumeric(const char *name,int min, int max, int number)
         : SettingItem(name), number(number), min(min), max(max) {}
     void serialize(OutputArchive &archive,const char *key) override {
-        archive(name,std::forward<int>(number));
+        archive(name,number);
     }
     void deserialize(InputArchive &archive,const char *key) override {
-        archive(name,std::forward<int>(number));
+        archive(name,number);
     }
 };
 
@@ -197,7 +210,7 @@ public:
     }
     void deserialize(InputArchive &archive,const char *key) override {
         String memberName = "";
-        archive(name,std::forward<String>(memberName));
+        archive(name,memberName);
         for(int i = 0;i < memberNames.size();i++){
             String m = String(memberNames[i]);
             if(String(m).equals(memberName)) {

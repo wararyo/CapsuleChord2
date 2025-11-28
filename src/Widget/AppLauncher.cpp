@@ -78,12 +78,12 @@ void AppLauncher::create()
     }, LV_EVENT_SCROLL_END, (void *)this);
 
     // アプリ一覧
-    for (AppBase *app : App.apps)
+    for (const auto& app : App.apps)
     {
         lv_obj_t *app_button = lv_appbutton_create(grid_container);
-        lv_appbutton_set_app(app_button, app);
-        
-        AppIconClickEventData *eventData = new AppIconClickEventData{this, app, 0, {0, 0}, {0, 0}};
+        lv_appbutton_set_app(app_button, app.get());
+
+        AppIconClickEventData *eventData = new AppIconClickEventData{this, app.get(), 0, {0, 0}, {0, 0}};
         eventDatas.push_back(eventData);
         
         lv_obj_add_event_cb(app_button, [](lv_event_t *e)
@@ -138,7 +138,7 @@ void AppLauncher::del()
 
     Context *context = Context::getContext();
     if (context != nullptr) {
-        context->addKnockListener(this);
+        context->removeKnockListener(this);
     }
 
     lv_obj_del(frame);

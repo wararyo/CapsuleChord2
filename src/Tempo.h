@@ -50,7 +50,11 @@ public:
     void setTempo(tempo_t tempo)
     {
         this->tempo = tempo;
-        for (TempoCallbacks *listener : listeners)
+        // Make a copy of listeners while holding the mutex to avoid race conditions
+        portENTER_CRITICAL(&mutex);
+        std::list<TempoCallbacks *> listenersCopy = listeners;
+        portEXIT_CRITICAL(&mutex);
+        for (TempoCallbacks *listener : listenersCopy)
         {
             listener->onTempoChanged(tempo);
         }

@@ -64,10 +64,10 @@ public:
     }
     void deserialize(InputArchive &archive,const char *key) {
         archive.pushNest(key);
-        archive("Key",std::forward<uint8_t>(this->key));
+        archive("Key",this->key);
         // Find scale which has its name
         String scaleStr = "";
-        archive("Scale",std::forward<String>(scaleStr));
+        archive("Scale",scaleStr);
         currentScale = getScaleFromName(scaleStr);
         archive.popNest();
     }

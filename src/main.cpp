@@ -46,23 +46,31 @@ int *centerNoteNo;
 Context context;
 KeyMapBase *currentKeyMap;
 
-typedef std::vector<SettingItem*> si;
 typedef std::vector<const char *> strs;
-Settings settings(si{
-  new SettingItemEnum("Mode",{"CapsuleChord","CAmDion","Presets"},0),
-  new SettingItemScale("Scale",Scale(0)),
-  new SettingItemEnum("Bass",{"None","C1","C2"},0),
-  new SettingItemEnum("Voicing",{"Open","Closed"},0),
-  new SettingItemNumeric("CenterNoteNo",24,81,60),
-  new SettingItemDegreeChord("Custom 1", DegreeChord(4,Chord::Minor|Chord::MajorSeventh)),
-  new SettingItemDegreeChord("Custom 2", DegreeChord(5,Chord::Minor|Chord::Seventh)),
-  new SettingItem("Keymap",si{
-    new SettingItemEnum("Fuction 1",{"Gyro","Sustain","Note","CC"},0),
-    new SettingItemEnum("Fuction 2",{"Gyro","Sustain","Note","CC"},1)
-  }),
-  new SettingItemEnum("SustainBehavior",{"Normal","Trigger"},0),
-  new SettingItemEnum("Brightness", {"Bright","Normal","Dark"},1)
-});
+
+// Helper function to create unique_ptr vector
+std::vector<std::unique_ptr<SettingItem>> makeSettingsItems() {
+    std::vector<std::unique_ptr<SettingItem>> items;
+    items.push_back(std::make_unique<SettingItemEnum>("Mode",strs{"CapsuleChord","CAmDion","Presets"},0));
+    items.push_back(std::make_unique<SettingItemScale>("Scale",Scale(0)));
+    items.push_back(std::make_unique<SettingItemEnum>("Bass",strs{"None","C1","C2"},0));
+    items.push_back(std::make_unique<SettingItemEnum>("Voicing",strs{"Open","Closed"},0));
+    items.push_back(std::make_unique<SettingItemNumeric>("CenterNoteNo",24,81,60));
+    items.push_back(std::make_unique<SettingItemDegreeChord>("Custom 1", DegreeChord(4,Chord::Minor|Chord::MajorSeventh)));
+    items.push_back(std::make_unique<SettingItemDegreeChord>("Custom 2", DegreeChord(5,Chord::Minor|Chord::Seventh)));
+
+    // Keymap with nested children
+    std::vector<std::unique_ptr<SettingItem>> keymapChildren;
+    keymapChildren.push_back(std::make_unique<SettingItemEnum>("Fuction 1",strs{"Gyro","Sustain","Note","CC"},0));
+    keymapChildren.push_back(std::make_unique<SettingItemEnum>("Fuction 2",strs{"Gyro","Sustain","Note","CC"},1));
+    items.push_back(std::make_unique<SettingItem>("Keymap",std::move(keymapChildren)));
+
+    items.push_back(std::make_unique<SettingItemEnum>("SustainBehavior",strs{"Normal","Trigger"},0));
+    items.push_back(std::make_unique<SettingItemEnum>("Brightness",strs{"Bright","Normal","Dark"},1));
+    return items;
+}
+
+Settings settings(makeSettingsItems());
 
 void update_battery() {
   if (playScreen.isShown()) {
@@ -255,13 +263,13 @@ void loop()
     AppBass* bassApp = nullptr;
     AppAutoPlay* autoPlayApp = nullptr;
     
-    for (AppBase* app : App.apps) {
+    for (const auto& app : App.apps) {
       if (strcmp(app->getAppName(), "シーケンサー") == 0) {
-        sequencerApp = static_cast<AppSequencer*>(app);
+        sequencerApp = static_cast<AppSequencer*>(app.get());
       } else if (strcmp(app->getAppName(), "ベース") == 0) {
-        bassApp = static_cast<AppBass*>(app);
+        bassApp = static_cast<AppBass*>(app.get());
       } else if (strcmp(app->getAppName(), "自動演奏") == 0) {
-        autoPlayApp = static_cast<AppAutoPlay*>(app);
+        autoPlayApp = static_cast<AppAutoPlay*>(app.get());
       }
     }
     
