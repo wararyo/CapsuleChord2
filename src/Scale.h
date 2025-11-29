@@ -5,7 +5,11 @@
 #include <vector>
 #include <memory>
 #include <map>
-#include <WString.h>
+#ifdef NATIVE_TEST
+    #include "../test/mocks/StubArduino.h"
+#else
+    #include <WString.h>
+#endif
 #include <functional>
 #include "Chord.h"
 #include "Archive.h"

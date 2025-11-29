@@ -4,7 +4,11 @@
 #include <stdint.h>
 #include <vector>
 #include <map>
-#include <WString.h>
+#ifdef NATIVE_TEST
+    #include "../test/mocks/StubArduino.h"
+#else
+    #include <WString.h>
+#endif
 #include <functional>
 #include "Archive.h"
 

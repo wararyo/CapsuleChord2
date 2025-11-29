@@ -121,14 +121,15 @@ std::vector<uint8_t> Chord::toMidiNoteNumbers() {
     notes.push_back(baseNoteNo);
 
     //Third
-    if(option & Sus4) notes.push_back(baseNoteNo + 5);
-    else if((option & Minor) && !(option & Aug)) notes.push_back(baseNoteNo + 3);
-    else notes.push_back(baseNoteNo + 4); //Major
+    if(option & Sus4) notes.push_back(baseNoteNo + 5);        // Perfect 4th
+    else if(option & Sus2) notes.push_back(baseNoteNo + 2);   // Major 2nd
+    else if((option & Minor) || (option & Dimish)) notes.push_back(baseNoteNo + 3); // Minor 3rd
+    else notes.push_back(baseNoteNo + 4); //Major 3rd
 
     //Fifth
-    if(option & FifthFlat) notes.push_back(baseNoteNo + 6);
-    else if(option & Aug) notes.push_back(baseNoteNo + 8);
-    else notes.push_back(baseNoteNo + 7);
+    if((option & FifthFlat) || (option & Dimish)) notes.push_back(baseNoteNo + 6); // Diminished 5th
+    else if(option & Aug) notes.push_back(baseNoteNo + 8);    // Augmented 5th
+    else notes.push_back(baseNoteNo + 7);                     // Perfect 5th
 
     //Thirteenth
     if(option & Thirteenth) notes.push_back(baseNoteNo + 9);
