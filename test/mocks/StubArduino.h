@@ -10,9 +10,10 @@
 
 // Arduino String クラスのスタブ実装
 class String {
-public:
+private:
     std::string _str;
 
+public:
     String() = default;
     String(const char* s) : _str(s ? s : "") {}
     String(const std::string& s) : _str(s) {}
