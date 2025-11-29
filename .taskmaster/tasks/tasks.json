@@ -772,5 +772,58 @@
       "description": "Memory-related tasks context",
       "updated": "2025-11-27T13:09:47.933Z"
     }
+  },
+  "test": {
+    "tasks": [
+      {
+        "id": 1,
+        "title": "エラー条件のテストを追加",
+        "description": "無効なコードオプションや範囲外のオクターブなど、エラー条件に対するテストケースを追加する",
+        "details": "以下のエラー条件をテストする:\n- 無効なコードオプションの組み合わせ（例: Sus4とSus2の同時指定）\n- 範囲外のオクターブ値\n- 無効なルート音（12以上の値）\n- 無効なinversion値",
+        "testStrategy": "",
+        "status": "pending",
+        "dependencies": [],
+        "priority": "medium",
+        "subtasks": []
+      },
+      {
+        "id": 2,
+        "title": "境界値テストを追加",
+        "description": "オクターブの境界値（10以上、0未満）に対するテストケースを追加する",
+        "details": "以下の境界値をテストする:\n- オクターブ10以上の値でのMIDIノート番号生成\n- オクターブ0（最小値）での動作確認\n- MIDIノート番号が127を超える場合の挙動\n- MIDIノート番号が0未満になる場合の挙動",
+        "testStrategy": "",
+        "status": "pending",
+        "dependencies": [],
+        "priority": "medium",
+        "subtasks": []
+      },
+      {
+        "id": 3,
+        "title": "ベース音機能のテストを追加",
+        "description": "toString()以外のベース音（スラッシュコード）機能に対するテストケースを追加する",
+        "details": "以下のベース音機能をテストする:\n- setBass()メソッドの動作確認\n- 無効なベース音値（12以上、-2以下）の拒否\n- BASS_DEFAULTの設定と解除\n- ベース音がtoMidiNoteNumbers()に影響を与えるかどうか（仕様確認が必要）\n- DegreeChordのベース音機能",
+        "testStrategy": "",
+        "status": "pending",
+        "dependencies": [],
+        "priority": "medium",
+        "subtasks": []
+      },
+      {
+        "id": 4,
+        "title": "Archiveシリアライズ/デシリアライズのテストを追加",
+        "description": "ChordとScaleのArchiveを使ったシリアライズ・デシリアライズ機能のテストを追加する",
+        "details": "以下のシリアライズ機能をテストする:\n- Scaleのserialize/deserializeの往復テスト\n- 異なるキーとスケールタイプでのシリアライズ確認\n- 不正なJSON入力に対するデシリアライズの堅牢性\n- Archive.h/cppの基本機能テスト（pushNest/popNest等）\n- String型のシリアライズ/デシリアライズ（NATIVE_TEST環境での動作確認）",
+        "testStrategy": "",
+        "status": "pending",
+        "dependencies": [],
+        "priority": "medium",
+        "subtasks": []
+      }
+    ],
+    "metadata": {
+      "created": "2025-11-29T04:44:08.955Z",
+      "updated": "2025-11-29T04:44:45.343Z",
+      "description": "ユニットテストに関するタスク"
+    }
   }
 }

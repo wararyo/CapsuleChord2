@@ -88,7 +88,7 @@ void test_chord_toMidiNoteNumbers_Csus4(void) {
 
 void test_chord_toMidiNoteNumbers_Csus2(void) {
     Chord c(Chord::C, Chord::Sus2, 0, 4);
-    std::vector<uint8_t> expected = {48, 52, 55}; // C3, E3(Major third), G3
+    std::vector<uint8_t> expected = {48, 50, 55}; // C3, D3, G3
     TestUtil::assertVectorEquals(expected, c.toMidiNoteNumbers(), "Csus2");
 }
 
@@ -100,7 +100,7 @@ void test_chord_toMidiNoteNumbers_Caug(void) {
 
 void test_chord_toMidiNoteNumbers_Cdim(void) {
     Chord c(Chord::C, Chord::Dimish, 0, 4);
-    std::vector<uint8_t> expected = {48, 52, 55}; // C3, E3(Major third), G3(Perfect fifth) - 実装ではDimishはMajor triadと同じ構成音
+    std::vector<uint8_t> expected = {48, 51, 54}; // C3, Eb3, Gb3
     TestUtil::assertVectorEquals(expected, c.toMidiNoteNumbers(), "Cdim");
 }
 
@@ -546,12 +546,9 @@ void test_musicalTime_time_in_bar_multipleBars(void) {
 }
 
 void test_musicalTime_time_in_bar_negative(void) {
-    // 負の時間の場合 (C++のモジュロ演算は負数で負の結果を返す可能性がある)
-    // -480は最後の小節の1440の位置になるべき
+    // time_in_barに負の値を渡した場合でも、0から1920までの値を返すのが望ましい
     musical_time_t result = time_in_bar(-480);
-    // C++のモジュロは実装依存だが、一般的には負の結果を返す
-    // この実装では % 1920 の結果をそのまま返すので、-480 % 1920 = -480
-    TEST_ASSERT_EQUAL(-480, result);
+    TEST_ASSERT_EQUAL(1440, result);
 }
 
 // ====================
@@ -673,13 +670,7 @@ void runAllTests() {
 // メインテスト実行
 // ====================
 
-#ifdef NATIVE_TEST
-int main(int argc, char **argv) {
-    UNITY_BEGIN();
-    runAllTests();
-    return UNITY_END();
-}
-#else
+#ifdef ARDUINO
 void setup() {
     delay(2000);
     UNITY_BEGIN();
@@ -688,4 +679,10 @@ void setup() {
 }
 
 void loop() {}
+#else
+int main(int argc, char **argv) {
+    UNITY_BEGIN();
+    runAllTests();
+    return UNITY_END();
+}
 #endif

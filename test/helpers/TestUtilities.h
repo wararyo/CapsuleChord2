@@ -5,6 +5,7 @@
 #include <vector>
 #include <cstdint>
 #include <string>
+#include <cmath>
 
 namespace TestUtil {
     // ベクトル比較のヘルパー関数
