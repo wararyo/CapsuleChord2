@@ -93,7 +93,7 @@ void AppDrumPad::onHideGui()
 void AppDrumPad::onDestroy()
 {
     // Make sure we're unregistered from keypad
-    if (isActive) {
+    if (isActive && selfPtr) {
         Keypad.removeKeyEventListener(selfPtr);
     }
 }

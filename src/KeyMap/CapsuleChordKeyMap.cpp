@@ -20,6 +20,9 @@ const uint8_t CapsuleChordKeyMap::numberKeyMap[] = {
     2};
 
 bool CapsuleChordKeyMap::onKeyPressed(uint8_t keyCode) {
+  // 初期化前に呼ばれた場合は何もしない
+  if (!scale || !centerNoteNo) return false;
+
   if ((keyCode & 0xF0) == 0x00) { // 左キーパッドが押された場合
     uint8_t button = keyCode & 0x0F;
     uint8_t number = numberKeyMap[button - 1]; // Key number starts from 1

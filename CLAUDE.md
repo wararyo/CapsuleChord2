@@ -83,12 +83,6 @@ PLATFORMIO_CORE_DIR=.pio pio test -e native-test
 - フィルターはパイプライン内のコード/ノートイベントを監視または変更可能
 - グローバルインスタンス：`Pipeline`
 
-**Context** (`Context.h`)
-- グローバル状態への共有アクセスを提供するシングルトン
-- 以下へのポインタを含む：`Settings`、`Scale`、`ChordPipeline`、`CapsuleChordKeypad`
-- すべてのアプリは`setContext()`でContextを受け取り、`context`メンバーでアクセス可能
-- アプリ間通信用の「knock」メカニズムを`KnockListener`経由で実装
-
 **TempoController** (`Tempo.h/cpp`)
 - テンポ、音楽的タイミング、ティック通知を管理
 - 複数のティック解像度を提供（小節、全拍、半拍、四分拍、三連符）
@@ -112,6 +106,7 @@ PLATFORMIO_CORE_DIR=.pio pio test -e native-test
 
 **AppManager** (`App/AppManager.h/cpp`)
 - アプリのライフサイクルと切り替えを管理
+- アプリ間通信用の「knock」メカニズムを`KnockListener`インターフェースで実装
 - グローバルインスタンス：`App`
 
 `src/App/`内の利用可能なアプリ：
@@ -165,6 +160,24 @@ LVGL 8.3.4上に構築され、`LvglWrapper.h/cpp`でラップ。
 - オーディオ処理は専用FreeRTOSタスクで実行
 - TempoコールバックはFreeRTOSタイマーから実行
 - **重要**：コールバック内でブロッキング操作を呼び出さないこと。フラグと`onUpdateGui()`パターンを使用
+
+### 初期化順序
+
+`setup()`での初期化は以下の順序で行われ、各コンポーネントは前のステップが完了していることを前提とする：
+
+1. **M5.begin()** - M5Stackハードウェアの初期化
+2. **Lvgl.begin()** - LVGLの初期化
+3. **Keypad.begin()** - キーパッドI2C通信の初期化
+4. **I2C.begin()** - I2Cハンドラスレッドの開始
+5. **Settings読み込み** - `scale`および`centerNoteNo`ポインタの設定
+6. **KeyMap初期化** - KeyMapはこの時点で`scale`/`centerNoteNo`が有効であることを期待
+7. **Output.Internal.begin()** - オーディオ出力の初期化
+8. **UI作成** - PlayScreen、フィルター登録、テンポリスナー登録
+
+**スレッドセーフティに関する注意**：
+- グローバル変数（`Pipeline`, `Keypad`, `Tempo`, `App`）はコンストラクタで初期化され、`setup()`開始前に利用可能
+- `scale`と`centerNoteNo`は`setup()`中に設定される。KeyMapの`onKeyPressed()`はこれらがnullの場合は早期リターンする
+- FreeRTOSタイマーやI2Cスレッドからのコールバックは`setup()`完了後にのみ発生する
 
 ## MIDI変換ツール
 
