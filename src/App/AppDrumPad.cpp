@@ -1,4 +1,7 @@
 #include "AppDrumPad.h"
+#include "AppManager.h"
+#include "ChordPipeline.h"
+#include "Keypad.h"
 
 void AppDrumPad::onCreate()
 {
@@ -25,9 +28,7 @@ void AppDrumPad::onShowGui(lv_obj_t *container)
     isShowingGui = true;
     
     // Register as keypad event listener
-    if (context && context->keypad) {
-        context->keypad->addKeyEventListener(selfPtr);
-    }
+    Keypad.addKeyEventListener(selfPtr);
     
     // Create app title
     titleLabel = lv_label_create(container);
@@ -83,9 +84,7 @@ void AppDrumPad::onHideGui()
     isShowingGui = false;
     
     // Unregister as keypad event listener
-    if (context && context->keypad) {
-        context->keypad->removeKeyEventListener(selfPtr);
-    }
+    Keypad.removeKeyEventListener(selfPtr);
 
     lv_obj_del(titleLabel);
     lv_obj_del(drumPadContainer);
@@ -94,8 +93,8 @@ void AppDrumPad::onHideGui()
 void AppDrumPad::onDestroy()
 {
     // Make sure we're unregistered from keypad
-    if (context && context->keypad && isActive) {
-        context->keypad->removeKeyEventListener(selfPtr);
+    if (isActive) {
+        Keypad.removeKeyEventListener(selfPtr);
     }
 }
 
@@ -115,9 +114,7 @@ bool AppDrumPad::onKeyPressed(uint8_t keyCode)
     // Highlight the pad in the UI
     highlightPad(keyCode, true);
     
-    if (context) {
-        context->knock(this);
-    }
+    App.knock(this);
     
     // Return true to consume the event
     return true;
@@ -138,9 +135,9 @@ bool AppDrumPad::onKeyReleased(uint8_t keyCode)
 void AppDrumPad::playDrumSound(uint8_t keyCode)
 {
     uint8_t noteNo = getNoteForKey(keyCode);
-    if (noteNo > 0 && context && context->pipeline) {
+    if (noteNo > 0) {
         // Play drum sound with velocity 100 on channel 9 (standard MIDI drum channel)
-        context->pipeline->sendNote(true, noteNo, 127, 9);
+        Pipeline.sendNote(true, noteNo, 127, 9);
     }
 }
 

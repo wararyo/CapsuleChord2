@@ -1,7 +1,6 @@
 #pragma once
 
 #include <lvgl.h>
-#include "../Context.h" // Add Context include
 
 // アプリの基底クラス
 class AppBase
@@ -19,9 +18,6 @@ public:
 
     // アプリがバックグラウンド動作を行っているか
     virtual bool getActive() = 0;
-
-    // コンテキストを設定する
-    void setContext(Context *context) { this->context = context; }
 
     // アプリを初めて起動したとき
     virtual void onCreate() = 0;
@@ -45,12 +41,9 @@ public:
 
     // アプリの終了処理
     virtual void onDestroy() = 0;
-    
+
     // メインループでUIを安全に更新するための処理
     // このメソッドはタイマーコールバックやイベントリスナー内でUIを
     // 直接更新せず、フラグを設定して後でこのメソッドで安全に更新するために使う
     virtual void onUpdateGui() {}
-
-protected:
-    Context *context = nullptr; // All apps can access context through this pointer
 };

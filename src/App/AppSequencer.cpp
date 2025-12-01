@@ -1,6 +1,8 @@
 #include <App/AppSequencer.h>
+#include <App/AppManager.h>
 #include <M5Unified.h>
 #include <Output/MidiOutput.h>
+#include "ChordPipeline.h"
 
 const auto sequencePianoItems = std::make_shared<std::list<AppSequencer::SequenceItem>>(std::list<AppSequencer::SequenceItem>{
 {0,0x90,0x3C,0x6B},
@@ -201,7 +203,7 @@ void AppSequencer::onActivate()
     isActive = true;
     previousTime = Tempo.getMusicalTime();
     Tempo.addListener(&tempoCallbacks);
-    context->pipeline->addNoteFilter(&noteFilter);
+    Pipeline.addNoteFilter(&noteFilter);
 }
 
 void AppSequencer::onDeactivate()
@@ -213,7 +215,7 @@ void AppSequencer::onDeactivate()
     {
         if (std::find(output.begin(), output.end(), n) == output.end())
         {
-            context->pipeline->sendNote(true, n, 120, 0x0, &noteFilter);
+            Pipeline.sendNote(true, n, 120, 0x0, &noteFilter);
         }
     }
     // 入力で発音中でなく出力で発音中のノートをオフにする
@@ -221,10 +223,10 @@ void AppSequencer::onDeactivate()
     {
         if (std::find(input.begin(), input.end(), n) == input.end())
         {
-            context->pipeline->sendNote(false, n, 0, 0x0, &noteFilter);
+            Pipeline.sendNote(false, n, 0, 0x0, &noteFilter);
         }
     }
-    context->pipeline->removeNoteFilter(&noteFilter);
+    Pipeline.removeNoteFilter(&noteFilter);
     inputBuffer.clear();
     input.clear();
     output.clear();
@@ -328,7 +330,7 @@ void AppSequencer::NoteFilter::onNoteOn(uint8_t note, uint8_t vel, uint8_t chann
     {
         app->inputBuffer.push_back(note);
     }
-    else app->context->pipeline->sendNote(true, note, vel, channel, &app->noteFilter);
+    else Pipeline.sendNote(true, note, vel, channel, &app->noteFilter);
 }
 
 void AppSequencer::NoteFilter::onNoteOff(uint8_t note, uint8_t vel, uint8_t channel)
@@ -337,7 +339,7 @@ void AppSequencer::NoteFilter::onNoteOff(uint8_t note, uint8_t vel, uint8_t chan
     {
         app->inputBuffer.remove(note);
     }
-    else app->context->pipeline->sendNote(false, note, vel, channel, &app->noteFilter);
+    else Pipeline.sendNote(false, note, vel, channel, &app->noteFilter);
 }
 
 // inputの内容を、processItem内で使用できる形に変換する
@@ -388,13 +390,13 @@ void AppSequencer::processItem(const AppSequencer::SequenceItem &item)
 
     if ((item.status & 0xF0) == 0x90)
     {
-        context->pipeline->sendNote(true, noteNo, item.data2, item.status & 0x0F, &noteFilter);
+        Pipeline.sendNote(true, noteNo, item.data2, item.status & 0x0F, &noteFilter);
         output.push_back(noteNo);
         tempoCallbacks.shouldKnock = true;
     }
     else if ((item.status & 0xF0) == 0x80)
     {
-        context->pipeline->sendNote(false, noteNo, item.data2, item.status & 0x0F, &noteFilter);
+        Pipeline.sendNote(false, noteNo, item.data2, item.status & 0x0F, &noteFilter);
         output.remove(noteNo);
     }
 }
@@ -414,7 +416,7 @@ void AppSequencer::TempoCallbacks::onTick(TempoController::tick_timing_t timing,
         {
             for (uint8_t n : app->output)
             {
-                app->context->pipeline->sendNote(false, n, 0, 0x0, &app->noteFilter);
+                Pipeline.sendNote(false, n, 0, 0x0, &app->noteFilter);
             }
             app->output.clear();
         }
@@ -454,7 +456,7 @@ void AppSequencer::TempoCallbacks::onTick(TempoController::tick_timing_t timing,
     // 必要ならばノックを行う
     if (shouldKnock)
     {
-        app->context->knock(app);
+        App.knock(app);
         shouldKnock = false;
     }
 

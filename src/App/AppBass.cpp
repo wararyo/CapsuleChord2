@@ -1,5 +1,7 @@
 #include <App/AppBass.h>
+#include <App/AppManager.h>
 #include <M5Unified.h>
+#include "ChordPipeline.h"
 
 void AppBass::updateUi()
 {
@@ -20,14 +22,14 @@ void AppBass::onActivate()
     isActive = true;
     previousTime = Tempo.getMusicalTime();
     Tempo.addListener(&tempoCallbacks);
-    context->pipeline->addChordFilter(&chordFilter);
+    Pipeline.addChordFilter(&chordFilter);
 }
 
 void AppBass::onDeactivate()
 {
     isActive = false;
     Tempo.removeListener(&tempoCallbacks);
-    context->pipeline->removeChordFilter(&chordFilter);
+    Pipeline.removeChordFilter(&chordFilter);
 }
 
 void AppBass::onShowGui(lv_obj_t *container)
@@ -50,12 +52,12 @@ void AppBass::onShowGui(lv_obj_t *container)
         {
             self->previousTime = Tempo.getMusicalTime();
             Tempo.addListener(&self->tempoCallbacks);
-            self->context->pipeline->addChordFilter(&self->chordFilter);
+            Pipeline.addChordFilter(&self->chordFilter);
         }
         else
         {
             Tempo.removeListener(&self->tempoCallbacks);
-            self->context->pipeline->removeChordFilter(&self->chordFilter);
+            Pipeline.removeChordFilter(&self->chordFilter);
         }
         self->updateUi();
     }, LV_EVENT_CLICKED, (void *)this);
@@ -150,7 +152,7 @@ void AppBass::ChordFilter::onChordOff()
     app->input.clear();
     for (uint8_t note : app->output)
     {
-        app->context->pipeline->sendNote(false, note, 0, 0x01);
+        Pipeline.sendNote(false, note, 0, 0x01);
     }
 }
 
@@ -204,13 +206,13 @@ void AppBass::processItem(const AppBass::SequenceItem &item)
 
     if ((item.status & 0xF0) == 0x90)
     {
-        context->pipeline->sendNote(true, noteNo, item.data2, item.status & 0x0F);
+        Pipeline.sendNote(true, noteNo, item.data2, item.status & 0x0F);
         output.push_back(noteNo);
         tempoCallbacks.shouldKnock = true;
     }
     else if ((item.status & 0xF0) == 0x80)
     {
-        context->pipeline->sendNote(false, noteNo, item.data2, item.status & 0x0F);
+        Pipeline.sendNote(false, noteNo, item.data2, item.status & 0x0F);
         output.remove(noteNo);
     }
 }
@@ -253,7 +255,7 @@ void AppBass::TempoCallbacks::onTick(TempoController::tick_timing_t timing, musi
     // 必要ならばノックを行う
     if (shouldKnock)
     {
-        app->context->knock(app);
+        App.knock(app);
         shouldKnock = false;
     }
 

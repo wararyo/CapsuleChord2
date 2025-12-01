@@ -1,13 +1,18 @@
 #include "AppAutoPlay.h"
+#include "AppManager.h"
 #include "../Assets/DemoSong.h"
 #include "../Assets/BalladSong.h"
 #include "../Assets/RockSong.h"
 #include "../Assets/MarigoldSong.h"
 #include "../Tempo.h"
 #include "../ChordPipeline.h"
+#include "../Keypad.h"
+#include "../Settings.h"
 #include <algorithm>
 
 extern TempoController Tempo;
+extern Settings settings;
+extern int *centerNoteNo;
 
 void AppAutoPlay::onCreate()
 {
@@ -161,8 +166,8 @@ void AppAutoPlay::onDestroy()
     onHideGui();
     
     // KeyEventListenerをクリーンアップ
-    if (context && context->keypad && keyListener) {
-        context->keypad->removeKeyEventListener(keyListener);
+    if (keyListener) {
+        Keypad.removeKeyEventListener(keyListener);
     }
     keyListener = nullptr;
 }
@@ -232,8 +237,8 @@ void AppAutoPlay::startPlayback()
     isActive = true;
 
     // KeyEventListenerを登録して自動演奏を保護
-    if (context && context->keypad && keyListener) {
-        context->keypad->addKeyEventListener(keyListener);
+    if (keyListener) {
+        Keypad.addKeyEventListener(keyListener);
         Serial.println("AutoPlay: KeyEventListener registered");
     }
 
@@ -254,8 +259,8 @@ void AppAutoPlay::startPlayback()
     }
 
     // LEDレイヤーをアクティブにする
-    if (context && context->keypad && ledLayer) {
-        context->keypad->pushLedLayer(ledLayer);
+    if (ledLayer) {
+        Keypad.pushLedLayer(ledLayer);
     }
 }
 
@@ -264,8 +269,8 @@ void AppAutoPlay::stopPlayback()
     isActive = false;
 
     // KeyEventListenerを解除
-    if (context && context->keypad && keyListener) {
-        context->keypad->removeKeyEventListener(keyListener);
+    if (keyListener) {
+        Keypad.removeKeyEventListener(keyListener);
         Serial.println("AutoPlay: KeyEventListener unregistered");
     }
 
@@ -285,8 +290,8 @@ void AppAutoPlay::stopPlayback()
     }
 
     // LEDレイヤーを非アクティブにする
-    if (context && context->keypad && ledLayer) {
-        context->keypad->removeLedLayer(ledLayer);
+    if (ledLayer) {
+        Keypad.removeLedLayer(ledLayer);
     }
 }
 
@@ -302,8 +307,6 @@ void AppAutoPlay::resetPlayback()
 
 void AppAutoPlay::executeCommand(const AutoPlayCommand& command)
 {
-    if (!context || !context->pipeline) return;
-    
     switch (command.type)
     {
         case CommandType::CHORD_START:
@@ -311,8 +314,8 @@ void AppAutoPlay::executeCommand(const AutoPlayCommand& command)
             // DegreeChordをChordに変換してから演奏開始
             {
                 Chord chord = currentScore.degreeToChord(command.chordData.degreeChord);
-                chord.calcInversion(*(uint8_t *)context->centerNoteNo);
-                context->pipeline->playChord(chord);
+                chord.calcInversion(*(uint8_t *)centerNoteNo);
+                Pipeline.playChord(chord);
                 currentChord = chord;
                 needsChordUpdate = true;
                 
@@ -324,16 +327,14 @@ void AppAutoPlay::executeCommand(const AutoPlayCommand& command)
         case CommandType::CHORD_END:
             // Serial.printf("CHORD_END\n");QUARTER=136.36
             // コード演奏終了
-            context->pipeline->stopChord();
+            Pipeline.stopChord();
             currentChord = std::nullopt; // コードなし
             needsChordUpdate = true;
             
             // LEDをクリア
             if (ledLayer) {
                 ledLayer->fillLeds();
-                if (context && context->keypad) {
-                    context->keypad->markLedNeedsUpdate();
-                }
+                Keypad.markLedNeedsUpdate();
             }
             break;
             
@@ -344,13 +345,13 @@ void AppAutoPlay::executeCommand(const AutoPlayCommand& command)
             if ((command.midiData.status & 0xF0) == 0x90) // Note On
             {
                 uint8_t channel = command.midiData.status & 0x0F;
-                context->pipeline->sendNote(true, command.midiData.data1, 
+                Pipeline.sendNote(true, command.midiData.data1, 
                                           command.midiData.data2, channel); // Channel 9 for drums
             }
             else if ((command.midiData.status & 0xF0) == 0x80) // Note Off
             {
                 uint8_t channel = command.midiData.status & 0x0F;
-                context->pipeline->sendNote(false, command.midiData.data1, 
+                Pipeline.sendNote(false, command.midiData.data1, 
                                           command.midiData.data2, channel);
             }
             break;
@@ -454,13 +455,11 @@ void AppAutoPlay::loadScoreFromArray(const AutoPlayCommand* commands, size_t com
     // コマンドを時間順にソート（配列が既にソート済みであっても安全のため）
     sortCommands();
     
-    // contextのscaleにキー情報を反映
-    if (context && context->settings) {
-        Scale* globalScale = &((SettingItemScale*)context->settings->findSettingByKey(String("Scale")))->content;
-        if (globalScale) {
-            globalScale->key = key;
-            Serial.printf("Updated global scale key to: %d (%s)\n", key, Chord::rootStrings[key].c_str());
-        }
+    // グローバルのscaleにキー情報を反映
+    Scale* globalScale = &((SettingItemScale*)settings.findSettingByKey(String("Scale")))->content;
+    if (globalScale) {
+        globalScale->key = key;
+        Serial.printf("Updated global scale key to: %d (%s)\n", key, Chord::rootStrings[key].c_str());
     }
 }
 
@@ -557,9 +556,7 @@ void AppAutoPlay::setupLedPattern()
     
     ledLayer->fillLeds();
     
-    if (context && context->keypad) {
-        context->keypad->markLedNeedsUpdate();
-    }
+    Keypad.markLedNeedsUpdate();
 }
 
 void AppAutoPlay::updateLedForCurrentChord()
@@ -619,9 +616,7 @@ void AppAutoPlay::updateLedForCurrentChord()
     // LEDを一括更新
     if (ledLayer) {
         ledLayer->setLeds(chordLeds);
-        if (context && context->keypad) {
-            context->keypad->markLedNeedsUpdate();
-        }
+        Keypad.markLedNeedsUpdate();
     }
 }
 

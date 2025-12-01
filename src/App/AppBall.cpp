@@ -1,4 +1,6 @@
 #include "AppBall.h"
+#include "AppManager.h"
+#include "ChordPipeline.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
@@ -138,11 +140,11 @@ bool AppBall::checkCollision(Ball& ball)
     }
     
     // When collision happens, play notes and notify the context
-    if (collision && context) {
+    if (collision) {
         // Play active notes
         playActiveNotes();
         // Trigger knock event
-        context->knock(this);
+        App.knock(this);
     }
     
     return collision;
@@ -203,9 +205,7 @@ void AppBall::onShowGui(lv_obj_t *container)
     isActive = true;
     
     // Register as a note filter to monitor MIDI input
-    if (context && context->pipeline) {
-        context->pipeline->addNoteFilter(this);
-    }
+    Pipeline.addNoteFilter(this);
 
     // Create the app title
     titleLabel = lv_label_create(container);
@@ -277,9 +277,7 @@ void AppBall::onDestroy()
     isActive = false;
     
     // Unregister as a note filter
-    if (context && context->pipeline) {
-        context->pipeline->removeNoteFilter(this);
-    }
+    Pipeline.removeNoteFilter(this);
     
     // Free canvas buffer
     if (canvasBuffer) {
@@ -310,18 +308,18 @@ void AppBall::onUpdateGui()
 // Play all currently active notes when a collision occurs
 void AppBall::playActiveNotes()
 {
-    // Skip if there are no active notes or no context
-    if (activeNotes.empty() || !context || !context->pipeline) {
+    // Skip if there are no active notes
+    if (activeNotes.empty()) {
         return;
     }
-    
+
     // Get the first channel, or default to channel 0
     uint8_t channel = activeChannels.empty() ? 0 : *activeChannels.begin();
-    
+
     // Play each active note
     for (uint8_t note : activeNotes) {
         // Send note on with the stored velocity
-        context->pipeline->sendNote(true, note, lastVelocity, channel);
+        Pipeline.sendNote(true, note, lastVelocity, channel);
     }
 }
 

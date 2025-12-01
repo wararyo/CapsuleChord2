@@ -2,7 +2,12 @@
 
 #include "AppBase.h"
 #include "Tempo.h"
+#include "ChordPipeline.h"
 #include "Assets/Icons.h"
+
+// Forward declaration
+class AppManager;
+extern AppManager App;
 
 class AppMetronome : public AppBase
 {
@@ -29,14 +34,7 @@ private:
         void onTempoChanged(TempoController::tempo_t tempo) override
         {
         }
-        void onTick(TempoController::tick_timing_t timing, musical_time_t time) override
-        {
-            app->context->pipeline->sendNotes(true, {timing & TempoController::TICK_TIMING_BAR ? 25 : 24}, 64, 0xF);
-
-            if (app->isActive && app->context) {
-                app->context->knock(app);
-            }
-        }
+        void onTick(TempoController::tick_timing_t timing, musical_time_t time) override;
         TempoController::tick_timing_t getTimingMask() override
         {
             return TempoController::TICK_TIMING_BAR | TempoController::TICK_TIMING_FULL;

@@ -1,4 +1,14 @@
 #include "AppMetronome.h"
+#include "AppManager.h"
+
+void AppMetronome::MetronomeSoundTempoCallback::onTick(TempoController::tick_timing_t timing, musical_time_t time)
+{
+    Pipeline.sendNotes(true, {timing & TempoController::TICK_TIMING_BAR ? 25 : 24}, 64, 0xF);
+
+    if (app->isActive) {
+        App.knock(app);
+    }
+}
 
 static void tempo_button_plus_event_cb(lv_event_t *e)
 {

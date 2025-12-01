@@ -19,10 +19,7 @@ AppLauncher::~AppLauncher() {
 void AppLauncher::create()
 {
     if (isShown) return;
-    Context *context = Context::getContext();
-    if (context != nullptr) {
-        context->addKnockListener(this);
-    }
+    App.addKnockListener(this);
 
     frame = lv_obj_create(lv_scr_act());
     lv_obj_set_size(frame, LvglWrapper::screenWidth, LvglWrapper::screenHeight);
@@ -136,10 +133,7 @@ void AppLauncher::del()
 {
     if (!isShown) return;
 
-    Context *context = Context::getContext();
-    if (context != nullptr) {
-        context->removeKnockListener(this);
-    }
+    App.removeKnockListener(this);
 
     lv_obj_del(frame);
     frame = nullptr;

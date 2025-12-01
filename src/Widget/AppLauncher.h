@@ -4,10 +4,10 @@
 #include <vector>
 #include <set>
 #include "App/AppBase.h"
-#include "Context.h"
+#include "App/AppManager.h"
 
 // アプリ一覧画面
-class AppLauncher : public Context::KnockListener
+class AppLauncher : public AppManager::KnockListener
 {
 public:
     AppLauncher();

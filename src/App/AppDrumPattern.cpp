@@ -1,4 +1,6 @@
 #include "AppDrumPattern.h"
+#include "AppManager.h"
+#include "ChordPipeline.h"
 
 const uint8_t patternInUi[] = {
 0b00001001,
@@ -176,12 +178,12 @@ void AppDrumPattern::TempoCallbacks::processItem(const AppDrumPattern::DrumPatte
 {
     if ((item.status & 0xF0) == 0x90)
     {
-        app->context->pipeline->sendNote(true, item.data1, item.data2, item.status & 0x0F);
+        Pipeline.sendNote(true, item.data1, item.data2, item.status & 0x0F);
         shouldKnock = true;
     }
     else if ((item.status & 0xF0) == 0x80)
     {
-        app->context->pipeline->sendNote(false, item.data1, item.data2, item.status & 0x0F);
+        Pipeline.sendNote(false, item.data1, item.data2, item.status & 0x0F);
     }
 }
 
@@ -225,7 +227,7 @@ void AppDrumPattern::TempoCallbacks::onTick(TempoController::tick_timing_t timin
     // 必要ならノックを行う
     if (shouldKnock)
     {
-        app->context->knock(app);
+        App.knock(app);
         shouldKnock = false;
     }
 

@@ -7,7 +7,7 @@
 #include "Scale.h"
 #include "Keypad.h"
 #include "KeyMap/KeyMap.h"
-#include "Context.h"
+#include "Settings.h"
 #include "Output/MidiOutput.h"
 #include "Tempo.h"
 #include "ChordPipeline.h"
@@ -43,7 +43,6 @@ bool shouldShowPlayScreen = true;
 // Initialize at setup()
 Scale *scale;
 int *centerNoteNo;
-Context context;
 KeyMapBase *currentKeyMap;
 
 typedef std::vector<const char *> strs;
@@ -174,13 +173,6 @@ void setup() {
     case 1: M5.Lcd.setBrightness(127); break;
     case 2: M5.Lcd.setBrightness(32); break;
   }
-
-  // Make Context
-  context = Context(&settings, &Pipeline, &Keypad);
-  Context::setContext(&context);
-  
-  // Initialize context in all apps
-  App.initContext(&context);
 
   // Keymap initialization
   currentKeyMap = KeyMap::getAvailableKeyMaps()[0].get();
