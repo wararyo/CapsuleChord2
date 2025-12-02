@@ -1,7 +1,10 @@
 #pragma once
 
 #include <list>
+#include <vector>
 #include <memory>
+#include <freertos/FreeRTOS.h>
+#include <freertos/semphr.h>
 #include "AppBase.h"
 #include "AppMetronome.h"
 #include "AppDrumPattern.h"
@@ -14,12 +17,23 @@
 #include "AppSoundTest.h"
 #include "AppBall.h"
 #include "AppAutoPlay.h"
-#include "../Context.h"
 
 class AppManager
 {
 public:
+    // KnockListener interface for receiving knock events from apps
+    class KnockListener {
+    public:
+        virtual void onKnock(AppBase* app) = 0;
+        virtual ~KnockListener() = default;
+    };
+
     AppManager() {
+        knockMutex = xSemaphoreCreateMutex();
+        if (!knockMutex) {
+            Serial.println("FATAL: Failed to create knockMutex");
+        }
+
         // Initialize apps list with unique_ptr
         apps.push_back(std::make_unique<AppMetronome>());
         apps.push_back(std::make_unique<AppDrumPattern>());
@@ -39,16 +53,18 @@ public:
         }
     }
 
-    // Destructor to ensure proper cleanup (unique_ptr handles this automatically)
-    ~AppManager() = default;
-
-    // Initialize context for all apps
-    void initContext(Context *context) {
-        for (const auto& app : apps)
-        {
-            app->setContext(context);
+    ~AppManager() {
+        if (knockMutex) {
+            vSemaphoreDelete(knockMutex);
+            knockMutex = nullptr;
         }
     }
+
+    // コピー・ムーブ禁止
+    AppManager(const AppManager&) = delete;
+    AppManager& operator=(const AppManager&) = delete;
+    AppManager(AppManager&&) = delete;
+    AppManager& operator=(AppManager&&) = delete;
 
     std::list<std::unique_ptr<AppBase>> apps;
 
@@ -60,9 +76,45 @@ public:
     {
         return currentApp;
     }
+
+    // Knock system - アプリ間通信
+    void addKnockListener(KnockListener* listener) {
+        if (listener && knockMutex) {
+            xSemaphoreTake(knockMutex, portMAX_DELAY);
+            knockListeners.push_back(listener);
+            xSemaphoreGive(knockMutex);
+        }
+    }
+
+    void removeKnockListener(KnockListener* listener) {
+        if (!knockMutex) return;
+        xSemaphoreTake(knockMutex, portMAX_DELAY);
+        for (auto it = knockListeners.begin(); it != knockListeners.end(); ++it) {
+            if (*it == listener) {
+                knockListeners.erase(it);
+                break;
+            }
+        }
+        xSemaphoreGive(knockMutex);
+    }
+
+    void knock(AppBase* app) {
+        if (!app || !knockMutex) return;
+
+        xSemaphoreTake(knockMutex, portMAX_DELAY);
+        auto listenersCopy = knockListeners;
+        xSemaphoreGive(knockMutex);
+
+        for (auto listener : listenersCopy) {
+            listener->onKnock(app);
+        }
+    }
+
 private:
     AppBase *currentApp = nullptr;
     lv_obj_t *container = nullptr;
+    std::vector<KnockListener*> knockListeners;
+    SemaphoreHandle_t knockMutex = nullptr;
 };
 
 extern AppManager App;

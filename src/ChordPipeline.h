@@ -24,6 +24,12 @@ public:
         }
     }
 
+    // コピー・ムーブ禁止（mutexの二重解放を防ぐ）
+    ChordPipeline(const ChordPipeline&) = delete;
+    ChordPipeline& operator=(const ChordPipeline&) = delete;
+    ChordPipeline(ChordPipeline&&) = delete;
+    ChordPipeline& operator=(ChordPipeline&&) = delete;
+
     // 鳴っているコードの変更を受け取ったり変更するためのフィルター
     class ChordFilter
     {

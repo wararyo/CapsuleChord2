@@ -5,6 +5,27 @@
 #include "Widget/lv_battery.h"
 #include "Widget/lv_tickframe.h"
 
+// ChordFilter実装
+void PlayScreen::ChordFilter::onChordOn(Chord chord) {
+    if (screen && screen->isShown()) {
+        screen->setChord(chord);
+    }
+}
+
+// TempoCallbackHandler実装
+void PlayScreen::TempoCallbackHandler::onTempoChanged(TempoController::tempo_t tempo) {
+    if (screen) {
+        screen->updateTempo();
+    }
+}
+
+void PlayScreen::TempoCallbackHandler::onTick(TempoController::tick_timing_t timing, musical_time_t time) {
+    if (screen) {
+        screen->needsTickUpdate = true;
+        screen->lastTickTiming = timing;
+    }
+}
+
 PlayScreen::PlayScreen()
 {
     tickframe = nullptr;
@@ -15,6 +36,10 @@ PlayScreen::PlayScreen()
     btn_label_left = nullptr;
     btn_label_center = nullptr;
     btn_label_right = nullptr;
+
+    // コールバックに自身を設定
+    chordFilter.screen = this;
+    tempoCallback.screen = this;
 }
 
 PlayScreen::~PlayScreen()
@@ -63,14 +88,22 @@ void PlayScreen::create()
     btn_label_right = lv_label_create(lv_scr_act());
     lv_label_set_text(btn_label_right, "Key+");
     lv_obj_align(btn_label_right, LV_ALIGN_BOTTOM_MID, 80, -8);
-    
+
+    // コード/テンポのコールバックを登録
+    Pipeline.addChordFilter(&chordFilter);
+    Tempo.addListener(&tempoCallback);
+
     isCreated = true;
 }
 
 void PlayScreen::del()
 {
     if (!isCreated) return;
-    
+
+    // コールバックを解除
+    Pipeline.removeChordFilter(&chordFilter);
+    Tempo.removeListener(&tempoCallback);
+
     if (tickframe) {
         lv_obj_del(tickframe);
         tickframe = nullptr;
@@ -152,6 +185,15 @@ void PlayScreen::updateTick(bool isBar)
 void PlayScreen::setChord(const Chord& chord)
 {
     if (!isCreated || !chordlabel) return;
-    
+
     lv_chordlabel_set_chord(chordlabel, chord);
+}
+
+void PlayScreen::update()
+{
+    // TickFrameの遅延更新（コールバックから直接UI操作しないため）
+    if (needsTickUpdate && isCreated) {
+        updateTick(lastTickTiming & TempoController::TICK_TIMING_BAR);
+        needsTickUpdate = false;
+    }
 }

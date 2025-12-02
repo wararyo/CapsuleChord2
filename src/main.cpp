@@ -7,7 +7,7 @@
 #include "Scale.h"
 #include "Keypad.h"
 #include "KeyMap/KeyMap.h"
-#include "Context.h"
+#include "Settings.h"
 #include "Output/MidiOutput.h"
 #include "Tempo.h"
 #include "ChordPipeline.h"
@@ -43,7 +43,6 @@ bool shouldShowPlayScreen = true;
 // Initialize at setup()
 Scale *scale;
 int *centerNoteNo;
-Context context;
 KeyMapBase *currentKeyMap;
 
 typedef std::vector<const char *> strs;
@@ -107,43 +106,6 @@ void updatePlayScreenVisibility() {
   }
 }
 
-// TickFrameの更新フラグ
-bool needsTickUpdate = false;
-TempoController::tick_timing_t lastTickTiming = 0;
-
-class MainTempoCallbacks: public TempoController::TempoCallbacks {
-    void onPlayingStateChanged(bool isPlaying) override
-    {
-    }
-    void onTempoChanged(TempoController::tempo_t tempo) override {
-      update_tempo();
-    }
-    void onTick(TempoController::tick_timing_t timing, musical_time_t time) override {
-      // TickFrameの更新フラグをセット
-      needsTickUpdate = true;
-      lastTickTiming = timing;
-    }
-    TempoController::tick_timing_t getTimingMask() override {
-      return TempoController::TICK_TIMING_BAR | TempoController::TICK_TIMING_FULL;
-    }
-};
-
-class MainChordFilter: public ChordPipeline::ChordFilter {
-    bool modifiesChord() override
-    {
-      return false;
-    }
-    void onChordOn(Chord chord) override
-    {
-      if (playScreen.isShown()) {
-        playScreen.setChord(chord);
-      }
-    }
-    void onChordOff() override
-    {
-    }
-};
-
 void setup() {
   M5.begin();
   
@@ -175,13 +137,6 @@ void setup() {
     case 2: M5.Lcd.setBrightness(32); break;
   }
 
-  // Make Context
-  context = Context(&settings, &Pipeline, &Keypad);
-  Context::setContext(&context);
-  
-  // Initialize context in all apps
-  App.initContext(&context);
-
   // Keymap initialization
   currentKeyMap = KeyMap::getAvailableKeyMaps()[0].get();
   
@@ -202,13 +157,8 @@ void setup() {
   bool isHeadphone = digitalRead(GPIO_NUM_18);
   Output.Internal.begin(isHeadphone ? OutputInternal::AudioOutput::headphone : OutputInternal::AudioOutput::speaker);
 
-  // PlayScreen UI の初期化
+  // PlayScreen UI の初期化（内部でコード/テンポのコールバックも登録される）
   playScreen.create();
-
-  // コードが鳴ったときにコード名を表示する
-  Pipeline.addChordFilter(new MainChordFilter());
-  // テンポが変更されたときに表示を更新する
-  Tempo.addListener(new MainTempoCallbacks());
 
   // 初期UI状態の更新
   update_battery();
@@ -332,10 +282,7 @@ void loop()
   if (currentApp != nullptr) {
     currentApp->onUpdateGui();
   }
-  if (needsTickUpdate && playScreen.isShown()) {
-    playScreen.updateTick(lastTickTiming & TempoController::TICK_TIMING_BAR);
-    needsTickUpdate = false;
-  }
+  playScreen.update();
   lv_task_handler();
 
   while(millis() - lastLoopMillis < 5);
