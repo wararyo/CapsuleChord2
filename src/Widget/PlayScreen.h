@@ -5,6 +5,7 @@
 #include "ChordPipeline.h"
 #include "Widget/TempoDialog.h"
 #include "Tempo.h"
+#include "Output/MidiOutput.h"
 
 // メイン画面のUI要素を管理するクラス
 class PlayScreen
@@ -28,6 +29,9 @@ public:
 
     // メインループから呼び出す更新処理
     void update();
+    
+    // 出力先を順に切り替え
+    void cycleOutput();
 
     TempoDialog& getTempoDialog() { return tempoDialog; }
 
@@ -60,12 +64,16 @@ private:
     bool needsTickUpdate = false;
     TempoController::tick_timing_t lastTickTiming = 0;
 
+    // 出力先の更新フラグ（メインループでUI更新を遅延実行するため）
+    bool needsOutputUpdate = false;
+
     // UI要素
     lv_obj_t *tickframe;
     lv_obj_t *chordlabel;
     lv_obj_t *battery;
     lv_obj_t *scale_label;
     lv_obj_t *tempo_label;
+    lv_obj_t *output_label;     // Label for output device selection
     lv_obj_t *btn_label_left;   // Label for left button (Key-)
     lv_obj_t *btn_label_center; // Label for center button (Apps)
     lv_obj_t *btn_label_right;  // Label for right button (Key+)

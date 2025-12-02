@@ -4,6 +4,7 @@
 #include <M5Unified.h>
 #include <driver/i2s.h>
 #include <Sampler.h>
+#include "IMidiOutput.h"
 
 #define PIN_I2S_BCK_SPK GPIO_NUM_34
 #define PIN_I2S_BCK_HP GPIO_NUM_6
@@ -38,7 +39,7 @@ extern const int16_t metronome_tick_data[8000];
 extern const int16_t metronome_tick_bar_data[8000];
 
 // 内蔵音源
-class OutputInternal
+class OutputInternal : public IMidiOutput
 {
 public:
     enum AudioOutput
@@ -58,6 +59,19 @@ public:
     void loadAGuitar();
     void loadEPiano();
     void loadSuperSaw();
+
+    // IMidiOutput interface implementation
+    void noteOn(uint8_t note, uint8_t velocity, uint8_t channel = 0) override {
+        NoteOn(note, velocity, channel);
+    }
+    void noteOff(uint8_t note, uint8_t velocity, uint8_t channel = 0) override {
+        NoteOff(note, velocity, channel);
+    }
+    void pitchBend(int16_t pitchBend, uint8_t channel = 0) override {
+        PitchBend(pitchBend, channel);
+    }
+    bool isAvailable() const override { return true; }
+    const char* getName() const override { return "Internal"; }
 
 private:
     // ピアノティンバー
