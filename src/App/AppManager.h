@@ -30,6 +30,9 @@ public:
 
     AppManager() {
         knockMutex = xSemaphoreCreateMutex();
+        if (!knockMutex) {
+            Serial.println("FATAL: Failed to create knockMutex");
+        }
 
         // Initialize apps list with unique_ptr
         apps.push_back(std::make_unique<AppMetronome>());
