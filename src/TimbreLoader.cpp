@@ -101,7 +101,7 @@ std::shared_ptr<Timbre> TimbreLoader::loadTimbre(fs::FS &fs, const char *path)
         const uint32_t loopStart = sampleJson["sample"]["loop-start"];
         const uint32_t loopEnd = sampleJson["sample"]["loop-end"];
         const bool adsrEnabled = sampleJson["sample"]["adsr-enabled"];
-        const float attach = sampleJson["sample"]["attach"];
+        const float attack = sampleJson["sample"]["attack"];
         const float decay = sampleJson["sample"]["decay"];
         const float sustain = sampleJson["sample"]["sustain"];
         const float release = sampleJson["sample"]["release"];
@@ -114,13 +114,21 @@ std::shared_ptr<Timbre> TimbreLoader::loadTimbre(fs::FS &fs, const char *path)
         }
         size_t dataSize = wavFile.getDataSize();
         int16_t *data = (int16_t *)heap_caps_malloc(dataSize, MALLOC_CAP_SPIRAM);
+        if (!data) {
+            Serial.println("Failed to allocate memory for sample");
+            wavFile.close();
+            continue;
+        }
         size_t written_bytes = wavFile.read(data, dataSize);
         assert(written_bytes == dataSize);
         size_t sampleLength = wavFile.getSampleLength();
+        // unique_ptrでメモリを管理
+        // ESP-IDFではheap_caps_mallocで確保したメモリはfree/deleteで解放可能
+        std::unique_ptr<const int16_t> sampleData(data);
         std::shared_ptr<Sample> s = std::make_shared<Sample>(
-            data, sampleLength, root,
+            std::move(sampleData), sampleLength, root,
             loopStart, loopEnd,
-            adsrEnabled, attach, decay, sustain, release);
+            adsrEnabled, attack, decay, sustain, release);
         auto ms = std::make_unique<Timbre::MappedSample>(s, lowerNoteNo, upperNoteNo, lowerVelocity, upperVelocity);
         samples->push_back(std::move(ms));
         wavFile.close();
