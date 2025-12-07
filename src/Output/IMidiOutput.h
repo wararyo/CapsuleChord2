@@ -12,6 +12,9 @@ public:
     // 出力デバイスを停止（別の出力に切り替える時に呼ばれる）
     virtual void end() {}
 
+    // 定期的に呼び出される更新処理（メインループから呼ばれる）
+    virtual void update() {}
+
     // ノートオン
     virtual void noteOn(uint8_t note, uint8_t velocity, uint8_t channel = 0) = 0;
 

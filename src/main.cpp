@@ -146,16 +146,13 @@ void setup() {
   );
   Keypad.addKeyEventListener(keyMapPtr);
 
-  // イヤホン端子スイッチ
-  pinMode(GPIO_NUM_18, INPUT_PULLUP);
-
   // 3ボタン
   pinMode(GPIO_NUM_BACK, INPUT_PULLUP);
   pinMode(GPIO_NUM_HOME, INPUT_PULLUP);
   pinMode(GPIO_NUM_MENU, INPUT_PULLUP);
 
-  bool isHeadphone = digitalRead(GPIO_NUM_18);
-  Output.Internal.begin(isHeadphone ? OutputInternal::AudioOutput::headphone : OutputInternal::AudioOutput::speaker);
+  // 内蔵音源を開始（初期デバイスとして）
+  Output.Internal.begin();
 
   // PlayScreen UI の初期化（内部でコード/テンポのコールバックも登録される）
   playScreen.create();
@@ -196,13 +193,8 @@ void loop()
     Output.Internal.NoteOff(60 + scale->key, 0, 0);
   }
 
-  // ヘッドフォン抜き差し
-  static bool isHeadphonePreviously = digitalRead(GPIO_NUM_18);
-  bool isHeadphone = digitalRead(GPIO_NUM_18);
-  if(isHeadphonePreviously != isHeadphone) {
-    Output.Internal.begin(isHeadphone ? OutputInternal::AudioOutput::headphone : OutputInternal::AudioOutput::speaker);
-    isHeadphonePreviously = isHeadphone;
-  }
+  // 出力デバイスの更新（ヘッドフォン検出など）
+  Output.getCurrentDevice()->update();
 
   // 仮でホームボタンを押したらバッテリー残量が更新されるようにする
   if (BtnHome.wasPressed()) update_battery();

@@ -97,26 +97,20 @@ void OutputInternal::unloadTimbres()
     Serial.println("Timbres unloaded");
 }
 
-void OutputInternal::begin(AudioOutput output)
+void OutputInternal::stopAudioLoop()
+{
+    if (audioLoopHandler != nullptr)
+    {
+        vTaskDelete(audioLoopHandler);
+        audioLoopHandler = nullptr;
+    }
+    enableCore0WDT();
+}
+
+void OutputInternal::initAudioOutput(AudioOutput output)
 {
     // 既にAudioLoopが起動している場合は終了
-    if(audioLoopHandler != nullptr) vTaskDelete(audioLoopHandler);
-    audioLoopHandler = nullptr;
-
-    // LittleFSからティンバーを読み込む
-    if (!loadTimbres()) {
-        Serial.println("Failed to load timbres from LittleFS");
-    }
-
-    // ティンバーをサンプラーに設定
-    if (aguitar) sampler->SetTimbre(0x0, aguitar);
-    if (bass) sampler->SetTimbre(0x1, bass);
-    if (epiano) sampler->SetTimbre(0x3, epiano);
-    if (drumset) sampler->SetTimbre(0x9, drumset);
-    sampler->SetTimbre(0xF, system);
-
-    // サンプラーの設定
-    sampler->masterVolume = masterVolume;
+    stopAudioLoop();
 
     // I2Sの初期化
     if (audioOutput == AudioOutput::headphone) i2s_driver_uninstall(I2S_NUM_HP);
@@ -204,18 +198,48 @@ void OutputInternal::begin(AudioOutput output)
     disableCore0WDT();
 }
 
-void OutputInternal::terminate()
+void OutputInternal::begin()
+{
+    // イヤホン端子スイッチのピン設定
+    pinMode(PIN_HP_DETECT, INPUT_PULLUP);
+
+    // LittleFSからティンバーを読み込む
+    if (!loadTimbres()) {
+        Serial.println("Failed to load timbres from LittleFS");
+    }
+
+    // ティンバーをサンプラーに設定
+    if (aguitar) sampler->SetTimbre(0x0, aguitar);
+    if (bass) sampler->SetTimbre(0x1, bass);
+    if (epiano) sampler->SetTimbre(0x3, epiano);
+    if (drumset) sampler->SetTimbre(0x9, drumset);
+    sampler->SetTimbre(0xF, system);
+
+    // サンプラーの設定
+    sampler->masterVolume = masterVolume;
+
+    // 現在のヘッドフォン接続状態を取得してI2S初期化
+    isHeadphonePreviously = digitalRead(PIN_HP_DETECT);
+    initAudioOutput(isHeadphonePreviously ? AudioOutput::headphone : AudioOutput::speaker);
+}
+
+void OutputInternal::end()
 {
     // AudioLoopを停止
-    if (audioLoopHandler != nullptr)
-    {
-        vTaskDelete(audioLoopHandler);
-        audioLoopHandler = nullptr;
-    }
-    enableCore0WDT();
+    stopAudioLoop();
 
     // ティンバーを解放してメモリを節約
     unloadTimbres();
+}
+
+void OutputInternal::update()
+{
+    // ヘッドフォン抜き差しを検出
+    bool isHeadphone = digitalRead(PIN_HP_DETECT);
+    if (isHeadphonePreviously != isHeadphone) {
+        initAudioOutput(isHeadphone ? AudioOutput::headphone : AudioOutput::speaker);
+        isHeadphonePreviously = isHeadphone;
+    }
 }
 
 void OutputInternal::loadPiano()

@@ -17,6 +17,7 @@
 #define I2S_NUM_HP I2S_NUM_0
 
 #define PIN_EN_HP GPIO_NUM_9
+#define PIN_HP_DETECT GPIO_NUM_18
 
 #define MODE_MIC 0
 #define MODE_SPK 1
@@ -41,17 +42,18 @@ public:
 
     float masterVolume = 0.3f;
 
-    void begin(AudioOutput output);
     void NoteOn(uint8_t noteNo, uint8_t velocity, uint8_t channel);
     void NoteOff(uint8_t noteNo, uint8_t velocity, uint8_t channel);
     void PitchBend(int16_t pitchBend, uint8_t channel);
-    void terminate();
     void loadPiano();
     void loadAGuitar();
     void loadEPiano();
     void loadSuperSaw();
 
     // IMidiOutput interface implementation
+    void begin() override;
+    void end() override;
+    void update() override;
     void noteOn(uint8_t note, uint8_t velocity, uint8_t channel = 0) override {
         NoteOn(note, velocity, channel);
     }
@@ -94,7 +96,13 @@ private:
     // 読み込んだティンバーを解放する
     void unloadTimbres();
 
+    // I2Sとオーディオループを初期化する（出力先変更時に呼ばれる）
+    void initAudioOutput(AudioOutput output);
+    // オーディオループを停止する
+    void stopAudioLoop();
+
     AudioOutput audioOutput = AudioOutput::headphone;
+    bool isHeadphonePreviously = false;
 
     unsigned long nextAudioLoop = 0;
     uint32_t audioProcessTime = 0; // プロファイリング用 一回のオーディオ処理にかかる時間
