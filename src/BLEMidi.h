@@ -24,7 +24,8 @@
 #define BLE_MIDI_QUEUE_SIZE 64
 
 // フラッシュタスクのスタックサイズとプライオリティ
-#define BLE_MIDI_TASK_STACK_SIZE 2048
+// ボンディング有効時はNimBLEの暗号化処理でスタックを多く消費するため大きめに設定
+#define BLE_MIDI_TASK_STACK_SIZE 4096
 #define BLE_MIDI_TASK_PRIORITY 1
 #define BLE_MIDI_TASK_CORE 0
 

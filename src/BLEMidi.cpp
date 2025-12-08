@@ -16,6 +16,16 @@ void BLEMidi::begin(const std::string& deviceName) {
     // NimBLEデバイス初期化
     NimBLEDevice::init(deviceName);
 
+    // セキュリティ設定（Windowsでボンディングを有効にするために使用）
+    NimBLEDevice::setSecurityAuth(BLE_SM_PAIR_AUTHREQ_BOND);
+    NimBLEDevice::setSecurityIOCap(BLE_HS_IO_NO_INPUT_OUTPUT); // Just Worksペアリング
+    // ボンディング情報の交換キー設定
+    // イニシエータ（Central/PC）とレスポンダ（Peripheral/本デバイス）の両方でキーを交換
+    NimBLEDevice::setSecurityInitKey(BLE_SM_PAIR_KEY_DIST_ENC | BLE_SM_PAIR_KEY_DIST_ID);
+    NimBLEDevice::setSecurityRespKey(BLE_SM_PAIR_KEY_DIST_ENC | BLE_SM_PAIR_KEY_DIST_ID);
+    
+    Serial.printf("BLEMidi: numBonds = %d\n", NimBLEDevice::getNumBonds());
+
     // サーバー作成
     server = NimBLEDevice::createServer();
     server->setCallbacks(this);
