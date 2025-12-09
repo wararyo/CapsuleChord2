@@ -64,6 +64,7 @@ public:
 
 private:
     NimBLEServer* server = nullptr;
+    NimBLEService* service = nullptr;
     NimBLECharacteristic* characteristic = nullptr;
     NimBLEAdvertising* advertising = nullptr;
     bool initialized = false;

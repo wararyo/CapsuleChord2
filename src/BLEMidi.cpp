@@ -13,25 +13,33 @@ void BLEMidi::begin(const std::string& deviceName) {
         messageQueue = xQueueCreate(BLE_MIDI_QUEUE_SIZE, sizeof(MidiMessage));
     }
 
-    // NimBLEデバイス初期化
-    NimBLEDevice::init(deviceName);
+    // NimBLEが既に初期化されているか確認
+    bool nimbleAlreadyInitialized = NimBLEDevice::isInitialized();
 
-    // セキュリティ設定（Windowsでボンディングを有効にするために使用）
-    NimBLEDevice::setSecurityAuth(BLE_SM_PAIR_AUTHREQ_BOND);
-    NimBLEDevice::setSecurityIOCap(BLE_HS_IO_NO_INPUT_OUTPUT); // Just Worksペアリング
-    // ボンディング情報の交換キー設定
-    // イニシエータ（Central/PC）とレスポンダ（Peripheral/本デバイス）の両方でキーを交換
-    NimBLEDevice::setSecurityInitKey(BLE_SM_PAIR_KEY_DIST_ENC | BLE_SM_PAIR_KEY_DIST_ID);
-    NimBLEDevice::setSecurityRespKey(BLE_SM_PAIR_KEY_DIST_ENC | BLE_SM_PAIR_KEY_DIST_ID);
-    
+    if (!nimbleAlreadyInitialized) {
+        // NimBLEデバイス初期化
+        NimBLEDevice::init(deviceName);
+
+        // セキュリティ設定（Windowsでボンディングを有効にするために使用）
+        NimBLEDevice::setSecurityAuth(BLE_SM_PAIR_AUTHREQ_BOND);
+        NimBLEDevice::setSecurityIOCap(BLE_HS_IO_NO_INPUT_OUTPUT); // Just Worksペアリング
+        // ボンディング情報の交換キー設定
+        // イニシエータ（Central/PC）とレスポンダ（Peripheral/本デバイス）の両方でキーを交換
+        NimBLEDevice::setSecurityInitKey(BLE_SM_PAIR_KEY_DIST_ENC | BLE_SM_PAIR_KEY_DIST_ID);
+        NimBLEDevice::setSecurityRespKey(BLE_SM_PAIR_KEY_DIST_ENC | BLE_SM_PAIR_KEY_DIST_ID);
+    }
+
     Serial.printf("BLEMidi: numBonds = %d\n", NimBLEDevice::getNumBonds());
 
-    // サーバー作成
-    server = NimBLEDevice::createServer();
+    // サーバー取得または作成
+    server = NimBLEDevice::getServer();
+    if (server == nullptr) {
+        server = NimBLEDevice::createServer();
+    }
     server->setCallbacks(this);
 
     // MIDIサービス作成
-    NimBLEService* service = server->createService(MIDI_SERVICE_UUID);
+    service = server->createService(MIDI_SERVICE_UUID);
 
     // MIDIキャラクタリスティック作成
     characteristic = service->createCharacteristic(
@@ -72,31 +80,48 @@ void BLEMidi::begin(const std::string& deviceName) {
 void BLEMidi::end() {
     if (!initialized) return;
 
-    // タスク停止
-    taskRunning = false;
-    if (flushTaskHandle != nullptr) {
-        // タスクが終了するのを待つ
-        vTaskDelay(pdMS_TO_TICKS(BLE_MIDI_FLUSH_INTERVAL_MS * 2));
-        flushTaskHandle = nullptr;
-    }
+    Serial.println("BLEMidi: Stopping BLE MIDI...");
 
-    // 残りのメッセージをフラッシュ
-    flush();
+    // タスク停止フラグを設定
+    taskRunning = false;
+
+    // タスクが自己削除するのを待つ（最大100ms）
+    if (flushTaskHandle != nullptr) {
+        Serial.println("BLEMidi: Waiting for flush task to stop...");
+        // タスクが終了するまでポーリングで待機
+        for (int i = 0; i < 10 && eTaskGetState(flushTaskHandle) != eDeleted; i++) {
+            vTaskDelay(pdMS_TO_TICKS(10));
+        }
+        flushTaskHandle = nullptr;
+        Serial.println("BLEMidi: Flush task stopped");
+    }
 
     // アドバタイジング停止
     if (advertising) {
         advertising->stop();
+        Serial.println("BLEMidi: Advertising stopped");
     }
 
-    // NimBLEを停止（メモリは解放しない、再初期化を容易にするため）
-    NimBLEDevice::deinit(false);
+    // サービスを削除（deleteSvc=trueでメモリも解放）
+    if (server && service) {
+        server->removeService(service, true);
+        service = nullptr;
+        characteristic = nullptr;  // サービス削除でキャラクタリスティックも削除される
+        Serial.println("BLEMidi: Service removed");
+    }
 
     initialized = false;
     isConnected = false;
+    advertising = nullptr;
+    server = nullptr;
 
-    // Queueをクリア
+    NimBLEDevice::deinit(false);
+
+    // Queueを削除
     if (messageQueue != nullptr) {
-        xQueueReset(messageQueue);
+        vQueueDelete(messageQueue);
+        messageQueue = nullptr;
+        Serial.println("BLEMidi: Message queue deleted");
     }
 
     Serial.println("BLEMidi: BLE MIDI stopped");
