@@ -366,7 +366,7 @@
         "id": 8,
         "title": "複数出力デバイス（USB/BLE MIDI）のサポート",
         "description": "和音の出力先を内蔵音源、USB MIDI、BLE MIDIから選択できるようにします。既存のBLE MIDI実装を統合し、USB MIDI機能を追加実装します。ホーム画面から出力先を切り替えられるようにUIとシステムを連携させます。",
-        "status": "pending",
+        "status": "done",
         "dependencies": [
           3,
           4
@@ -381,7 +381,7 @@
             "description": "`src/Output/MidiOutput.h`を元に、すべての出力デバイスの共通インターフェースとなる`MidiOutput`抽象クラスを正式に定義します。このインターフェースには、`noteOn`や`noteOff`などの純粋仮想メソッドが含まれます。既存の`OutputInternal`がこのインターフェースに準拠していることを確認します。",
             "dependencies": [],
             "details": "`MidiOutput.h`に`virtual void noteOn(uint8_t note, uint8_t velocity, uint8_t channel) = 0;`のような純粋仮想関数を定義します。`OutputInternal`クラスが`MidiOutput`を継承し、これらのメソッドを実装するように修正します。",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "リファクタリング後も、これまで通り内蔵音源から和音が正しく再生されることを確認します。"
           },
           {
@@ -392,7 +392,7 @@
               1
             ],
             "details": "`OutputUsbMidi`クラス内で`MIDI.sendNoteOn()`と`MIDI.sendNoteOff()`を呼び出す`noteOn`/`noteOff`メソッドを実装します。USBデバイスとして正しく認識されるための設定も行います。",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "テストコードで`OutputUsbMidi`を直接使用し、PCのDAWソフトウェアでMIDIノートが受信できることを確認します。"
           },
           {
@@ -403,7 +403,7 @@
               1
             ],
             "details": "`OutputBleMidi`クラスを作成し、`MidiOutput`を継承させます。`noteOn`や`noteOff`メソッドの実装内で、`src/BLEMidi.h`で定義されている`sendNote()`などのメソッドを呼び出すようにします。BLEの接続状態管理も考慮に入れます。",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "統合後、BLE経由でスマートフォンアプリやPCとペアリングし、MIDIデバイスとして認識され、和音を演奏するとMIDIノートが正しく受信されることをテストします。"
           },
           {
@@ -416,7 +416,7 @@
               3
             ],
             "details": "`Context`クラスに`MidiOutput* currentOutput`メンバー変数を追加します。`setOutputDevice(DeviceType type)`メソッド内で、指定されたタイプに応じて各出力クラスのインスタンスを生成（または選択）し、`currentOutput`に設定します。",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "テスト用のコードで`setOutputDevice`を呼び出し、`getOutputDevice`が期待されるインスタンスを返すことを確認します。"
           },
           {
@@ -427,7 +427,7 @@
               4
             ],
             "details": "`ChordPipeline`の最終処理を行う箇所で、`Context::getInstance().getOutputDevice()->noteOn(note, velocity);` のように、`Context`経由で出力デバイスのメソッドを呼び出すようにコードを修正します。",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "`Context`で出力先をUSB MIDIに設定した状態で和音を演奏し、USB経由でMIDIデータが送信されることを確認します。他の出力先でも同様に動作することを確認します。"
           },
           {
@@ -438,7 +438,7 @@
               4
             ],
             "details": "ホーム画面または設定メニューに、出力先を選択するためのボタンやリストを追加します。LVGLのイベントをハンドリングし、選択に応じて`Context::getInstance().setOutputDevice()`を呼び出します。",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "UIから各出力先（Internal, USB, BLE）を選択し、実際に出力先が切り替わることを確認します。現在の選択状態がUIに正しく反映されることを確認します。"
           }
         ]
@@ -735,6 +735,17 @@
           9
         ],
         "priority": "medium",
+        "subtasks": []
+      },
+      {
+        "id": 21,
+        "title": "3/4拍子と6/8拍子への対応",
+        "description": "現在4/4拍子に固定されているファームウェアを、3/4拍子と6/8拍子にも対応させる",
+        "details": "## 対応スコープ\n\n### 今回対応\n- コアシステム（Tempo、MusicalTime）\n- UI（PlayScreen、TempoDialog）\n- AppMetronome\n\n### 対応外（4/4のまま維持）\n- AppDrumPattern、AppSequencer、AppBass、AppAutoPlay\n\n## 拍子の特性\n\n| 拍子 | 分子 | 分母 | 1拍のtick | 1小節のtick |\n|------|------|------|-----------|-------------|\n| 4/4  | 4    | 4    | 480       | 1920        |\n| 3/4  | 3    | 4    | 480       | 1440        |\n| 6/8  | 6    | 8    | 240       | 1440        |\n\n## 実装ステップ\n\n1. TimeSignature構造体の新規作成（src/Foundation/TimeSignature.h, .cpp）\n2. MusicalTimeの拡張（time_in_bar()にTimeSignature引数追加、デフォルト4/4で後方互換性維持）\n3. TempoControllerの拡張（setTimeSignature/getTimeSignature追加、interval計算を拍子から導出）\n4. PlayScreenの更新（拍子を動的表示）\n5. TempoDialogの拡張（拍子選択ドロップダウン追加）\n6. AppMetronomeの修正（6/8は6拍子感で実装、1拍目のみアクセント）\n\n## 修正対象ファイル\n\n1. src/Foundation/TimeSignature.h (新規)\n2. src/Foundation/TimeSignature.cpp (新規)\n3. src/Foundation/MusicalTime.h\n4. src/Foundation/MusicalTime.cpp\n5. src/Tempo.h\n6. src/Tempo.cpp\n7. src/Widget/PlayScreen.cpp\n8. src/Widget/TempoDialog.h\n9. src/Widget/TempoDialog.cpp\n10. src/App/AppMetronome.h",
+        "testStrategy": "1. 各拍子（4/4, 3/4, 6/8）でテンポ再生し、メトロノームが正しい拍数で動作することを確認\n2. TempoDialogで拍子を切り替えた際にPlayScreenの表示が更新されることを確認\n3. 拍子切り替え後もDrumPattern等の既存アプリが破綻せず動作することを確認",
+        "status": "pending",
+        "dependencies": [],
+        "priority": "low",
         "subtasks": []
       }
     ],
