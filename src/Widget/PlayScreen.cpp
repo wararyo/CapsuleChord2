@@ -104,6 +104,9 @@ void PlayScreen::create()
     Pipeline.addChordFilter(&chordFilter);
     Tempo.addListener(&tempoCallback);
 
+    // 出力先ラベルの初期表示を設定
+    needsOutputUpdate = true;
+
     isCreated = true;
 }
 
