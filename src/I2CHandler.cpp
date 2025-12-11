@@ -1,6 +1,14 @@
 #include "I2CHandler.h"
 #include "Keypad.h"
 #include <M5Unified.h>
+#include <esp_timer.h>
+
+static const char* TAG_I2C = "I2CHandler";
+
+// ESP-IDF millis replacement
+static inline unsigned long esp_millis() {
+    return (unsigned long)(esp_timer_get_time() / 1000ULL);
+}
 
 void I2CHandler::begin() {
     // ミューテックスを作成
@@ -85,7 +93,7 @@ void I2CHandler::i2cLoop() {
     const unsigned long keypadInterval = 15;
     
     while (true) {
-        unsigned long startTime = millis();
+        unsigned long startTime = esp_millis();
 
         // M5の状態を更新（バッテリー、IMUなど）
         M5.update();
@@ -99,7 +107,7 @@ void I2CHandler::i2cLoop() {
         // タッチデータを更新
         updateTouchData();
 
-        unsigned long endTime = millis();
+        unsigned long endTime = esp_millis();
         unsigned long elapsedTime = endTime - startTime;
 
         // デバッグ用：処理時間が長い場合は警告（最初の数回は除く）
@@ -139,7 +147,7 @@ void I2CHandler::updateTouchData() {
     } else {
         // ミューテックスの取得に失敗した場合のログ（頻繁すぎないよう制限）
         static unsigned long lastWarning = 0;
-        unsigned long now = millis();
+        unsigned long now = esp_millis();
         if (now - lastWarning > 1000) { // 1秒に1回まで
             Serial.println("Warning: Failed to acquire touch data mutex in I2C thread");
             lastWarning = now;

@@ -1,6 +1,32 @@
 #include "OutputInternal.h"
 #include "TimbreLoader.h"
-#include <LittleFS.h>
+#include <driver/gpio.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
+#include <esp_task_wdt.h>
+
+// ESP-IDF GPIO helpers
+static inline void esp_pinMode(gpio_num_t pin, gpio_mode_t mode) {
+    gpio_config_t io_conf = {};
+    io_conf.pin_bit_mask = (1ULL << pin);
+    io_conf.mode = mode;
+    io_conf.pull_up_en = (mode == GPIO_MODE_INPUT) ? GPIO_PULLUP_ENABLE : GPIO_PULLUP_DISABLE;
+    io_conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
+    io_conf.intr_type = GPIO_INTR_DISABLE;
+    gpio_config(&io_conf);
+}
+
+static inline void esp_digitalWrite(gpio_num_t pin, int level) {
+    gpio_set_level(pin, level);
+}
+
+static inline int esp_digitalRead(gpio_num_t pin) {
+    return gpio_get_level(pin);
+}
+
+static inline void esp_delay(uint32_t ms) {
+    vTaskDelay(pdMS_TO_TICKS(ms));
+}
 
 void OutputInternal::NoteOn(uint8_t noteNo, uint8_t velocity, uint8_t channel)
 {
@@ -104,7 +130,8 @@ void OutputInternal::stopAudioLoop()
         vTaskDelete(audioLoopHandler);
         audioLoopHandler = nullptr;
     }
-    enableCore0WDT();
+    // WDTを再有効化（audioLoopタスク終了後）
+    esp_task_wdt_add(xTaskGetIdleTaskHandleForCPU(0));
 }
 
 void OutputInternal::initAudioOutput(AudioOutput output)
@@ -159,8 +186,8 @@ void OutputInternal::initAudioOutput(AudioOutput output)
     else Serial.printf("i2s ng");
 
     if (output == AudioOutput::headphone) {
-        pinMode(PIN_EN_HP, OUTPUT);
-        digitalWrite(PIN_EN_HP, 1);
+        esp_pinMode(PIN_EN_HP, GPIO_MODE_OUTPUT);
+        esp_digitalWrite(PIN_EN_HP, 1);
     } else {
         M5.In_I2C.bitOn(aw88298_i2c_addr, 0x02, 0b00000100, 400000);
         /// サンプリングレートに応じてAW88298のレジスタの設定値を変える;
@@ -178,12 +205,12 @@ void OutputInternal::initAudioOutput(AudioOutput output)
         // aw88298_write_reg(0x0C, 0x1064); // volume setting (-6db)
         aw88298_write_reg(0x0C, 0x1664); // volume setting (-9db)
         // aw88298_write_reg(0x0C, 0x2064); // volume setting (-12db)
-        pinMode(PIN_EN_HP, OUTPUT);
-        digitalWrite(PIN_EN_HP, 0);
+        esp_pinMode(PIN_EN_HP, GPIO_MODE_OUTPUT);
+        esp_digitalWrite(PIN_EN_HP, 0);
     }
 
     i2s_zero_dma_buffer(output == AudioOutput::headphone ? I2S_NUM_HP : I2S_NUM_SPK);
-    delay(100);
+    esp_delay(100);
 
     // Core0でタスク起動
     xTaskCreatePinnedToCore(
@@ -194,14 +221,14 @@ void OutputInternal::initAudioOutput(AudioOutput output)
         1,
         &audioLoopHandler,
         0);
-    // ウォッチドッグ停止
-    disableCore0WDT();
+    // ウォッチドッグからCore0アイドルタスクを除外（オーディオ処理を妨げないため）
+    esp_task_wdt_delete(xTaskGetIdleTaskHandleForCPU(0));
 }
 
 void OutputInternal::begin()
 {
     // イヤホン端子スイッチのピン設定
-    pinMode(PIN_HP_DETECT, INPUT_PULLUP);
+    esp_pinMode(PIN_HP_DETECT, GPIO_MODE_INPUT);
 
     // LittleFSからティンバーを読み込む
     if (!loadTimbres()) {
@@ -219,7 +246,7 @@ void OutputInternal::begin()
     sampler->masterVolume = masterVolume;
 
     // 現在のヘッドフォン接続状態を取得してI2S初期化
-    isHeadphonePreviously = digitalRead(PIN_HP_DETECT);
+    isHeadphonePreviously = esp_digitalRead(PIN_HP_DETECT);
     initAudioOutput(isHeadphonePreviously ? AudioOutput::headphone : AudioOutput::speaker);
 }
 
@@ -235,7 +262,7 @@ void OutputInternal::end()
 void OutputInternal::update()
 {
     // ヘッドフォン抜き差しを検出
-    bool isHeadphone = digitalRead(PIN_HP_DETECT);
+    bool isHeadphone = esp_digitalRead(PIN_HP_DETECT);
     if (isHeadphonePreviously != isHeadphone) {
         initAudioOutput(isHeadphone ? AudioOutput::headphone : AudioOutput::speaker);
         isHeadphonePreviously = isHeadphone;

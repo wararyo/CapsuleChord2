@@ -1,4 +1,10 @@
 #include "AppSoundTest.h"
+#include <esp_timer.h>
+
+// ESP-IDF millis replacement
+static inline uint32_t esp_millis() {
+    return (uint32_t)(esp_timer_get_time() / 1000ULL);
+}
 
 void AppSoundTest::onCreate()
 {
@@ -47,12 +53,12 @@ void AppSoundTest::onDestroy()
 void AppSoundTest::playerLoop()
 {
     TickType_t delayTime = pdMS_TO_TICKS(1);
-    uint32_t startTime = millis();
+    uint32_t startTime = esp_millis();
     const MidiMessage *nextMessage = song; // 次に処理するべきMIDIメッセージ
     uint32_t nextGoal = nextMessage->time;
     bool hasReachedEndOfSong = false;  // 多重ループを抜けるために使用
     while (true) {
-        uint32_t time = millis() - startTime;
+        uint32_t time = esp_millis() - startTime;
         while (time >= nextGoal) {
             if ((nextMessage->status & 0xF0) == 0x90)
             {
