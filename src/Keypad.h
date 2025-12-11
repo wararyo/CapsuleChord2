@@ -1,7 +1,6 @@
 #ifndef _KEYPAD_H_
 #define _KEYPAD_H_
 
-#include <Wire.h>
 #undef min
 #include <map>
 #include <vector>

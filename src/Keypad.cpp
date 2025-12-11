@@ -10,9 +10,14 @@ void CapsuleChordKeypad::begin() {
     M5.Ex_I2C.begin(EXT_I2C_PORT, PORTA_SDA, PORTA_SCL);
     // キーパッド側のイベントキューをクリア
     while (true) {
-        Wire.requestFrom(KEYPAD_I2C_ADDR,1);
-        if (!Wire.available()) break;
-        if (Wire.read() == 0) break;
+        uint8_t data = 0;
+        if (!M5.Ex_I2C.start(KEYPAD_I2C_ADDR, true, 400000)) break;  // read mode
+        if (!M5.Ex_I2C.read(&data, 1)) {
+            M5.Ex_I2C.stop();
+            break;
+        }
+        M5.Ex_I2C.stop();
+        if (data == 0) break;
     }
 
     // LEDベースレイヤーを登録
@@ -22,39 +27,44 @@ void CapsuleChordKeypad::begin() {
 }
 
 void CapsuleChordKeypad::update() {
-    Wire.beginTransmission(KEYPAD_I2C_ADDR);
-    Wire.write(CMD_GET_KEY_EVENT);
-    Wire.endTransmission();
+    // Send command to get key event
+    uint8_t cmd = CMD_GET_KEY_EVENT;
+    if (M5.Ex_I2C.start(KEYPAD_I2C_ADDR, false, 400000)) {  // write mode
+        M5.Ex_I2C.write(&cmd, 1);
+        M5.Ex_I2C.stop();
+    }
 
-    Wire.requestFrom(KEYPAD_I2C_ADDR,1);//TODO:4とか試してみる
-    while (Wire.available()) {
-        int val = Wire.read();
-        if(val != 0) {
-            // KeyEventオブジェクトを作成
-            KeyEvent event(static_cast<char>(val));
-            
-            // Update keys
-            int keyCode = event.getKeyCode();
-            if (keys.find(keyCode) != keys.end())
-            {
-                if(event.isPressed()) keys[keyCode].press();
-                else keys[keyCode].release();
-            }
-            else
-            {
-                keys[keyCode] = Key();
-                if(event.isPressed()) keys[keyCode].press();
-                else keys[keyCode].release();
-            }
-            
-            // Process the event through listener stack
-            if (processKeyEvent(event)) {
-                // Event was consumed by a listener
-                continue;
+    // Read key event data
+    uint8_t val = 0;
+    if (M5.Ex_I2C.start(KEYPAD_I2C_ADDR, true, 400000)) {  // read mode
+        if (M5.Ex_I2C.read(&val, 1)) {
+            if (val != 0) {
+                // KeyEventオブジェクトを作成
+                KeyEvent event(static_cast<char>(val));
+
+                // Update keys
+                int keyCode = event.getKeyCode();
+                if (keys.find(keyCode) != keys.end())
+                {
+                    if(event.isPressed()) keys[keyCode].press();
+                    else keys[keyCode].release();
+                }
+                else
+                {
+                    keys[keyCode] = Key();
+                    if(event.isPressed()) keys[keyCode].press();
+                    else keys[keyCode].release();
+                }
+
+                // Process the event through listener stack
+                if (processKeyEvent(event)) {
+                    // Event was consumed by a listener
+                }
             }
         }
+        M5.Ex_I2C.stop();
     }
-    
+
     // Update LEDs if needed
     if (_needsLedUpdate) {
         updateLeds();
@@ -93,13 +103,13 @@ void CapsuleChordKeypad::setLedBrightness(uint8_t keyCode, uint8_t brightness) {
     if (brightness > LED_OFF) {
         brightness = LED_OFF;
     }
-    
-    // Send command through I2C
-    Wire.beginTransmission(KEYPAD_I2C_ADDR);
-    Wire.write(CMD_SET_LED);    // LED command
-    Wire.write(keyCode);        // Key code
-    Wire.write(brightness);     // Brightness level
-    Wire.endTransmission();
+
+    // Send command through I2C using M5Unified
+    uint8_t data[3] = {CMD_SET_LED, keyCode, brightness};
+    if (M5.Ex_I2C.start(KEYPAD_I2C_ADDR, false, 400000)) {  // write mode
+        M5.Ex_I2C.write(data, 3);
+        M5.Ex_I2C.stop();
+    }
 }
 
 void CapsuleChordKeypad::addKeyEventListener(std::shared_ptr<KeyEventListener> listener) {
