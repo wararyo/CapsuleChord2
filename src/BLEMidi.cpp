@@ -1,9 +1,43 @@
 #include "BLEMidi.h"
 #include <Arduino.h>
+#include "nvs_flash.h"
 
 BLEMidi Midi;
 
-void BLEMidi::begin(const std::string& deviceName) {
+// MIDI Service UUID: 03b80e5a-ede8-4b33-a751-6ce34ec4c700
+static const ble_uuid128_t midiServiceUuid = BLE_UUID128_INIT(
+    0x00, 0xc7, 0xc4, 0x4e, 0xe3, 0x6c, 0x51, 0xa7,
+    0x33, 0x4b, 0xe8, 0xed, 0x5a, 0x0e, 0xb8, 0x03
+);
+
+// MIDI Characteristic UUID: 7772e5db-3868-4112-a1a9-f2669d106bf3
+static const ble_uuid128_t midiCharUuid = BLE_UUID128_INIT(
+    0xf3, 0x6b, 0x10, 0x9d, 0x66, 0xf2, 0xa9, 0xa1,
+    0x12, 0x41, 0x68, 0x38, 0xdb, 0xe5, 0x72, 0x77
+);
+
+// Global pointer for static callbacks
+static BLEMidi* gBLEMidiInstance = nullptr;
+
+// GATT service definition
+static const struct ble_gatt_svc_def gattServices[] = {
+    {
+        .type = BLE_GATT_SVC_TYPE_PRIMARY,
+        .uuid = &midiServiceUuid.u,
+        .characteristics = (struct ble_gatt_chr_def[]) {
+            {
+                .uuid = &midiCharUuid.u,
+                .access_cb = BLEMidi::gattAccessCallback,
+                .flags = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_WRITE_NO_RSP | BLE_GATT_CHR_F_NOTIFY,
+                .val_handle = nullptr,  // Will be set during registration
+            },
+            { 0 }  // End of characteristics
+        },
+    },
+    { 0 }  // End of services
+};
+
+void BLEMidi::begin(const std::string& name) {
     // Mutex作成（初回のみ）
     if (lifecycleMutex == nullptr) {
         lifecycleMutex = xSemaphoreCreateMutex();
@@ -18,57 +52,68 @@ void BLEMidi::begin(const std::string& deviceName) {
 
     Serial.println("BLEMidi: Initializing NimBLE...");
 
+    deviceName = name;
+    gBLEMidiInstance = this;
+
     // Queue作成
     if (messageQueue == nullptr) {
         messageQueue = xQueueCreate(BLE_MIDI_QUEUE_SIZE, sizeof(MidiMessage));
     }
 
-    // NimBLEが既に初期化されているか確認
-    bool nimbleAlreadyInitialized = NimBLEDevice::isInitialized();
-
-    if (!nimbleAlreadyInitialized) {
-        // NimBLEデバイス初期化
-        NimBLEDevice::init(deviceName);
-
-        // セキュリティ設定（Windowsでボンディングを有効にするために使用）
-        NimBLEDevice::setSecurityAuth(BLE_SM_PAIR_AUTHREQ_BOND);
-        NimBLEDevice::setSecurityIOCap(BLE_HS_IO_NO_INPUT_OUTPUT); // Just Worksペアリング
-        // ボンディング情報の交換キー設定
-        // イニシエータ（Central/PC）とレスポンダ（Peripheral/本デバイス）の両方でキーを交換
-        NimBLEDevice::setSecurityInitKey(BLE_SM_PAIR_KEY_DIST_ENC | BLE_SM_PAIR_KEY_DIST_ID);
-        NimBLEDevice::setSecurityRespKey(BLE_SM_PAIR_KEY_DIST_ENC | BLE_SM_PAIR_KEY_DIST_ID);
+    // Initialize NVS (required for NimBLE bonding)
+    esp_err_t ret = nvs_flash_init();
+    if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
+        ESP_ERROR_CHECK(nvs_flash_erase());
+        ret = nvs_flash_init();
     }
+    ESP_ERROR_CHECK(ret);
 
+    // Initialize NimBLE
+    ret = nimble_port_init();
+    if (ret != ESP_OK) {
     Serial.printf("BLEMidi: numBonds = %d\n", NimBLEDevice::getNumBonds());
-
-    // サーバー取得または作成
-    server = NimBLEDevice::getServer();
-    if (server == nullptr) {
-        server = NimBLEDevice::createServer();
+        xSemaphoreGive(lifecycleMutex);
+        return;
     }
-    server->setCallbacks(this);
 
-    // MIDIサービス作成
-    service = server->createService(MIDI_SERVICE_UUID);
+    // Configure the host
+    ble_hs_cfg.reset_cb = onReset;
+    ble_hs_cfg.sync_cb = onSync;
+    ble_hs_cfg.gatts_register_cb = nullptr;
+    ble_hs_cfg.store_status_cb = ble_store_util_status_rr;
 
-    // MIDIキャラクタリスティック作成
-    characteristic = service->createCharacteristic(
-        MIDI_CHARACTERISTIC_UUID,
-        NIMBLE_PROPERTY::READ |
-        NIMBLE_PROPERTY::WRITE_NR |
-        NIMBLE_PROPERTY::NOTIFY
-    );
+    // Security settings for bonding
+    ble_hs_cfg.sm_io_cap = BLE_SM_IO_CAP_NO_IO;
+    ble_hs_cfg.sm_bonding = 1;
+    ble_hs_cfg.sm_mitm = 0;
+    ble_hs_cfg.sm_sc = 1;
+    ble_hs_cfg.sm_our_key_dist = BLE_SM_PAIR_KEY_DIST_ENC | BLE_SM_PAIR_KEY_DIST_ID;
+    ble_hs_cfg.sm_their_key_dist = BLE_SM_PAIR_KEY_DIST_ENC | BLE_SM_PAIR_KEY_DIST_ID;
 
-    // サービス開始
-    service->start();
+    // Initialize GAP and GATT services
+    ble_svc_gap_init();
+    ble_svc_gatt_init();
 
-    // アドバタイジング設定
-    advertising = NimBLEDevice::getAdvertising();
-    advertising->addServiceUUID(MIDI_SERVICE_UUID);
-    advertising->setName(deviceName);
+    // Register custom GATT services
+    int rc = ble_gatts_count_cfg(gattServices);
+    if (rc != 0) {
+        xSemaphoreGive(lifecycleMutex);
+        return;
+    }
 
-    // アドバタイジング開始
-    advertising->start();
+    rc = ble_gatts_add_svcs(gattServices);
+    if (rc != 0) {
+        xSemaphoreGive(lifecycleMutex);
+        return;
+    }
+
+    // Set device name
+    rc = ble_svc_gap_device_name_set(deviceName.c_str());
+    if (rc != 0) {
+    }
+
+    // Start NimBLE host task
+    nimble_port_freertos_init(nimbleHostTask);
 
     initialized = true;
 
@@ -111,7 +156,6 @@ void BLEMidi::end() {
         for (int i = 0; i < 20 && eTaskGetState(flushTaskHandle) != eDeleted; i++) {
             vTaskDelay(pdMS_TO_TICKS(10));
         }
-        // タスクが終了しなかった場合は強制終了
         if (eTaskGetState(flushTaskHandle) != eDeleted) {
             Serial.println("BLEMidi: WARNING - Flush task did not stop gracefully, forcing delete");
             vTaskDelete(flushTaskHandle);
@@ -120,26 +164,21 @@ void BLEMidi::end() {
         Serial.println("BLEMidi: Flush task stopped");
     }
 
-    // アドバタイジング停止
-    if (advertising) {
-        advertising->stop();
-        Serial.println("BLEMidi: Advertising stopped");
+    // Stop advertising if connected
+    if (connHandle != BLE_HS_CONN_HANDLE_NONE) {
+        ble_gap_terminate(connHandle, BLE_ERR_REM_USER_CONN_TERM);
     }
 
-    // サービスを削除（deleteSvc=trueでメモリも解放）
-    if (server && service) {
-        server->removeService(service, true);
-        service = nullptr;
-        characteristic = nullptr;  // サービス削除でキャラクタリスティックも削除される
-        Serial.println("BLEMidi: Service removed");
+    // Deinitialize NimBLE
+    int ret = nimble_port_stop();
+    if (ret == 0) {
+        nimble_port_deinit();
     }
 
     initialized = false;
     isConnected = false;
-    advertising = nullptr;
-    server = nullptr;
-
-    NimBLEDevice::deinit(false);
+    connHandle = BLE_HS_CONN_HANDLE_NONE;
+    gBLEMidiInstance = nullptr;
 
     // Queueを削除
     if (messageQueue != nullptr) {
@@ -153,43 +192,145 @@ void BLEMidi::end() {
     Serial.println("BLEMidi: BLE MIDI stopped");
 }
 
-void BLEMidi::onConnect(NimBLEServer* pServer, NimBLEConnInfo& connInfo) {
-    isConnected = true;
-    Serial.printf("BLEMidi: Client connected, address: %s\n",
-                  connInfo.getAddress().toString().c_str());
+void BLEMidi::nimbleHostTask(void* param) {
+    nimble_port_run();
+    nimble_port_freertos_deinit();
+}
 
-    if (onConnectCallback) {
-        onConnectCallback();
+void BLEMidi::onSync() {
+
+    // Make sure we have proper identity address set
+    int rc = ble_hs_util_ensure_addr(0);
+    if (rc != 0) {
+        return;
+    }
+
+    // Start advertising
+    if (gBLEMidiInstance) {
+        gBLEMidiInstance->startAdvertising();
     }
 }
 
-void BLEMidi::onDisconnect(NimBLEServer* pServer, NimBLEConnInfo& connInfo, int reason) {
-    isConnected = false;
-    Serial.printf("BLEMidi: Client disconnected, reason: %d\n", reason);
-
-    // Queueをクリア
-    if (messageQueue != nullptr) {
-        xQueueReset(messageQueue);
-    }
-
-    if (onDisconnectCallback) {
-        onDisconnectCallback();
-    }
-
-    // 再アドバタイジング
-    if (advertising) {
-        advertising->start();
-        Serial.println("BLEMidi: Restarted advertising");
-    }
+void BLEMidi::onReset(int reason) {
 }
 
-void BLEMidi::onWrite(NimBLECharacteristic* pCharacteristic, NimBLEConnInfo& connInfo) {
-    // MIDI入力を受信した場合
-    Serial.println("BLEMidi: Received MIDI data");
+void BLEMidi::startAdvertising() {
+    struct ble_gap_adv_params advParams;
+    struct ble_hs_adv_fields fields;
+    int rc;
+
+    memset(&fields, 0, sizeof(fields));
+
+    // Advertise flags
+    fields.flags = BLE_HS_ADV_F_DISC_GEN | BLE_HS_ADV_F_BREDR_UNSUP;
+
+    // Include complete 128-bit service UUID
+    fields.uuids128 = &midiServiceUuid;
+    fields.num_uuids128 = 1;
+    fields.uuids128_is_complete = 1;
+
+    // Device name
+    fields.name = (uint8_t*)deviceName.c_str();
+    fields.name_len = deviceName.length();
+    fields.name_is_complete = 1;
+
+    rc = ble_gap_adv_set_fields(&fields);
+    if (rc != 0) {
+        return;
+    }
+
+    // Set advertising parameters
+    memset(&advParams, 0, sizeof(advParams));
+    advParams.conn_mode = BLE_GAP_CONN_MODE_UND;
+    advParams.disc_mode = BLE_GAP_DISC_MODE_GEN;
+    advParams.itvl_min = 0x20;  // 20ms
+    advParams.itvl_max = 0x40;  // 40ms
+
+    rc = ble_gap_adv_start(BLE_OWN_ADDR_PUBLIC, NULL, BLE_HS_FOREVER,
+                           &advParams, gapEventHandler, this);
+    if (rc != 0) {
+        return;
+    }
+
+}
+
+int BLEMidi::gapEventHandler(struct ble_gap_event *event, void *arg) {
+    BLEMidi* self = static_cast<BLEMidi*>(arg);
+    if (!self) self = gBLEMidiInstance;
+    if (!self) return 0;
+
+    switch (event->type) {
+        case BLE_GAP_EVENT_CONNECT:
+            if (event->connect.status == 0) {
+                self->connHandle = event->connect.conn_handle;
+                self->isConnected = true;
+
+                if (self->onConnectCallback) {
+                    self->onConnectCallback();
+                }
+            } else {
+                self->startAdvertising();
+            }
+            break;
+
+        case BLE_GAP_EVENT_DISCONNECT:
+            self->connHandle = BLE_HS_CONN_HANDLE_NONE;
+            self->isConnected = false;
+
+            // Clear queue
+            if (self->messageQueue != nullptr) {
+                xQueueReset(self->messageQueue);
+            }
+
+            if (self->onDisconnectCallback) {
+                self->onDisconnectCallback();
+            }
+
+            // Restart advertising
+            self->startAdvertising();
+            break;
+
+        case BLE_GAP_EVENT_ADV_COMPLETE:
+            break;
+
+        case BLE_GAP_EVENT_SUBSCRIBE:
+            // Store the attribute handle for notifications
+            if (event->subscribe.cur_notify) {
+                self->midiCharAttrHandle = event->subscribe.attr_handle;
+            }
+            break;
+
+        case BLE_GAP_EVENT_MTU:
+            break;
+
+        case BLE_GAP_EVENT_ENC_CHANGE:
+            break;
+
+        default:
+            break;
+    }
+
+    return 0;
+}
+
+int BLEMidi::gattAccessCallback(uint16_t conn_handle, uint16_t attr_handle,
+                                struct ble_gatt_access_ctxt *ctxt, void *arg) {
+    switch (ctxt->op) {
+        case BLE_GATT_ACCESS_OP_READ_CHR:
+            break;
+
+        case BLE_GATT_ACCESS_OP_WRITE_CHR:
+            break;
+
+        default:
+            break;
+    }
+
+    return 0;
 }
 
 void BLEMidi::sendPacket(std::vector<MidiMessage>& messages) {
-    if (!isConnected || !characteristic || messages.empty()) return;
+    if (!isConnected || messages.empty() || connHandle == BLE_HS_CONN_HANDLE_NONE) return;
 
     // パケット構築: [header, (timestamp, status, data1, data2), ...]
     std::vector<uint8_t> packet;
@@ -202,8 +343,13 @@ void BLEMidi::sendPacket(std::vector<MidiMessage>& messages) {
         packet.push_back(msg.data2);
     }
 
-    characteristic->setValue(packet.data(), packet.size());
-    characteristic->notify();
+    // Send notification
+    struct os_mbuf *om = ble_hs_mbuf_from_flat(packet.data(), packet.size());
+    if (om) {
+        int rc = ble_gatts_notify_custom(connHandle, midiCharAttrHandle, om);
+        if (rc != 0) {
+        }
+    }
 }
 
 void BLEMidi::addMidiMessage(uint8_t status, uint8_t data1, uint8_t data2) {
@@ -254,7 +400,7 @@ void BLEMidi::flush() {
     }
 }
 
-// フラッシュタスク（Core1で実行）
+// フラッシュタスク（Core0で実行）
 void BLEMidi::flushTask(void* param) {
     BLEMidi* self = static_cast<BLEMidi*>(param);
     TickType_t lastWakeTime = xTaskGetTickCount();
