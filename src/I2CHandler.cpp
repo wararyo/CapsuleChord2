@@ -1,9 +1,10 @@
 #include "I2CHandler.h"
 #include "Keypad.h"
 #include <M5Unified.h>
+#include <esp_log.h>
 #include <esp_timer.h>
 
-static const char* TAG_I2C = "I2CHandler";
+static const char* LOG_TAG = "I2CHandler";
 
 // ESP-IDF millis replacement
 static inline unsigned long esp_millis() {
@@ -14,7 +15,7 @@ void I2CHandler::begin() {
     // ミューテックスを作成
     touchDataMutex = xSemaphoreCreateMutex();
     if (touchDataMutex == nullptr) {
-        Serial.println("Failed to create touch data mutex");
+        ESP_LOGE(LOG_TAG, "Failed to create touch data mutex");
         return;
     }
 
@@ -32,7 +33,7 @@ void I2CHandler::begin() {
         1   // Core1で実行
     );
 
-    Serial.println("I2C Handler started on Core1");
+    ESP_LOGI(LOG_TAG, "I2C Handler started on Core1");
 }
 
 void I2CHandler::terminate() {
@@ -48,7 +49,7 @@ void I2CHandler::terminate() {
         touchDataMutex = nullptr;
     }
 
-    Serial.println("I2C Handler terminated");
+    ESP_LOGI(LOG_TAG, "I2C Handler terminated");
 }
 
 bool I2CHandler::getTouchData(TouchData* touchData) {
@@ -86,12 +87,12 @@ void I2CHandler::i2cTaskLoop(void* parameter) {
 
 void I2CHandler::i2cLoop() {
     const TickType_t xDelay = pdMS_TO_TICKS(5);
-    
-    Serial.println("I2C thread loop started");
-    
+
+    ESP_LOGI(LOG_TAG, "I2C thread loop started");
+
     static unsigned long lastKeypadUpdate = 0;
     const unsigned long keypadInterval = 15;
-    
+
     while (true) {
         unsigned long startTime = esp_millis();
 
@@ -114,7 +115,7 @@ void I2CHandler::i2cLoop() {
         static int loopCount = 0;
         loopCount++;
         if (elapsedTime > 10 && loopCount > 10) {
-            Serial.printf("I2C loop took %lu ms (warning threshold: 10ms)\n", elapsedTime);
+            ESP_LOGW(LOG_TAG, "I2C loop took %lu ms (warning threshold: 10ms)", elapsedTime);
         }
 
         if (M5.BtnPWR.wasHold()) {
@@ -149,7 +150,7 @@ void I2CHandler::updateTouchData() {
         static unsigned long lastWarning = 0;
         unsigned long now = esp_millis();
         if (now - lastWarning > 1000) { // 1秒に1回まで
-            Serial.println("Warning: Failed to acquire touch data mutex in I2C thread");
+            ESP_LOGW(LOG_TAG, "Failed to acquire touch data mutex in I2C thread");
             lastWarning = now;
         }
     }

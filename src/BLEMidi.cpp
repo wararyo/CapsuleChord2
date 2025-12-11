@@ -1,6 +1,8 @@
 #include "BLEMidi.h"
-#include <Arduino.h>
+#include "esp_log.h"
 #include "nvs_flash.h"
+
+static const char* LOG_TAG = "BLEMidi";
 
 BLEMidi Midi;
 
@@ -50,7 +52,7 @@ void BLEMidi::begin(const std::string& name) {
         return;
     }
 
-    Serial.println("BLEMidi: Initializing NimBLE...");
+    ESP_LOGI(LOG_TAG, "Initializing NimBLE...");
 
     deviceName = name;
     gBLEMidiInstance = this;
@@ -71,7 +73,7 @@ void BLEMidi::begin(const std::string& name) {
     // Initialize NimBLE
     ret = nimble_port_init();
     if (ret != ESP_OK) {
-    Serial.printf("BLEMidi: numBonds = %d\n", NimBLEDevice::getNumBonds());
+        ESP_LOGE(LOG_TAG, "Failed to init nimble port: %d", ret);
         xSemaphoreGive(lifecycleMutex);
         return;
     }
@@ -97,12 +99,14 @@ void BLEMidi::begin(const std::string& name) {
     // Register custom GATT services
     int rc = ble_gatts_count_cfg(gattServices);
     if (rc != 0) {
+        ESP_LOGE(LOG_TAG, "Failed to count GATT services: %d", rc);
         xSemaphoreGive(lifecycleMutex);
         return;
     }
 
     rc = ble_gatts_add_svcs(gattServices);
     if (rc != 0) {
+        ESP_LOGE(LOG_TAG, "Failed to add GATT services: %d", rc);
         xSemaphoreGive(lifecycleMutex);
         return;
     }
@@ -110,6 +114,7 @@ void BLEMidi::begin(const std::string& name) {
     // Set device name
     rc = ble_svc_gap_device_name_set(deviceName.c_str());
     if (rc != 0) {
+        ESP_LOGE(LOG_TAG, "Failed to set device name: %d", rc);
     }
 
     // Start NimBLE host task
@@ -131,7 +136,7 @@ void BLEMidi::begin(const std::string& name) {
 
     xSemaphoreGive(lifecycleMutex);
 
-    Serial.println("BLEMidi: BLE MIDI Server started, advertising...");
+    ESP_LOGI(LOG_TAG, "BLE MIDI Server started");
 }
 
 void BLEMidi::end() {
@@ -144,24 +149,23 @@ void BLEMidi::end() {
         return;
     }
 
-    Serial.println("BLEMidi: Stopping BLE MIDI...");
+    ESP_LOGI(LOG_TAG, "Stopping BLE MIDI...");
 
     // タスク停止フラグを設定
     taskRunning = false;
 
     // タスクが自己削除するのを待つ（最大200ms）
     if (flushTaskHandle != nullptr) {
-        Serial.println("BLEMidi: Waiting for flush task to stop...");
-        // タスクが終了するまでポーリングで待機
+        ESP_LOGI(LOG_TAG, "Waiting for flush task to stop...");
         for (int i = 0; i < 20 && eTaskGetState(flushTaskHandle) != eDeleted; i++) {
             vTaskDelay(pdMS_TO_TICKS(10));
         }
         if (eTaskGetState(flushTaskHandle) != eDeleted) {
-            Serial.println("BLEMidi: WARNING - Flush task did not stop gracefully, forcing delete");
+            ESP_LOGW(LOG_TAG, "Flush task did not stop gracefully, forcing delete");
             vTaskDelete(flushTaskHandle);
         }
         flushTaskHandle = nullptr;
-        Serial.println("BLEMidi: Flush task stopped");
+        ESP_LOGI(LOG_TAG, "Flush task stopped");
     }
 
     // Stop advertising if connected
@@ -184,24 +188,27 @@ void BLEMidi::end() {
     if (messageQueue != nullptr) {
         vQueueDelete(messageQueue);
         messageQueue = nullptr;
-        Serial.println("BLEMidi: Message queue deleted");
+        ESP_LOGI(LOG_TAG, "Message queue deleted");
     }
 
     xSemaphoreGive(lifecycleMutex);
 
-    Serial.println("BLEMidi: BLE MIDI stopped");
+    ESP_LOGI(LOG_TAG, "BLE MIDI stopped");
 }
 
 void BLEMidi::nimbleHostTask(void* param) {
+    ESP_LOGI(LOG_TAG, "NimBLE host task started");
     nimble_port_run();
     nimble_port_freertos_deinit();
 }
 
 void BLEMidi::onSync() {
+    ESP_LOGI(LOG_TAG, "NimBLE host synced");
 
     // Make sure we have proper identity address set
     int rc = ble_hs_util_ensure_addr(0);
     if (rc != 0) {
+        ESP_LOGE(LOG_TAG, "Failed to ensure address: %d", rc);
         return;
     }
 
@@ -212,6 +219,7 @@ void BLEMidi::onSync() {
 }
 
 void BLEMidi::onReset(int reason) {
+    ESP_LOGW(LOG_TAG, "NimBLE host reset, reason: %d", reason);
 }
 
 void BLEMidi::startAdvertising() {
@@ -236,6 +244,7 @@ void BLEMidi::startAdvertising() {
 
     rc = ble_gap_adv_set_fields(&fields);
     if (rc != 0) {
+        ESP_LOGE(LOG_TAG, "Failed to set adv fields: %d", rc);
         return;
     }
 
@@ -249,9 +258,11 @@ void BLEMidi::startAdvertising() {
     rc = ble_gap_adv_start(BLE_OWN_ADDR_PUBLIC, NULL, BLE_HS_FOREVER,
                            &advParams, gapEventHandler, this);
     if (rc != 0) {
+        ESP_LOGE(LOG_TAG, "Failed to start advertising: %d", rc);
         return;
     }
 
+    ESP_LOGI(LOG_TAG, "Advertising started");
 }
 
 int BLEMidi::gapEventHandler(struct ble_gap_event *event, void *arg) {
@@ -262,6 +273,7 @@ int BLEMidi::gapEventHandler(struct ble_gap_event *event, void *arg) {
     switch (event->type) {
         case BLE_GAP_EVENT_CONNECT:
             if (event->connect.status == 0) {
+                ESP_LOGI(LOG_TAG, "Client connected, conn_handle=%d", event->connect.conn_handle);
                 self->connHandle = event->connect.conn_handle;
                 self->isConnected = true;
 
@@ -269,11 +281,13 @@ int BLEMidi::gapEventHandler(struct ble_gap_event *event, void *arg) {
                     self->onConnectCallback();
                 }
             } else {
+                ESP_LOGW(LOG_TAG, "Connection failed, status=%d", event->connect.status);
                 self->startAdvertising();
             }
             break;
 
         case BLE_GAP_EVENT_DISCONNECT:
+            ESP_LOGI(LOG_TAG, "Client disconnected, reason=%d", event->disconnect.reason);
             self->connHandle = BLE_HS_CONN_HANDLE_NONE;
             self->isConnected = false;
 
@@ -291,9 +305,11 @@ int BLEMidi::gapEventHandler(struct ble_gap_event *event, void *arg) {
             break;
 
         case BLE_GAP_EVENT_ADV_COMPLETE:
+            ESP_LOGI(LOG_TAG, "Advertising complete");
             break;
 
         case BLE_GAP_EVENT_SUBSCRIBE:
+            ESP_LOGI(LOG_TAG, "Subscribe event, attr_handle=%d", event->subscribe.attr_handle);
             // Store the attribute handle for notifications
             if (event->subscribe.cur_notify) {
                 self->midiCharAttrHandle = event->subscribe.attr_handle;
@@ -301,9 +317,12 @@ int BLEMidi::gapEventHandler(struct ble_gap_event *event, void *arg) {
             break;
 
         case BLE_GAP_EVENT_MTU:
+            ESP_LOGI(LOG_TAG, "MTU update, conn_handle=%d, mtu=%d",
+                     event->mtu.conn_handle, event->mtu.value);
             break;
 
         case BLE_GAP_EVENT_ENC_CHANGE:
+            ESP_LOGI(LOG_TAG, "Encryption change, status=%d", event->enc_change.status);
             break;
 
         default:
@@ -317,9 +336,11 @@ int BLEMidi::gattAccessCallback(uint16_t conn_handle, uint16_t attr_handle,
                                 struct ble_gatt_access_ctxt *ctxt, void *arg) {
     switch (ctxt->op) {
         case BLE_GATT_ACCESS_OP_READ_CHR:
+            ESP_LOGI(LOG_TAG, "GATT read");
             break;
 
         case BLE_GATT_ACCESS_OP_WRITE_CHR:
+            ESP_LOGI(LOG_TAG, "GATT write (MIDI data received)");
             break;
 
         default:
@@ -348,6 +369,7 @@ void BLEMidi::sendPacket(std::vector<MidiMessage>& messages) {
     if (om) {
         int rc = ble_gatts_notify_custom(connHandle, midiCharAttrHandle, om);
         if (rc != 0) {
+            ESP_LOGW(LOG_TAG, "Failed to send notification: %d", rc);
         }
     }
 }

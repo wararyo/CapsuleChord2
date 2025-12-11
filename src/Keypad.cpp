@@ -1,5 +1,8 @@
 #include "Keypad.h"
 #include <M5Unified.h>
+#include <esp_log.h>
+
+static const char* LOG_TAG = "Keypad";
 
 #define EXT_I2C_PORT 0
 
@@ -133,8 +136,8 @@ void CapsuleChordKeypad::pushLedLayer(std::shared_ptr<LedLayer> layer) {
     
     _ledLayers.push_back(layer);
     _needsLedUpdate = true;
-    Serial.printf("LED Layer pushed: %s (stack size: %d)\n", 
-                  layer->getName().c_str(), _ledLayers.size());
+    ESP_LOGD(LOG_TAG, "LED Layer pushed: %s (stack size: %d)",
+             layer->getName().c_str(), _ledLayers.size());
 }
 
 void CapsuleChordKeypad::removeLedLayer(std::shared_ptr<LedLayer> layer) {
@@ -144,8 +147,8 @@ void CapsuleChordKeypad::removeLedLayer(std::shared_ptr<LedLayer> layer) {
         if (*it == layer) {
             _ledLayers.erase(it);
             _needsLedUpdate = true;
-            Serial.printf("LED Layer removed: %s (stack size: %d)\n", 
-                          layer->getName().c_str(), _ledLayers.size());
+            ESP_LOGD(LOG_TAG, "LED Layer removed: %s (stack size: %d)",
+                     layer->getName().c_str(), _ledLayers.size());
             break;
         }
     }

@@ -1,9 +1,12 @@
 #include "OutputInternal.h"
 #include "TimbreLoader.h"
+#include <esp_log.h>
 #include <driver/gpio.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include <esp_task_wdt.h>
+
+static const char* LOG_TAG = "OutputInternal";
 
 // ESP-IDF GPIO helpers
 static inline void esp_pinMode(gpio_num_t pin, gpio_mode_t mode) {
@@ -78,33 +81,30 @@ void aw88298_write_reg(uint8_t reg, uint16_t value)
 
 bool OutputInternal::loadTimbres()
 {
-    if (!LittleFS.begin(false)) {
-        Serial.println("LittleFS mount failed");
-        return false;
-    }
+    // TODO: Phase 5でesp_littlefsを使用した実装に置き換える
+    // 現在はTimbreLoaderがスタブ実装のため、ティンバーは読み込まれない
+    ESP_LOGI(LOG_TAG, "Loading timbres...");
 
-    Serial.println("Loading timbres from LittleFS...");
+    // TimbreLoaderを使用してティンバーを読み込む（現在はスタブ）
+    aguitar = Loader.loadTimbre("/aguitar/aguitar.json");
+    if (aguitar) ESP_LOGI(LOG_TAG, "  aguitar loaded");
 
-    // LittleFSからティンバーを読み込む
-    aguitar = Loader.loadTimbre(LittleFS, "/aguitar/aguitar.json");
-    if (aguitar) Serial.println("  aguitar loaded");
+    bass = Loader.loadTimbre("/ebass/ebass.json");
+    if (bass) ESP_LOGI(LOG_TAG, "  bass loaded");
 
-    bass = Loader.loadTimbre(LittleFS, "/ebass/ebass.json");
-    if (bass) Serial.println("  bass loaded");
+    epiano = Loader.loadTimbre("/epiano/epiano.json");
+    if (epiano) ESP_LOGI(LOG_TAG, "  epiano loaded");
 
-    epiano = Loader.loadTimbre(LittleFS, "/epiano/epiano.json");
-    if (epiano) Serial.println("  epiano loaded");
+    piano = Loader.loadTimbre("/piano/piano.json");
+    if (piano) ESP_LOGI(LOG_TAG, "  piano loaded");
 
-    piano = Loader.loadTimbre(LittleFS, "/piano/piano.json");
-    if (piano) Serial.println("  piano loaded");
+    supersaw = Loader.loadTimbre("/supersaw/supersaw.json");
+    if (supersaw) ESP_LOGI(LOG_TAG, "  supersaw loaded");
 
-    supersaw = Loader.loadTimbre(LittleFS, "/supersaw/supersaw.json");
-    if (supersaw) Serial.println("  supersaw loaded");
+    drumset = Loader.loadTimbre("/popdrumkit/popdrumkit.json");
+    if (drumset) ESP_LOGI(LOG_TAG, "  drumset loaded");
 
-    drumset = Loader.loadTimbre(LittleFS, "/popdrumkit/popdrumkit.json");
-    if (drumset) Serial.println("  drumset loaded");
-
-    Serial.println("Timbres loaded");
+    ESP_LOGI(LOG_TAG, "Timbres loading complete");
     return true;
 }
 
@@ -120,7 +120,7 @@ void OutputInternal::unloadTimbres()
     supersaw = nullptr;
     drumset = nullptr;
 
-    Serial.println("Timbres unloaded");
+    ESP_LOGI(LOG_TAG, "Timbres unloaded");
 }
 
 void OutputInternal::stopAudioLoop()
@@ -182,8 +182,8 @@ void OutputInternal::initAudioOutput(AudioOutput output)
         err += i2s_set_pin(I2S_NUM_SPK, &tx_pin_config);
     }
 
-    if (err == ESP_OK) Serial.printf("i2s ok");
-    else Serial.printf("i2s ng");
+    if (err == ESP_OK) ESP_LOGI(LOG_TAG, "i2s ok");
+    else ESP_LOGE(LOG_TAG, "i2s ng");
 
     if (output == AudioOutput::headphone) {
         esp_pinMode(PIN_EN_HP, GPIO_MODE_OUTPUT);
@@ -230,9 +230,9 @@ void OutputInternal::begin()
     // イヤホン端子スイッチのピン設定
     esp_pinMode(PIN_HP_DETECT, GPIO_MODE_INPUT);
 
-    // LittleFSからティンバーを読み込む
+    // ティンバーを読み込む
     if (!loadTimbres()) {
-        Serial.println("Failed to load timbres from LittleFS");
+        ESP_LOGW(LOG_TAG, "Failed to load timbres");
     }
 
     // ティンバーをサンプラーに設定

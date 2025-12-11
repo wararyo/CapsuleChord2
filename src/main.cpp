@@ -2,8 +2,11 @@
 #include <vector>
 #include <Preferences.h>
 #include <lvgl.h>
+#include <esp_log.h>
 #include <esp_timer.h>
 #include <driver/gpio.h>
+
+static const char* LOG_TAG = "Main";
 
 static inline unsigned long esp_millis() {
     return (unsigned long)(esp_timer_get_time() / 1000ULL);
@@ -135,8 +138,7 @@ void setup() {
   BtnHome.setHoldThresh(2500);
   Keypad.begin();
 
-  Serial.begin(115200);
-  Serial.println("Hello.");
+  ESP_LOGI(LOG_TAG, "Hello.");
 
   I2C.begin();
 

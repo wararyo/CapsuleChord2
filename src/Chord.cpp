@@ -1,5 +1,8 @@
 #include <Chord.h>
 #include <cfloat>
+#include <esp_log.h>
+
+static const char* LOG_TAG = "Chord";
 
 Chord::Chord()
 : Chord(C,0,0,3) {}
@@ -175,7 +178,7 @@ void Chord::calcInversion(uint8_t centerNoteNo) {
                     inversion = notes.size() - 1;
                 }
                 else inversion -= 2;
-                Serial.printf("calcInversion %d %d %f\n", octave, inversion, previousScore[1]);
+                ESP_LOGD(LOG_TAG, "calcInversion %d %d %f", octave, inversion, previousScore[1]);
                 return;
             }
             previousScore[1] = previousScore[0];

@@ -9,6 +9,9 @@
 #include "../Keypad.h"
 #include "../Settings.h"
 #include <algorithm>
+#include <esp_log.h>
+
+static const char* LOG_TAG = "AppAutoPlay";
 
 extern TempoController Tempo;
 extern Settings settings;
@@ -239,7 +242,7 @@ void AppAutoPlay::startPlayback()
     // KeyEventListenerを登録して自動演奏を保護
     if (keyListener) {
         Keypad.addKeyEventListener(keyListener);
-        Serial.println("AutoPlay: KeyEventListener registered");
+        ESP_LOGI(LOG_TAG, "KeyEventListener registered");
     }
 
     // 演奏タスクを開始
@@ -271,7 +274,7 @@ void AppAutoPlay::stopPlayback()
     // KeyEventListenerを解除
     if (keyListener) {
         Keypad.removeKeyEventListener(keyListener);
-        Serial.println("AutoPlay: KeyEventListener unregistered");
+        ESP_LOGI(LOG_TAG, "KeyEventListener unregistered");
     }
 
     // 演奏タスクを停止
@@ -425,8 +428,8 @@ void AppAutoPlay::loadScoreFromArray(const AutoPlayCommand* commands, size_t com
                                     TempoController::tempo_t tempo, const std::string& title,
                                     musical_time_t duration, uint8_t key)
 {
-    Serial.printf("Loading score: %s, tempo=%d, duration=%d, commandCount=%zu, key=%d\n", 
-                  title.c_str(), tempo, duration, commandCount, key);
+    ESP_LOGI(LOG_TAG, "Loading score: %s, tempo=%d, duration=%d, commandCount=%zu, key=%d",
+             title.c_str(), tempo, (int)duration, commandCount, key);
     
     // MajorScaleを取得して設定
     auto availableScales = Scale::getAvailableScales();
@@ -459,7 +462,7 @@ void AppAutoPlay::loadScoreFromArray(const AutoPlayCommand* commands, size_t com
     Scale* globalScale = &((SettingItemScale*)settings.findSettingByKey("Scale"))->content;
     if (globalScale) {
         globalScale->key = key;
-        Serial.printf("Updated global scale key to: %d (%s)\n", key, Chord::rootStrings[key].c_str());
+        ESP_LOGI(LOG_TAG, "Updated global scale key to: %d (%s)", key, Chord::rootStrings[key].c_str());
     }
 }
 
@@ -531,7 +534,7 @@ void AppAutoPlay::songSelectionEventHandler(lv_event_t * e)
     lv_obj_t* dropdown = lv_event_get_target(e);
     
     app->selectedSongIndex = lv_dropdown_get_selected(dropdown);
-    Serial.printf("Song selection changed to index: %zu\n", app->selectedSongIndex);
+    ESP_LOGI(LOG_TAG, "Song selection changed to index: %zu", app->selectedSongIndex);
     
     // 楽曲が変更されたら、演奏を停止して新しい楽曲を読み込む
     if (app->isActive) {
@@ -546,7 +549,7 @@ void AppAutoPlay::continuousModeEventHandler(lv_event_t * e)
     lv_obj_t* sw = lv_event_get_target(e);
     
     app->isContinuousMode = lv_obj_has_state(sw, LV_STATE_CHECKED);
-    Serial.printf("Continuous mode: %s\n", app->isContinuousMode ? "ON" : "OFF");
+    ESP_LOGI(LOG_TAG, "Continuous mode: %s", app->isContinuousMode ? "ON" : "OFF");
 }
 
 // LED管理メソッド
@@ -635,7 +638,7 @@ void AppAutoPlay::moveToNextSong()
         lv_dropdown_set_selected(songSelectionDropdown, selectedSongIndex);
     }
     
-    Serial.printf("Next song: %s\n", currentScore.title.c_str());
+    ESP_LOGI(LOG_TAG, "Next song: %s", currentScore.title.c_str());
 }
 
 // 演奏タスク関連メソッド
@@ -658,10 +661,10 @@ void AppAutoPlay::createPlaybackTask()
     );
     
     if (result != pdPASS) {
-        Serial.println("Failed to create playback task");
+        ESP_LOGE(LOG_TAG, "Failed to create playback task");
         playbackTaskHandle = nullptr;
     } else {
-        Serial.println("Playback task created successfully");
+        ESP_LOGI(LOG_TAG, "Playback task created successfully");
     }
 }
 
@@ -685,7 +688,7 @@ void AppAutoPlay::destroyPlaybackTask()
     }
     
     playbackTaskHandle = nullptr;
-    Serial.println("Playback task destroyed");
+    ESP_LOGI(LOG_TAG, "Playback task destroyed");
 }
 
 void AppAutoPlay::playbackTaskWrapper(void* parameter)
@@ -700,7 +703,7 @@ void AppAutoPlay::playbackTaskWrapper(void* parameter)
 
 void AppAutoPlay::playbackTaskMain()
 {
-    Serial.println("Playback task started");
+    ESP_LOGI(LOG_TAG, "Playback task started");
     
     uint32_t notificationValue = 0;
     musical_time_t currentTime = 0;
@@ -725,7 +728,7 @@ void AppAutoPlay::playbackTaskMain()
         }
     }
     
-    Serial.println("Playback task ended");
+    ESP_LOGI(LOG_TAG, "Playback task ended");
 }
 
 void AppAutoPlay::processCommands(musical_time_t currentTime)
@@ -758,7 +761,7 @@ void AppAutoPlay::processCommands(musical_time_t currentTime)
     // 処理制限に達した場合の警告
     if (processedCount >= MAX_COMMANDS_PER_UPDATE)
     {
-        Serial.println("Warning: Command processing limit reached in task");
+        ESP_LOGW(LOG_TAG, "Command processing limit reached in task");
     }
     
     // ループ処理
