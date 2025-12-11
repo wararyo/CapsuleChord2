@@ -106,18 +106,21 @@ std::shared_ptr<Timbre> TimbreLoader::loadTimbre(fs::FS &fs, const char *path)
         const float sustain = sampleJson["sample"]["sustain"];
         const float release = sampleJson["sample"]["release"];
 
-        WavFile wavFile = WavFile::open(fs, (directoryPath + "/" + samplePath).c_str());
+        std::string fullSamplePath = directoryPath + "/" + samplePath;
+        WavFile wavFile = WavFile::open(fs, fullSamplePath.c_str());
         if (!wavFile.isValid())
         {
-            Serial.println("Failed to open wav file");
-            continue;
+            Serial.printf("Failed to open wav file: %s\n", fullSamplePath.c_str());
+            file.close();
+            return nullptr;
         }
         size_t dataSize = wavFile.getDataSize();
         int16_t *data = (int16_t *)heap_caps_malloc(dataSize, MALLOC_CAP_SPIRAM);
         if (!data) {
-            Serial.println("Failed to allocate memory for sample");
+            Serial.printf("Failed to allocate %zu bytes for sample: %s\n", dataSize, fullSamplePath.c_str());
             wavFile.close();
-            continue;
+            file.close();
+            return nullptr;
         }
         size_t written_bytes = wavFile.read(data, dataSize);
         assert(written_bytes == dataSize);
