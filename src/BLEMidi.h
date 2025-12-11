@@ -4,9 +4,11 @@
 #include <NimBLEDevice.h>
 #include <functional>
 #include <vector>
+#include <atomic>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include <freertos/queue.h>
+#include <freertos/semphr.h>
 
 #define MIDI_SERVICE_UUID        "03b80e5a-ede8-4b33-a751-6ce34ec4c700"
 #define MIDI_CHARACTERISTIC_UUID "7772e5db-3868-4112-a1a9-f2669d106bf3"
@@ -38,7 +40,7 @@ struct MidiMessage {
 
 class BLEMidi : public NimBLEServerCallbacks, public NimBLECharacteristicCallbacks {
 public:
-    bool isConnected = false;
+    std::atomic<bool> isConnected{false};
 
     // コールバック関数
     std::function<void()> onConnectCallback = nullptr;
@@ -69,12 +71,15 @@ private:
     NimBLEAdvertising* advertising = nullptr;
     bool initialized = false;
 
+    // begin()/end()の排他制御用Mutex
+    SemaphoreHandle_t lifecycleMutex = nullptr;
+
     // FreeRTOS Queue（FIFO）
     QueueHandle_t messageQueue = nullptr;
 
     // フラッシュタスク
     TaskHandle_t flushTaskHandle = nullptr;
-    volatile bool taskRunning = false;
+    std::atomic<bool> taskRunning{false};
 
     void sendPacket(std::vector<MidiMessage>& messages);
     void addMidiMessage(uint8_t status, uint8_t data1, uint8_t data2);

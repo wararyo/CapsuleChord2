@@ -4,7 +4,17 @@
 BLEMidi Midi;
 
 void BLEMidi::begin(const std::string& deviceName) {
-    if (initialized) return;
+    // Mutex作成（初回のみ）
+    if (lifecycleMutex == nullptr) {
+        lifecycleMutex = xSemaphoreCreateMutex();
+    }
+
+    xSemaphoreTake(lifecycleMutex, portMAX_DELAY);
+
+    if (initialized) {
+        xSemaphoreGive(lifecycleMutex);
+        return;
+    }
 
     Serial.println("BLEMidi: Initializing NimBLE...");
 
@@ -74,23 +84,37 @@ void BLEMidi::begin(const std::string& deviceName) {
         BLE_MIDI_TASK_CORE
     );
 
+    xSemaphoreGive(lifecycleMutex);
+
     Serial.println("BLEMidi: BLE MIDI Server started, advertising...");
 }
 
 void BLEMidi::end() {
-    if (!initialized) return;
+    if (lifecycleMutex == nullptr) return;
+
+    xSemaphoreTake(lifecycleMutex, portMAX_DELAY);
+
+    if (!initialized) {
+        xSemaphoreGive(lifecycleMutex);
+        return;
+    }
 
     Serial.println("BLEMidi: Stopping BLE MIDI...");
 
     // タスク停止フラグを設定
     taskRunning = false;
 
-    // タスクが自己削除するのを待つ（最大100ms）
+    // タスクが自己削除するのを待つ（最大200ms）
     if (flushTaskHandle != nullptr) {
         Serial.println("BLEMidi: Waiting for flush task to stop...");
         // タスクが終了するまでポーリングで待機
-        for (int i = 0; i < 10 && eTaskGetState(flushTaskHandle) != eDeleted; i++) {
+        for (int i = 0; i < 20 && eTaskGetState(flushTaskHandle) != eDeleted; i++) {
             vTaskDelay(pdMS_TO_TICKS(10));
+        }
+        // タスクが終了しなかった場合は強制終了
+        if (eTaskGetState(flushTaskHandle) != eDeleted) {
+            Serial.println("BLEMidi: WARNING - Flush task did not stop gracefully, forcing delete");
+            vTaskDelete(flushTaskHandle);
         }
         flushTaskHandle = nullptr;
         Serial.println("BLEMidi: Flush task stopped");
@@ -123,6 +147,8 @@ void BLEMidi::end() {
         messageQueue = nullptr;
         Serial.println("BLEMidi: Message queue deleted");
     }
+
+    xSemaphoreGive(lifecycleMutex);
 
     Serial.println("BLEMidi: BLE MIDI stopped");
 }
