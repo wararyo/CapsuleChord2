@@ -12,7 +12,7 @@
 
 #define MAX_NEST_SIZE 16
 
-const String jsonFilePath = "/capsulechord/settings.json";
+const std::string jsonFilePath = "/capsulechord/settings.json";
 
 class SettingItem {
 protected:
@@ -63,7 +63,7 @@ private:
 public:
     Settings(std::vector<std::unique_ptr<SettingItem>> items,uint version=1)
         : SettingItem("Settings",std::move(items)),version(version){}
-    bool load(String path = jsonFilePath){
+    bool load(const std::string& path = jsonFilePath){
         //Read file
         File file = SD.open(path);
         if(!file) return false;
@@ -91,7 +91,7 @@ public:
         // archive(name,*this);
         return true;
     }
-    bool save(String path = jsonFilePath){
+    bool save(const std::string& path = jsonFilePath){
         //Serialize
         OutputArchive archive = OutputArchive();
         // archive("Version",std::forward<uint>(version));
@@ -107,12 +107,12 @@ public:
         file.close();
         return true;
     }
-    SettingItem *findSettingByKey(String query){
-        String keys[MAX_NEST_SIZE] = {String("\0")};
+    SettingItem *findSettingByKey(const std::string& query){
+        std::string keys[MAX_NEST_SIZE] = {""};
         // Split query by '/'
         int index = 0;
-        for(int i = 0; i < query.length(); i++){
-            char tmp = query.charAt(i);
+        for(size_t i = 0; i < query.length(); i++){
+            char tmp = query[i];
             if(tmp == '/') {
                 index++;
                 if(index > (MAX_NEST_SIZE - 1)) return nullptr;
@@ -121,11 +121,11 @@ public:
         }
         // Find item
         SettingItem * cursor = this;
-        for(String key : keys){
-            if(key == String("\0")) break;
+        for(const std::string& key : keys){
+            if(key.empty()) break;
             auto& children = cursor->children;
             for(auto& k : cursor->children){
-                if(String(k->name) == key){
+                if(std::string(k->name) == key){
                     cursor = k.get();
                     goto next_key; // forループを一気に抜けるための使用ならバチは当たらないはず…
                 }
@@ -209,11 +209,11 @@ public:
         archive(name,memberNames[index]);
     }
     void deserialize(InputArchive &archive,const char *key) override {
-        String memberName = "";
+        std::string memberName = "";
         archive(name,memberName);
-        for(int i = 0;i < memberNames.size();i++){
-            String m = String(memberNames[i]);
-            if(String(m).equals(memberName)) {
+        for(size_t i = 0;i < memberNames.size();i++){
+            std::string m = std::string(memberNames[i]);
+            if(m == memberName) {
                 index = i;
             }
         }

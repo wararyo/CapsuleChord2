@@ -73,9 +73,9 @@ void AppAutoPlay::onShowGui(lv_obj_t *container)
     
     // 楽曲選択ドロップダウン
     songSelectionDropdown = lv_dropdown_create(container);
-    
+
     // 楽曲リストをドロップダウンに設定
-    String songList = "";
+    std::string songList = "";
     for (size_t i = 0; i < availableSongs.size(); i++) {
         if (i > 0) songList += "\n";
         songList += availableSongs[i].title;
@@ -421,8 +421,8 @@ void AppAutoPlay::loadSelectedScore()
                       song.tempo, song.title, song.duration, song.key);
 }
 
-void AppAutoPlay::loadScoreFromArray(const AutoPlayCommand* commands, size_t commandCount, 
-                                    TempoController::tempo_t tempo, const String& title, 
+void AppAutoPlay::loadScoreFromArray(const AutoPlayCommand* commands, size_t commandCount,
+                                    TempoController::tempo_t tempo, const std::string& title,
                                     musical_time_t duration, uint8_t key)
 {
     Serial.printf("Loading score: %s, tempo=%d, duration=%d, commandCount=%zu, key=%d\n", 
@@ -456,7 +456,7 @@ void AppAutoPlay::loadScoreFromArray(const AutoPlayCommand* commands, size_t com
     sortCommands();
     
     // グローバルのscaleにキー情報を反映
-    Scale* globalScale = &((SettingItemScale*)settings.findSettingByKey(String("Scale")))->content;
+    Scale* globalScale = &((SettingItemScale*)settings.findSettingByKey("Scale"))->content;
     if (globalScale) {
         globalScale->key = key;
         Serial.printf("Updated global scale key to: %d (%s)\n", key, Chord::rootStrings[key].c_str());
@@ -497,18 +497,18 @@ void AppAutoPlay::updateStatus()
 void AppAutoPlay::updateCurrentChord()
 {
     if (!currentChordLabel) return;
-    
-    String chordText;
+
+    std::string chordText;
     if (currentChord.has_value()) {
         chordText = currentChord->toString();
     } else {
         chordText = "---";
     }
-    
-    if (chordText.isEmpty()) {
+
+    if (chordText.empty()) {
         chordText = "---";
     }
-    
+
     lv_label_set_text(currentChordLabel, chordText.c_str());
 }
 

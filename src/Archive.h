@@ -185,9 +185,9 @@ public:
 void serialize(OutputArchive &archive,const char *key,const char *string);
 void deserialize(InputArchive &archive,const char *key,const char*& string);
 
-//String
-void serialize(OutputArchive &archive,const char *key,String string);
-void deserialize(InputArchive &archive,const char *key,String& string);
+//std::string
+void serialize(OutputArchive &archive,const char *key,const std::string& string);
+void deserialize(InputArchive &archive,const char *key,std::string& string);
 
 //int
 void serialize(OutputArchive &archive,const char *key,int number);

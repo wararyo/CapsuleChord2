@@ -4,11 +4,7 @@
 #include <stdint.h>
 #include <vector>
 #include <map>
-#ifdef NATIVE_TEST
-    #include "../test/mocks/StubArduino.h"
-#else
-    #include <WString.h>
-#endif
+#include <string>
 #include <functional>
 #include "Archive.h"
 
@@ -50,8 +46,8 @@ public:
     static const uint16_t ThirteenthSharp = 0b01000000 << 8;
     static const uint16_t ThirteenthFlat  = 0b10000000 << 8;
 
-    static const std::vector<String> rootStrings;
-    static const std::map<uint16_t,String> optionStrings;
+    static const std::vector<std::string> rootStrings;
+    static const std::map<uint16_t,std::string> optionStrings;
 
     uint8_t root;
     uint16_t option;
@@ -70,7 +66,7 @@ public:
     
     std::vector<uint8_t> toMidiNoteNumbers();
     void calcInversion(uint8_t centerNoteNo);
-    String toString();
+    std::string toString();
 
     void serialize(OutputArchive &archive,const char *key) {
         archive.pushNest(key);
@@ -87,7 +83,7 @@ public:
     // コードのオプション部分のみを文字列化する
     // toString内で使用
     // DegreeChord::toStringでも使用する
-    static String formatChordOptions(uint16_t option);
+    static std::string formatChordOptions(uint16_t option);
 
 protected:
     float getScore(uint8_t centerNoteNo);
@@ -110,7 +106,7 @@ public:
     static const uint8_t VII     = 11;
     static const int8_t BASS_DEFAULT  = -1;
 
-    static const std::vector<String> rootStrings;
+    static const std::vector<std::string> rootStrings;
 
     uint8_t root;
     uint16_t option;
@@ -124,7 +120,7 @@ public:
     // Sets the bass note for slash chord notation
     void setBass(int8_t bassNote);
 
-    String toString();
+    std::string toString();
 
     bool equals(DegreeChord other);
 

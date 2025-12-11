@@ -7,6 +7,7 @@
 #include <vector>
 #include <memory>
 #include <array>
+#include <string>
 
 #define KEYPAD_I2C_ADDR 0x09
 
@@ -131,13 +132,13 @@ public:
 class LedLayer {
 public:
     // Constructor with optional name for debugging
-    LedLayer(const String& name = "Unknown") : layerName(name) {
+    LedLayer(const std::string& name = "Unknown") : layerName(name) {
         // Initialize all LEDs to OFF by default
         ledStates.fill(LED_OFF);
     }
-    
+
     virtual ~LedLayer() = default;
-    
+
     // Set LED brightness for a specific key
     void setLed(uint8_t keyCode, uint8_t brightness) {
         if (keyCode < ledStates.size()) {
@@ -148,7 +149,7 @@ public:
             ledStates[keyCode] = brightness;
         }
     }
-    
+
     // Get LED brightness for a specific key
     uint8_t getLed(uint8_t keyCode) const {
         if (keyCode < ledStates.size()) {
@@ -156,7 +157,7 @@ public:
         }
         return LED_OFF;
     }
-    
+
     // Set multiple LEDs at once
     void setLeds(const std::map<uint8_t, uint8_t>& leds) {
         for (const auto& led : leds) {
@@ -168,16 +169,16 @@ public:
     void fillLeds(uint8_t brightness = LED_OFF) {
         ledStates.fill(brightness);
     }
-    
+
     // Get layer name for debugging
-    const String& getName() const { return layerName; }
-    
+    const std::string& getName() const { return layerName; }
+
     // Get all LED states
     const std::array<uint8_t, 256>& getAllLeds() const { return ledStates; }
 
 protected:
     std::array<uint8_t, 256> ledStates;  // Support all possible key codes (0-255)
-    String layerName;
+    std::string layerName;
 };
 
 class CapsuleChordKeypad {

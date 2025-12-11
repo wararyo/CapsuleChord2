@@ -18,21 +18,21 @@ Chord::Chord(uint8_t root, uint16_t option, uint8_t inversion)
 Chord::Chord(uint8_t root, uint16_t option, uint8_t inversion, uint8_t octave)
 : root(root), option(option), inversion(inversion), octave(octave), bass(BASS_DEFAULT) {}
 
-String Chord::toString() {
-    String str = rootStrings[root];
+std::string Chord::toString() {
+    std::string str = rootStrings[root];
     str += formatChordOptions(option);
-    
+
     // Add slash chord notation if a bass note is specified
     if (bass != BASS_DEFAULT) {
         str += "/" + rootStrings[bass];
     }
-    
+
     return str;
 }
 
-String Chord::formatChordOptions(uint16_t option) {
-    String str = "";
-    
+std::string Chord::formatChordOptions(uint16_t option) {
+    std::string str = "";
+
     // 3度
     if(option & Sus4) {
         str += "sus4";
@@ -45,7 +45,7 @@ String Chord::formatChordOptions(uint16_t option) {
     } else if(option & Minor) {
         str += "m";
     } // Major is implied
-    
+
     // 7度
     if(option & MajorSeventh) {
         str += "M7";
@@ -54,13 +54,13 @@ String Chord::formatChordOptions(uint16_t option) {
     } else if(option & Sixth) {
         str += "6";
     }
-    
+
     // 5度
     bool fifthFlat = (option & FifthFlat) && !(option & Dimish);
-    
+
     // 括弧の中に含める文字
     bool hasExtensions = false;
-    String extensions = "";
+    std::string extensions = "";
     
     // フラットファイブとテンションが同時にある場合、フラットファイブは括弧の中に含める
     if(fifthFlat && (option & 0b1111111000000000)) {
@@ -216,7 +216,7 @@ void Chord::setBass(int8_t bassNote) {
     }
 }
 
-const std::vector<String> Chord::rootStrings = {"C","C#","D","D#","E","F","F#","G","G#","A","A#","B"};
+const std::vector<std::string> Chord::rootStrings = {"C","C#","D","D#","E","F","F#","G","G#","A","A#","B"};
 
 DegreeChord::DegreeChord()
 : DegreeChord(I,0,0) {}
@@ -227,15 +227,15 @@ DegreeChord::DegreeChord(uint8_t root, uint16_t option)
 DegreeChord::DegreeChord(uint8_t root, uint16_t option, uint8_t inversion)
 : root(root), option(option), inversion(inversion), bass(BASS_DEFAULT) {}
 
-String DegreeChord::toString() {
-    String str = rootStrings[root];
+std::string DegreeChord::toString() {
+    std::string str = rootStrings[root];
     str += Chord::formatChordOptions(option);
-    
+
     // Add slash chord notation if a bass note is specified
     if (bass != BASS_DEFAULT) {
         str += "/" + rootStrings[bass];
     }
-    
+
     return str;
 }
 
@@ -252,4 +252,4 @@ bool DegreeChord::equals(DegreeChord other){
     return true;
 }
 
-const std::vector<String> DegreeChord::rootStrings = {"I","I#","II","II#","III","IV","IV#","V","V#","VI","VI#","VII"};
+const std::vector<std::string> DegreeChord::rootStrings = {"I","I#","II","II#","III","IV","IV#","V","V#","VI","VI#","VII"};

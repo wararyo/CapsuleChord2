@@ -127,11 +127,11 @@ void setup() {
   // }
 
   // Get setting items
-  scale = &((SettingItemScale*)settings.findSettingByKey(String("Scale")))->content;
-  centerNoteNo = &((SettingItemNumeric*)settings.findSettingByKey(String("CenterNoteNo")))->number;
+  scale = &((SettingItemScale*)settings.findSettingByKey("Scale"))->content;
+  centerNoteNo = &((SettingItemNumeric*)settings.findSettingByKey("CenterNoteNo"))->number;
 
   // Set lcd brightness
-  switch(((SettingItemEnum*)settings.findSettingByKey(String("Brightness")))->index) {
+  switch(((SettingItemEnum*)settings.findSettingByKey("Brightness"))->index) {
     case 0: M5.Lcd.setBrightness(255); break;
     case 1: M5.Lcd.setBrightness(127); break;
     case 2: M5.Lcd.setBrightness(32); break;
