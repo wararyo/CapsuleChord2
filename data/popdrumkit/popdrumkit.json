@@ -1,0 +1,91 @@
+{
+    "name": "Pop Drum Kit",
+    "samples": [
+      {
+        "lower-note-no": 36,
+        "upper-note-no": 36,
+        "lower-velocity": 0,
+        "upper-velocity": 127,
+        "sample": {
+          "path": "kick.wav",
+          "root": 36,
+          "loop-start": 0,
+          "loop-end": 0,
+          "adsr-enabled": false,
+          "attack": 1.0,
+          "decay": 0.0,
+          "sustain": 1.0,
+          "release": 0.0
+        }
+      },
+      {
+        "lower-note-no": 37,
+        "upper-note-no": 37,
+        "lower-velocity": 0,
+        "upper-velocity": 127,
+        "sample": {
+          "path": "rimknock.wav",
+          "root": 37,
+          "loop-start": 0,
+          "loop-end": 0,
+          "adsr-enabled": false,
+          "attack": 1.0,
+          "decay": 0.0,
+          "sustain": 1.0,
+          "release": 0.0
+        }
+      },
+      {
+        "lower-note-no": 38,
+        "upper-note-no": 38,
+        "lower-velocity": 0,
+        "upper-velocity": 127,
+        "sample": {
+          "path": "snare.wav",
+          "root": 38,
+          "loop-start": 0,
+          "loop-end": 0,
+          "adsr-enabled": false,
+          "attack": 1.0,
+          "decay": 0.0,
+          "sustain": 1.0,
+          "release": 0.0
+        }
+      },
+      {
+        "lower-note-no": 42,
+        "upper-note-no": 42,
+        "lower-velocity": 0,
+        "upper-velocity": 127,
+        "sample": {
+          "path": "hihatclosed.wav",
+          "root": 42,
+          "loop-start": 0,
+          "loop-end": 0,
+          "adsr-enabled": false,
+          "attack": 1.0,
+          "decay": 0.0,
+          "sustain": 1.0,
+          "release": 0.0
+        }
+      },
+      {
+        "lower-note-no": 49,
+        "upper-note-no": 49,
+        "lower-velocity": 0,
+        "upper-velocity": 127,
+        "sample": {
+          "path": "crash.wav",
+          "root": 49,
+          "loop-start": 0,
+          "loop-end": 0,
+          "adsr-enabled": false,
+          "attack": 1.0,
+          "decay": 0.0,
+          "sustain": 1.0,
+          "release": 0.0
+        }
+      }
+    ]
+  }
+  

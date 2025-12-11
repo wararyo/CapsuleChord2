@@ -73,6 +73,14 @@ PLATFORMIO_CORE_DIR=.pio pio test -e native-test
   ```
 - `port` は `pio device list` で接続先デバイス（例: `/dev/ttyACM0`）を確認してから指定する。
 
+### LittleFSへの書き込み
+
+`data` フォルダ以下にはLittleFSで使用するファイル群が格納されており、下記のコマンドを用いて書き込みを行う。
+
+```bash
+PLATFORMIO_CORE_DIR=.pio pio run --target uploadfs
+```
+
 ## アーキテクチャ
 
 ### コアシステム

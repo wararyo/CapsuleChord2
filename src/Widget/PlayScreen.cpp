@@ -33,6 +33,7 @@ PlayScreen::PlayScreen()
     battery = nullptr;
     scale_label = nullptr;
     tempo_label = nullptr;
+    output_label = nullptr;
     btn_label_left = nullptr;
     btn_label_center = nullptr;
     btn_label_right = nullptr;
@@ -76,6 +77,16 @@ void PlayScreen::create()
         playScreen->tempoDialog.create();
     }, LV_EVENT_CLICKED, (void*)this);
 
+    // 出力先選択ラベルの初期化
+    output_label = lv_label_create(lv_scr_act());
+    lv_obj_align(output_label, LV_ALIGN_TOP_LEFT, 4, 4);
+    lv_obj_add_flag(output_label, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_set_ext_click_area(output_label, 16);
+    lv_obj_add_event_cb(output_label, [](lv_event_t *e) {
+        PlayScreen* playScreen = (PlayScreen*)lv_event_get_user_data(e);
+        playScreen->cycleOutput();
+    }, LV_EVENT_CLICKED, (void*)this);
+
     // ボタン操作説明用ラベルの初期化
     btn_label_left = lv_label_create(lv_scr_act());
     lv_label_set_text(btn_label_left, "Key-");
@@ -92,6 +103,9 @@ void PlayScreen::create()
     // コード/テンポのコールバックを登録
     Pipeline.addChordFilter(&chordFilter);
     Tempo.addListener(&tempoCallback);
+
+    // 出力先ラベルの初期表示を設定
+    needsOutputUpdate = true;
 
     isCreated = true;
 }
@@ -123,6 +137,10 @@ void PlayScreen::del()
     if (tempo_label) {
         lv_obj_del(tempo_label);
         tempo_label = nullptr;
+    }
+    if (output_label) {
+        lv_obj_del(output_label);
+        output_label = nullptr;
     }
     if (btn_label_left) {
         lv_obj_del(btn_label_left);
@@ -196,4 +214,18 @@ void PlayScreen::update()
         updateTick(lastTickTiming & TempoController::TICK_TIMING_BAR);
         needsTickUpdate = false;
     }
+    if (needsOutputUpdate && isCreated && output_label) {
+        const char* name = Output.getCurrentOutput()->getName();
+        lv_label_set_text(output_label, name);
+        needsOutputUpdate = false;
+    }
+}
+
+void PlayScreen::cycleOutput()
+{
+    // 次の出力デバイスに切り替え
+    int currentType = static_cast<int>(Output.getCurrentOutputType());
+    int nextType = (currentType + 1) % static_cast<int>(OutputType::Count);
+    Output.setCurrentOutput(static_cast<OutputType>(nextType));
+    needsOutputUpdate = true;
 }

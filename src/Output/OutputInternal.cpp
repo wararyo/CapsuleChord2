@@ -1,5 +1,6 @@
 #include "OutputInternal.h"
 #include "TimbreLoader.h"
+#include <LittleFS.h>
 
 void OutputInternal::NoteOn(uint8_t noteNo, uint8_t velocity, uint8_t channel)
 {
@@ -49,27 +50,67 @@ void aw88298_write_reg(uint8_t reg, uint16_t value)
   M5.In_I2C.writeRegister(aw88298_i2c_addr, reg, (const uint8_t *)&value, 2, 400000);
 }
 
-void OutputInternal::begin(AudioOutput output)
+bool OutputInternal::loadTimbres()
+{
+    if (!LittleFS.begin(false)) {
+        Serial.println("LittleFS mount failed");
+        return false;
+    }
+
+    Serial.println("Loading timbres from LittleFS...");
+
+    // LittleFSからティンバーを読み込む
+    aguitar = Loader.loadTimbre(LittleFS, "/aguitar/aguitar.json");
+    if (aguitar) Serial.println("  aguitar loaded");
+
+    bass = Loader.loadTimbre(LittleFS, "/ebass/ebass.json");
+    if (bass) Serial.println("  bass loaded");
+
+    epiano = Loader.loadTimbre(LittleFS, "/epiano/epiano.json");
+    if (epiano) Serial.println("  epiano loaded");
+
+    piano = Loader.loadTimbre(LittleFS, "/piano/piano.json");
+    if (piano) Serial.println("  piano loaded");
+
+    supersaw = Loader.loadTimbre(LittleFS, "/supersaw/supersaw.json");
+    if (supersaw) Serial.println("  supersaw loaded");
+
+    drumset = Loader.loadTimbre(LittleFS, "/popdrumkit/popdrumkit.json");
+    if (drumset) Serial.println("  drumset loaded");
+
+    Serial.println("Timbres loaded");
+    return true;
+}
+
+void OutputInternal::unloadTimbres()
+{
+    // shared_ptrをnullptrにすることでメモリを解放
+    // ティンバー内のSampleが持つデータはheap_caps_mallocで確保されているため
+    // Sampleのデストラクタで解放される必要がある
+    piano = nullptr;
+    aguitar = nullptr;
+    bass = nullptr;
+    epiano = nullptr;
+    supersaw = nullptr;
+    drumset = nullptr;
+
+    Serial.println("Timbres unloaded");
+}
+
+void OutputInternal::stopAudioLoop()
+{
+    if (audioLoopHandler != nullptr)
+    {
+        vTaskDelete(audioLoopHandler);
+        audioLoopHandler = nullptr;
+    }
+    enableCore0WDT();
+}
+
+void OutputInternal::initAudioOutput(AudioOutput output)
 {
     // 既にAudioLoopが起動している場合は終了
-    if(audioLoopHandler != nullptr) vTaskDelete(audioLoopHandler);
-    audioLoopHandler = nullptr;
-
-    sampler->SetTimbre(0x0, aguitar);
-    sampler->SetTimbre(0x1, bass);
-    sampler->SetTimbre(0x3, epiano);
-    sampler->SetTimbre(0x9, drumset);
-    sampler->SetTimbre(0xF, system);
-
-    // SDカードに音色があればそれを使う
-    // if (SD.begin(GPIO_NUM_4, SPI, 15000000)) {
-    //     std::shared_ptr<Timbre> t;
-    //     t = Loader.loadTimbre(SD, "/capsulechord/timbres/aguitar/aguitar.json");
-    //     if (t) sampler->SetTimbre(0x0, t);
-    // }
-
-    // サンプラーの設定
-    sampler->masterVolume = masterVolume;
+    stopAudioLoop();
 
     // I2Sの初期化
     if (audioOutput == AudioOutput::headphone) i2s_driver_uninstall(I2S_NUM_HP);
@@ -157,15 +198,48 @@ void OutputInternal::begin(AudioOutput output)
     disableCore0WDT();
 }
 
-void OutputInternal::terminate()
+void OutputInternal::begin()
+{
+    // イヤホン端子スイッチのピン設定
+    pinMode(PIN_HP_DETECT, INPUT_PULLUP);
+
+    // LittleFSからティンバーを読み込む
+    if (!loadTimbres()) {
+        Serial.println("Failed to load timbres from LittleFS");
+    }
+
+    // ティンバーをサンプラーに設定
+    if (aguitar) sampler->SetTimbre(0x0, aguitar);
+    if (bass) sampler->SetTimbre(0x1, bass);
+    if (epiano) sampler->SetTimbre(0x3, epiano);
+    if (drumset) sampler->SetTimbre(0x9, drumset);
+    sampler->SetTimbre(0xF, system);
+
+    // サンプラーの設定
+    sampler->masterVolume = masterVolume;
+
+    // 現在のヘッドフォン接続状態を取得してI2S初期化
+    isHeadphonePreviously = digitalRead(PIN_HP_DETECT);
+    initAudioOutput(isHeadphonePreviously ? AudioOutput::headphone : AudioOutput::speaker);
+}
+
+void OutputInternal::end()
 {
     // AudioLoopを停止
-    if (audioLoopHandler != nullptr)
-    {
-        vTaskDelete(audioLoopHandler);
-        audioLoopHandler = nullptr;
+    stopAudioLoop();
+
+    // ティンバーを解放してメモリを節約
+    unloadTimbres();
+}
+
+void OutputInternal::update()
+{
+    // ヘッドフォン抜き差しを検出
+    bool isHeadphone = digitalRead(PIN_HP_DETECT);
+    if (isHeadphonePreviously != isHeadphone) {
+        initAudioOutput(isHeadphone ? AudioOutput::headphone : AudioOutput::speaker);
+        isHeadphonePreviously = isHeadphone;
     }
-    enableCore0WDT();
 }
 
 void OutputInternal::loadPiano()

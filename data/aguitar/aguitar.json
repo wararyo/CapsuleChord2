@@ -1,0 +1,22 @@
+{
+  "name": "Acoustic Guitar",
+  "samples": [
+    {
+      "lower-note-no": 0,
+      "upper-note-no": 127,
+      "lower-velocity": 0,
+      "upper-velocity": 127,
+      "sample": {
+        "path": "c4.wav",
+        "root": 60,
+        "loop-start": 83347,
+        "loop-end": 83714,
+        "adsr-enabled": true,
+        "attack": 1.0,
+        "decay": 0.9985,
+        "sustain": 0.03,
+        "release": 0.97
+      }
+    }
+  ]
+}

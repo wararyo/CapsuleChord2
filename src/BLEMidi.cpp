@@ -1,75 +1,286 @@
-#include <BLEMidi.h>
-
-void BLEMidi::begin(std::string deviceName,
-    BLEServerCallbacks *serverCallback,
-    BLECharacteristicCallbacks *characteristicCallback) {
-
-    this->deviceName = deviceName;
-
-    BLEDevice::init(deviceName);
-    // BLEDevice::setEncryptionLevel(ESP_BLE_SEC_NONE);
-
-    //Start Server
-    server = BLEDevice::createServer();
-    server->setCallbacks(serverCallback);
-    BLEService *service = server->createService(BLEUUID(midiServiceUUID));
-    characteristic = service->createCharacteristic(
-    BLEUUID(midiCharacteristicUUID),
-    BLECharacteristic::PROPERTY_READ   |
-    BLECharacteristic::PROPERTY_NOTIFY |
-    BLECharacteristic::PROPERTY_WRITE_NR
-    );
-    characteristic->setAccessPermissions(ESP_GATT_PERM_READ_ENCRYPTED | ESP_GATT_PERM_WRITE_ENCRYPTED);
-    characteristic->setCallbacks(characteristicCallback);
-    characteristic->addDescriptor(new BLE2902());
-    service->start();
-
-    //Start Advertising
-    BLEAdvertisementData advertisementData = BLEAdvertisementData();
-    advertisementData.setFlags(ESP_BLE_ADV_FLAG_LIMIT_DISC | ESP_BLE_ADV_FLAG_BREDR_NOT_SPT);
-    advertisementData.setCompleteServices(BLEUUID(midiServiceUUID));
-    advertisementData.setName(deviceName);
-    advertising = server->getAdvertising();
-    advertising->setAdvertisementData(advertisementData);
-    advertising->addServiceUUID(MIDI_SERVICE_UUID);
-
-    // Use stack-allocated BLESecurity - settings persist in ESP-IDF after configuration
-    BLESecurity security;
-    security.setAuthenticationMode(ESP_LE_AUTH_BOND);
-    security.setCapability(ESP_IO_CAP_NONE);
-    security.setInitEncryptionKey(ESP_BLE_ENC_KEY_MASK | ESP_BLE_ID_KEY_MASK);
-
-    advertising->start();
-}
-
-void BLEMidi::sendNote(uint8_t status, uint8_t noteNo, uint8_t vel) {
-    uint8_t midiPacket[] = {
-        0x80,  // header
-        0x80,  // timestamp, not implemented
-        0x00,  // status
-        0x3c,  // 0x3c == 60 == middle c
-        0x00   // velocity
-    };
-    midiPacket[2] = status; // note on/off, channel 0
-    midiPacket[3] = noteNo & 0b01111111;
-    midiPacket[4] = vel & 0b01111111;
-    characteristic->setValue(midiPacket, 5); // packet, length in bytes)
-    characteristic->notify();
-}
-
-void BLEMidi::sendCC(uint8_t ccNo, uint8_t value) {
-    uint8_t midiPacket[] = {
-        0x80,  // header
-        0x80,  // timestamp, not implemented
-        0xB0,  // status
-        0x00,  // CC#
-        0x00   // value
-    };
-    midiPacket[2] = 0xB0; // cc, channel 0
-    midiPacket[3] = ccNo & 0b01111111;
-    midiPacket[4] = value & 0b01111111;
-    characteristic->setValue(midiPacket, 5); // packet, length in bytes)
-    characteristic->notify();
-}
+#include "BLEMidi.h"
+#include <Arduino.h>
 
 BLEMidi Midi;
+
+void BLEMidi::begin(const std::string& deviceName) {
+    // Mutex作成（初回のみ）
+    if (lifecycleMutex == nullptr) {
+        lifecycleMutex = xSemaphoreCreateMutex();
+    }
+
+    xSemaphoreTake(lifecycleMutex, portMAX_DELAY);
+
+    if (initialized) {
+        xSemaphoreGive(lifecycleMutex);
+        return;
+    }
+
+    Serial.println("BLEMidi: Initializing NimBLE...");
+
+    // Queue作成
+    if (messageQueue == nullptr) {
+        messageQueue = xQueueCreate(BLE_MIDI_QUEUE_SIZE, sizeof(MidiMessage));
+    }
+
+    // NimBLEが既に初期化されているか確認
+    bool nimbleAlreadyInitialized = NimBLEDevice::isInitialized();
+
+    if (!nimbleAlreadyInitialized) {
+        // NimBLEデバイス初期化
+        NimBLEDevice::init(deviceName);
+
+        // セキュリティ設定（Windowsでボンディングを有効にするために使用）
+        NimBLEDevice::setSecurityAuth(BLE_SM_PAIR_AUTHREQ_BOND);
+        NimBLEDevice::setSecurityIOCap(BLE_HS_IO_NO_INPUT_OUTPUT); // Just Worksペアリング
+        // ボンディング情報の交換キー設定
+        // イニシエータ（Central/PC）とレスポンダ（Peripheral/本デバイス）の両方でキーを交換
+        NimBLEDevice::setSecurityInitKey(BLE_SM_PAIR_KEY_DIST_ENC | BLE_SM_PAIR_KEY_DIST_ID);
+        NimBLEDevice::setSecurityRespKey(BLE_SM_PAIR_KEY_DIST_ENC | BLE_SM_PAIR_KEY_DIST_ID);
+    }
+
+    Serial.printf("BLEMidi: numBonds = %d\n", NimBLEDevice::getNumBonds());
+
+    // サーバー取得または作成
+    server = NimBLEDevice::getServer();
+    if (server == nullptr) {
+        server = NimBLEDevice::createServer();
+    }
+    server->setCallbacks(this);
+
+    // MIDIサービス作成
+    service = server->createService(MIDI_SERVICE_UUID);
+
+    // MIDIキャラクタリスティック作成
+    characteristic = service->createCharacteristic(
+        MIDI_CHARACTERISTIC_UUID,
+        NIMBLE_PROPERTY::READ |
+        NIMBLE_PROPERTY::WRITE_NR |
+        NIMBLE_PROPERTY::NOTIFY
+    );
+
+    // サービス開始
+    service->start();
+
+    // アドバタイジング設定
+    advertising = NimBLEDevice::getAdvertising();
+    advertising->addServiceUUID(MIDI_SERVICE_UUID);
+    advertising->setName(deviceName);
+
+    // アドバタイジング開始
+    advertising->start();
+
+    initialized = true;
+
+    // フラッシュタスク開始
+    taskRunning = true;
+    xTaskCreatePinnedToCore(
+        flushTask,
+        "BLEMidiFlush",
+        BLE_MIDI_TASK_STACK_SIZE,
+        this,
+        BLE_MIDI_TASK_PRIORITY,
+        &flushTaskHandle,
+        BLE_MIDI_TASK_CORE
+    );
+
+    xSemaphoreGive(lifecycleMutex);
+
+    Serial.println("BLEMidi: BLE MIDI Server started, advertising...");
+}
+
+void BLEMidi::end() {
+    if (lifecycleMutex == nullptr) return;
+
+    xSemaphoreTake(lifecycleMutex, portMAX_DELAY);
+
+    if (!initialized) {
+        xSemaphoreGive(lifecycleMutex);
+        return;
+    }
+
+    Serial.println("BLEMidi: Stopping BLE MIDI...");
+
+    // タスク停止フラグを設定
+    taskRunning = false;
+
+    // タスクが自己削除するのを待つ（最大200ms）
+    if (flushTaskHandle != nullptr) {
+        Serial.println("BLEMidi: Waiting for flush task to stop...");
+        // タスクが終了するまでポーリングで待機
+        for (int i = 0; i < 20 && eTaskGetState(flushTaskHandle) != eDeleted; i++) {
+            vTaskDelay(pdMS_TO_TICKS(10));
+        }
+        // タスクが終了しなかった場合は強制終了
+        if (eTaskGetState(flushTaskHandle) != eDeleted) {
+            Serial.println("BLEMidi: WARNING - Flush task did not stop gracefully, forcing delete");
+            vTaskDelete(flushTaskHandle);
+        }
+        flushTaskHandle = nullptr;
+        Serial.println("BLEMidi: Flush task stopped");
+    }
+
+    // アドバタイジング停止
+    if (advertising) {
+        advertising->stop();
+        Serial.println("BLEMidi: Advertising stopped");
+    }
+
+    // サービスを削除（deleteSvc=trueでメモリも解放）
+    if (server && service) {
+        server->removeService(service, true);
+        service = nullptr;
+        characteristic = nullptr;  // サービス削除でキャラクタリスティックも削除される
+        Serial.println("BLEMidi: Service removed");
+    }
+
+    initialized = false;
+    isConnected = false;
+    advertising = nullptr;
+    server = nullptr;
+
+    NimBLEDevice::deinit(false);
+
+    // Queueを削除
+    if (messageQueue != nullptr) {
+        vQueueDelete(messageQueue);
+        messageQueue = nullptr;
+        Serial.println("BLEMidi: Message queue deleted");
+    }
+
+    xSemaphoreGive(lifecycleMutex);
+
+    Serial.println("BLEMidi: BLE MIDI stopped");
+}
+
+void BLEMidi::onConnect(NimBLEServer* pServer, NimBLEConnInfo& connInfo) {
+    isConnected = true;
+    Serial.printf("BLEMidi: Client connected, address: %s\n",
+                  connInfo.getAddress().toString().c_str());
+
+    if (onConnectCallback) {
+        onConnectCallback();
+    }
+}
+
+void BLEMidi::onDisconnect(NimBLEServer* pServer, NimBLEConnInfo& connInfo, int reason) {
+    isConnected = false;
+    Serial.printf("BLEMidi: Client disconnected, reason: %d\n", reason);
+
+    // Queueをクリア
+    if (messageQueue != nullptr) {
+        xQueueReset(messageQueue);
+    }
+
+    if (onDisconnectCallback) {
+        onDisconnectCallback();
+    }
+
+    // 再アドバタイジング
+    if (advertising) {
+        advertising->start();
+        Serial.println("BLEMidi: Restarted advertising");
+    }
+}
+
+void BLEMidi::onWrite(NimBLECharacteristic* pCharacteristic, NimBLEConnInfo& connInfo) {
+    // MIDI入力を受信した場合
+    Serial.println("BLEMidi: Received MIDI data");
+}
+
+void BLEMidi::sendPacket(std::vector<MidiMessage>& messages) {
+    if (!isConnected || !characteristic || messages.empty()) return;
+
+    // パケット構築: [header, (timestamp, status, data1, data2), ...]
+    std::vector<uint8_t> packet;
+    packet.push_back(0x80);  // header byte
+
+    for (const auto& msg : messages) {
+        packet.push_back(0x80);  // timestamp
+        packet.push_back(msg.status);
+        packet.push_back(msg.data1);
+        packet.push_back(msg.data2);
+    }
+
+    characteristic->setValue(packet.data(), packet.size());
+    characteristic->notify();
+}
+
+void BLEMidi::addMidiMessage(uint8_t status, uint8_t data1, uint8_t data2) {
+    if (!isConnected || messageQueue == nullptr) return;
+
+    MidiMessage msg = {status, data1, data2};
+
+    // Queueに追加（ブロックせずに即座に戻る）
+    // Queueがいっぱいの場合はメッセージを破棄
+    xQueueSend(messageQueue, &msg, 0);
+}
+
+void BLEMidi::sendNoteOn(uint8_t channel, uint8_t noteNo, uint8_t vel) {
+    uint8_t status = 0x90 | (channel & 0x0F);
+    addMidiMessage(status, noteNo & 0x7F, vel & 0x7F);
+}
+
+void BLEMidi::sendNoteOff(uint8_t channel, uint8_t noteNo) {
+    uint8_t status = 0x80 | (channel & 0x0F);
+    addMidiMessage(status, noteNo & 0x7F, 0);
+}
+
+void BLEMidi::sendCC(uint8_t channel, uint8_t ccNo, uint8_t value) {
+    uint8_t status = 0xB0 | (channel & 0x0F);
+    addMidiMessage(status, ccNo & 0x7F, value & 0x7F);
+}
+
+void BLEMidi::flush() {
+    if (messageQueue == nullptr || !isConnected) return;
+
+    // Queueから全メッセージを取り出して送信
+    std::vector<MidiMessage> messages;
+    MidiMessage msg;
+
+    while (xQueueReceive(messageQueue, &msg, 0) == pdTRUE) {
+        messages.push_back(msg);
+
+        // パケットサイズ上限に達したら送信
+        if (messages.size() >= BLE_MIDI_MESSAGES_PER_PACKET) {
+            sendPacket(messages);
+            messages.clear();
+        }
+    }
+
+    // 残りを送信
+    if (!messages.empty()) {
+        sendPacket(messages);
+    }
+}
+
+// フラッシュタスク（Core1で実行）
+void BLEMidi::flushTask(void* param) {
+    BLEMidi* self = static_cast<BLEMidi*>(param);
+    TickType_t lastWakeTime = xTaskGetTickCount();
+    const TickType_t interval = pdMS_TO_TICKS(BLE_MIDI_FLUSH_INTERVAL_MS);
+
+    while (self->taskRunning) {
+        if (self->isConnected && self->messageQueue != nullptr) {
+            // Queueからメッセージを取り出してパケットサイズ分だけ送信
+            std::vector<MidiMessage> messages;
+            MidiMessage msg;
+
+            // 1パケット分だけ取り出す
+            while (messages.size() < BLE_MIDI_MESSAGES_PER_PACKET &&
+                   xQueueReceive(self->messageQueue, &msg, 0) == pdTRUE) {
+                messages.push_back(msg);
+            }
+
+            if (!messages.empty()) {
+                self->sendPacket(messages);
+            }
+        }
+
+        // 正確な間隔で実行
+        vTaskDelayUntil(&lastWakeTime, interval);
+    }
+
+    // タスク終了
+    vTaskDelete(nullptr);
+}

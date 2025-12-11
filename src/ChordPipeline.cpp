@@ -66,12 +66,12 @@ void ChordPipeline::sendNotes(bool isNoteOn, std::vector<uint8_t> notes, uint8_t
 
 void ChordPipeline::sendNoteOnRaw(uint8_t note, uint8_t vel, uint8_t channel)
 {
-  Output.Internal.NoteOn(note, vel, channel);
+  Output.getCurrentOutput()->noteOn(note, vel, channel);
 }
 
 void ChordPipeline::sendNoteOffRaw(uint8_t note, uint8_t vel, uint8_t channel)
 {
-  Output.Internal.NoteOff(note, vel, channel);
+  Output.getCurrentOutput()->noteOff(note, vel, channel);
 }
 
 // コードを再生する
