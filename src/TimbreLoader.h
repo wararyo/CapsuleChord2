@@ -2,8 +2,9 @@
 
 #include <memory>
 #include <stdint.h>
-#include <FS.h>
+#include <stdio.h>
 #include <Sampler.h>
+#include "LittleFSManager.h"
 
 using namespace capsule::sampler;
 
@@ -57,30 +58,34 @@ typedef struct {
 
 class WavFile {
 public:
-    WavFile() : valid{false} {}
-    WavFile(File file, wav_header_t header, wav_subchunk_header_t subchunkHeader)
-        : valid{true}, file{file}, header{header}, subchunkHeader{subchunkHeader} {}
+    WavFile() : file(nullptr), valid(false) {}
+    WavFile(FILE* f, wav_header_t h, wav_subchunk_header_t sh)
+        : file(f), header(h), subchunkHeader(sh), valid(true) {}
     ~WavFile() {}
+
     /**
      * @brief WAVファイルを開く
-     * @param fs ファイルシステム
-     * @param path ファイルパス
-     * @return 成功した場合true
+     * @param path ファイルパス（VFSマウントポイントを含む）
+     * @return WavFileオブジェクト
      */
-    static WavFile open(fs::FS &fs, const char *path);
+    static WavFile open(const char *path);
+
     /**
      * @brief WAVファイルを閉じる
      */
     void close();
+
     /**
      * @brief WAVファイルのヘッダー部分を除いたサイズを取得する
      * @return サイズ
      */
     size_t getDataSize();
+
     /**
-     * @bried WAVファイルの長さをサンプル単位で取得する
+     * @brief WAVファイルの長さをサンプル単位で取得する
      */
     size_t getSampleLength();
+
     /**
      * @brief WAVファイルからデータを読み込む
      * @param data 読み込んだデータを格納するバッファ
@@ -88,26 +93,28 @@ public:
      * @return 読み込んだバイト数
      */
     size_t read(int16_t *data, size_t size);
+
     bool isValid() { return valid; }
 
 private:
+    FILE* file;
     bool valid;
-    File file;
     wav_header_t header;
     wav_subchunk_header_t subchunkHeader;
 };
 
-// SDカードから音源データを読み込むクラス
+// LittleFSから音源データを読み込むクラス
 class TimbreLoader {
 public:
-  TimbreLoader() {}
-  ~TimbreLoader() {}
-  /**
-   * @brief 音源データを読み込む
-   * @param fs ファイルシステム
-   * @param path JSONファイルのファイルパス
-   */
-  std::shared_ptr<Timbre> loadTimbre(fs::FS &fs, const char *path);
+    TimbreLoader() {}
+    ~TimbreLoader() {}
+
+    /**
+     * @brief 音源データを読み込む
+     * @param path JSONファイルのファイルパス（LittleFSマウントポイントからの相対パス）
+     * @note LittleFSは事前にmountLittleFS()でマウントしておく必要がある
+     */
+    std::shared_ptr<Timbre> loadTimbre(const char *path);
 };
 
 extern TimbreLoader Loader;

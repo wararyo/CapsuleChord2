@@ -1,6 +1,5 @@
 #include <M5Unified.h>
 #include <vector>
-#include <Preferences.h>
 #include <lvgl.h>
 #include <esp_log.h>
 #include <esp_timer.h>
@@ -46,6 +45,7 @@ static inline int esp_digitalRead(gpio_num_t pin) {
 #include "Widget/AppLauncher.h"
 #include "Widget/PlayScreen.h"
 #include "I2CHandler.h"
+#include "LittleFSManager.h"
 
 #define GPIO_NUM_BACK GPIO_NUM_7
 #define GPIO_NUM_HOME GPIO_NUM_5
@@ -142,11 +142,18 @@ void setup() {
 
   I2C.begin();
 
-  // Load settings
-  // if(!settings.load()){
-  //   Serial.println("settings.json is not found in SD, so I'll try to create it.");
-  //   if(!settings.save()) Serial.println("Setting file creation failed.");
-  // }
+  // Mount LittleFS (used for settings and timbre loading)
+  if (!mountLittleFS()) {
+    ESP_LOGW(LOG_TAG, "LittleFS mount failed. Settings will use defaults.");
+  }
+
+  // Load settings from LittleFS
+  if (!settings.load()) {
+    ESP_LOGI(LOG_TAG, "Settings file not found, creating with defaults.");
+    if (!settings.save()) {
+      ESP_LOGW(LOG_TAG, "Failed to save default settings.");
+    }
+  }
 
   // Get setting items
   scale = &((SettingItemScale*)settings.findSettingByKey("Scale"))->content;
