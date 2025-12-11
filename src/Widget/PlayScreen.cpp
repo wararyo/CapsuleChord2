@@ -215,7 +215,7 @@ void PlayScreen::update()
         needsTickUpdate = false;
     }
     if (needsOutputUpdate && isCreated && output_label) {
-        const char* name = Output.getCurrentDevice()->getName();
+        const char* name = Output.getCurrentOutput()->getName();
         lv_label_set_text(output_label, name);
         needsOutputUpdate = false;
     }
@@ -224,8 +224,8 @@ void PlayScreen::update()
 void PlayScreen::cycleOutput()
 {
     // 次の出力デバイスに切り替え
-    int currentType = static_cast<int>(Output.getCurrentDeviceType());
-    int nextType = (currentType + 1) % static_cast<int>(OutputDeviceType::Count);
-    Output.setCurrentDevice(static_cast<OutputDeviceType>(nextType));
+    int currentType = static_cast<int>(Output.getCurrentOutputType());
+    int nextType = (currentType + 1) % static_cast<int>(OutputType::Count);
+    Output.setCurrentOutput(static_cast<OutputType>(nextType));
     needsOutputUpdate = true;
 }

@@ -194,7 +194,7 @@ void loop()
   }
 
   // 出力デバイスの更新（ヘッドフォン検出など）
-  Output.getCurrentDevice()->update();
+  Output.getCurrentOutput()->update();
 
   // 仮でホームボタンを押したらバッテリー残量が更新されるようにする
   if (BtnHome.wasPressed()) update_battery();

@@ -4,66 +4,66 @@
 #include "OutputBleMidi.h"
 #include "OutputUsbMidi.h"
 
-// 出力デバイスタイプ
-enum class OutputDeviceType {
+// 出力タイプ
+enum class OutputType {
     Internal = 0,   // 内蔵音源
     BleMidi,        // BLE MIDI
     UsbMidi,        // USB MIDI
-    Count           // デバイス数
+    Count           // 出力先の数
 };
 
-// 複数の出力デバイスを管理するクラス
+// 複数の出力を管理するクラス
 class MidiOutput {
 public:
     OutputInternal Internal;    // 内蔵音源
     OutputBleMidi BleMidi;      // BLE MIDI
     OutputUsbMidi UsbMidi;      // USB MIDI
 
-    MidiOutput() : currentDevice(&Internal) {}
+    MidiOutput() : currentOutput(&Internal) {}
 
-    // 現在の出力デバイスを取得
-    IMidiOutput* getCurrentDevice() { return currentDevice; }
+    // 現在の出力を取得
+    IMidiOutput* getCurrentOutput() { return currentOutput; }
 
-    // 出力デバイスを切り替え
-    void setCurrentDevice(OutputDeviceType type) {
-        if (currentDeviceType == type) return;  // 同じデバイスなら何もしない
+    // 出力を切り替え
+    void setCurrentOutput(OutputType type) {
+        if (currentOutputType == type) return;  // 同じ出力先なら何もしない
 
-        // 現在のデバイスを停止
-        if (currentDevice) {
-            currentDevice->end();
+        // 現在の出力先を停止
+        if (currentOutput) {
+            currentOutput->end();
         }
 
-        currentDeviceType = type;
+        currentOutputType = type;
         switch (type) {
-            case OutputDeviceType::Internal:
-                currentDevice = &Internal;
+            case OutputType::Internal:
+                currentOutput = &Internal;
                 break;
-            case OutputDeviceType::BleMidi:
-                currentDevice = &BleMidi;
+            case OutputType::BleMidi:
+                currentOutput = &BleMidi;
                 break;
-            case OutputDeviceType::UsbMidi:
-                currentDevice = &UsbMidi;
+            case OutputType::UsbMidi:
+                currentOutput = &UsbMidi;
                 break;
             default:
-                currentDevice = &Internal;
+                currentOutput = &Internal;
                 break;
         }
 
-        // 新しいデバイスを開始
-        currentDevice->begin();
+        // 新しい出力先を開始
+        currentOutput->begin();
     }
 
-    // 現在の出力デバイスタイプを取得
-    OutputDeviceType getCurrentDeviceType() const { return currentDeviceType; }
+    // 現在の出力タイプを取得
+    OutputType getCurrentOutputType() const { return currentOutputType; }
 
-    // 指定したタイプのデバイスを取得
-    IMidiOutput* getDevice(OutputDeviceType type) {
+    // 指定したタイプの出力を取得
+    IMidiOutput* getOutput(OutputType type) {
         switch (type) {
-            case OutputDeviceType::Internal:
+            case OutputType::Internal:
                 return &Internal;
-            case OutputDeviceType::BleMidi:
+            case OutputType::BleMidi:
                 return &BleMidi;
-            case OutputDeviceType::UsbMidi:
+            case OutputType::UsbMidi:
                 return &UsbMidi;
             default:
                 return &Internal;
@@ -71,8 +71,8 @@ public:
     }
 
 private:
-    IMidiOutput* currentDevice;
-    OutputDeviceType currentDeviceType = OutputDeviceType::Internal;
+    IMidiOutput* currentOutput;
+    OutputType currentOutputType = OutputType::Internal;
 };
 
 extern MidiOutput Output;
