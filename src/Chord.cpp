@@ -1,6 +1,11 @@
 #include <Chord.h>
 #include <cfloat>
-#include <esp_log.h>
+
+#ifdef NATIVE_TEST
+    #define ESP_LOGD(tag, fmt, ...) ((void)0)
+#else
+    #include <esp_log.h>
+#endif
 
 static const char* LOG_TAG = "Chord";
 
