@@ -4,7 +4,10 @@
 #include <list>
 #include <freertos/FreeRTOS.h>
 #include <freertos/semphr.h>
+#include <esp_log.h>
 #include "Chord.h"
+
+static const char* LOG_TAG_CHORD_PIPELINE = "ChordPipeline";
 
 // キーを押してからMIDIを出力するまでの一連の動作を管理するクラス
 class ChordPipeline
@@ -13,7 +16,7 @@ public:
     ChordPipeline() {
         filterMutex = xSemaphoreCreateMutex();
         if (!filterMutex) {
-            Serial.println("FATAL: Failed to create ChordPipeline filterMutex");
+            ESP_LOGE(LOG_TAG_CHORD_PIPELINE, "FATAL: Failed to create ChordPipeline filterMutex");
         }
     }
 

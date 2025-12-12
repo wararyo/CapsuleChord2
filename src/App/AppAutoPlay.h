@@ -8,6 +8,7 @@
 #include "../Keypad.h"
 #include <vector>
 #include <optional>
+#include <string>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
@@ -85,7 +86,7 @@ public:
         TempoController::tempo_t tempo;     // テンポ（BPM）
         uint8_t scaleKey;                   // 調のキー（C=0, C#=1, ...）
         ScaleBase* scale;                   // スケール（Major, Minor等）
-        String title;                       // 楽曲タイトル
+        std::string title;                       // 楽曲タイトル
         
         // コマンドリスト（時間順にソート済み）
         std::vector<AutoPlayCommand> commands;
@@ -98,8 +99,8 @@ public:
             : tempo(120), scaleKey(Chord::C), scale(nullptr), 
               title("Untitled"), duration(0) {}
               
-        Score(TempoController::tempo_t tempo, uint8_t scaleKey, ScaleBase* scale, const String& title)
-            : tempo(tempo), scaleKey(scaleKey), scale(scale), 
+        Score(TempoController::tempo_t tempo, uint8_t scaleKey, ScaleBase* scale, const std::string& title)
+            : tempo(tempo), scaleKey(scaleKey), scale(scale),
               title(title), duration(0) {}
               
         // DegreeChordをChordに変換するメソッド
@@ -117,7 +118,7 @@ public:
     // 楽曲データ構造
     struct SongData
     {
-        String title;
+        std::string title;
         const AutoPlayCommand* commands;
         size_t commandCount;
         TempoController::tempo_t tempo;
@@ -225,8 +226,8 @@ private:
     void initializeSongs();             // 楽曲データを初期化
     void loadSelectedScore();           // 選択された楽曲を読み込み
     void moveToNextSong();              // 次の曲に移動
-    void loadScoreFromArray(const AutoPlayCommand* commands, size_t commandCount, 
-                           TempoController::tempo_t tempo, const String& title, 
+    void loadScoreFromArray(const AutoPlayCommand* commands, size_t commandCount,
+                           TempoController::tempo_t tempo, const std::string& title,
                            musical_time_t duration, uint8_t key = Chord::C); // 配列から譜面を読み込み（キー情報付き）
     void sortCommands();        // コマンドを時間順にソート
     

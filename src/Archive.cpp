@@ -10,23 +10,15 @@ void deserialize(InputArchive &archive,const char *key,const char*& string){
     }
 }
 
-//String
-void serialize(OutputArchive &archive,const char *key,String string){
-#ifdef NATIVE_TEST
+//std::string
+void serialize(OutputArchive &archive,const char *key,const std::string& string){
     archive.getDocument()[key] = string.c_str();
-#else
-    archive.getDocument()[key] = string;
-#endif
 }
-void deserialize(InputArchive &archive,const char *key,String& string){
-#ifdef NATIVE_TEST
+void deserialize(InputArchive &archive,const char *key,std::string& string){
     if(archive.getDocument().containsKey(key)) {
         const char* str = archive.getDocument()[key];
-        string = String(str);
+        string = std::string(str);
     }
-#else
-    if(archive.getDocument().containsKey(key)) string = archive.getDocument()[key].as<String>();
-#endif
 }
 
 //int

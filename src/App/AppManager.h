@@ -5,6 +5,7 @@
 #include <memory>
 #include <freertos/FreeRTOS.h>
 #include <freertos/semphr.h>
+#include <esp_log.h>
 #include "AppBase.h"
 #include "AppMetronome.h"
 #include "AppDrumPattern.h"
@@ -17,6 +18,8 @@
 #include "AppSoundTest.h"
 #include "AppBall.h"
 #include "AppAutoPlay.h"
+
+static const char* LOG_TAG_APP_MANAGER = "AppManager";
 
 class AppManager
 {
@@ -31,7 +34,7 @@ public:
     AppManager() {
         knockMutex = xSemaphoreCreateMutex();
         if (!knockMutex) {
-            Serial.println("FATAL: Failed to create knockMutex");
+            ESP_LOGE(LOG_TAG_APP_MANAGER, "FATAL: Failed to create knockMutex");
         }
 
         // Initialize apps list with unique_ptr

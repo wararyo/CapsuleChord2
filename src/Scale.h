@@ -5,11 +5,7 @@
 #include <vector>
 #include <memory>
 #include <map>
-#ifdef NATIVE_TEST
-    #include "../test/mocks/StubArduino.h"
-#else
-    #include <WString.h>
-#endif
+#include <string>
 #include <functional>
 #include "Chord.h"
 #include "Archive.h"
@@ -17,7 +13,7 @@
 //ある特定の種類のスケールを定義するための基底クラス
 class ScaleBase {
 public:
-    virtual String name() {return "BaseScale";};
+    virtual std::string name() {return "BaseScale";};
     virtual Chord degreeToChord(uint8_t key, DegreeChord degree);
     virtual Chord getDiatonic(uint8_t key, uint8_t number, bool seventh, Chord base = Chord()){return degreeToChord(key,DegreeChord(number,seventh?Chord::Seventh:0));}
 };
@@ -26,7 +22,7 @@ class MajorScale : public ScaleBase {
 public:
     static const uint16_t diatonicOptions[];
     static const uint16_t diatonicSeventhOptions[];
-    String name() {return "Major";};
+    std::string name() override {return "Major";};
     static const uint8_t pitch[];
     // Chord degreeToChord(uint8_t key, DegreeChord degree, Chord base = Chord()) override;
     Chord getDiatonic(uint8_t key, uint8_t number, bool seventh, Chord base = Chord()) override;
@@ -36,7 +32,7 @@ class MinorScale : public ScaleBase {
 public:
     static const uint16_t diatonicOptions[];
     static const uint16_t diatonicSeventhOptions[];
-    String name() {return "Minor";};
+    std::string name() override {return "Minor";};
     static const uint8_t pitch[];
     // Chord degreeToChord(uint8_t key, DegreeChord degree, Chord base = Chord()) override;
     Chord getDiatonic(uint8_t key, uint8_t number, bool seventh, Chord base = Chord()) override;
@@ -54,11 +50,11 @@ public:
 
     Chord degreeToChord(DegreeChord degree);
     Chord getDiatonic(uint8_t number, bool seventh, Chord base = Chord());
-    String toString();
+    std::string toString();
     static std::vector<std::shared_ptr<ScaleBase>> getAvailableScales();
     int getScaleIndex();
-    int getScaleIndexFromName(String scaleStr);
-    ScaleBase *getScaleFromName(String scaleStr);
+    int getScaleIndexFromName(const std::string& scaleStr);
+    ScaleBase *getScaleFromName(const std::string& scaleStr);
 
     void serialize(OutputArchive &archive,const char *key) {
         archive.pushNest(key);
@@ -70,7 +66,7 @@ public:
         archive.pushNest(key);
         archive("Key",this->key);
         // Find scale which has its name
-        String scaleStr = "";
+        std::string scaleStr = "";
         archive("Scale",scaleStr);
         currentScale = getScaleFromName(scaleStr);
         archive.popNest();
