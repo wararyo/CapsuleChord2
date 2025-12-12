@@ -81,11 +81,10 @@ void aw88298_write_reg(uint8_t reg, uint16_t value)
 
 bool OutputInternal::loadTimbres()
 {
-    // TODO: Phase 5でesp_littlefsを使用した実装に置き換える
-    // 現在はTimbreLoaderがスタブ実装のため、ティンバーは読み込まれない
+    // LittleFSからティンバーを読み込む（LittleFSは事前にマウント済みであること）
     ESP_LOGI(LOG_TAG, "Loading timbres...");
 
-    // TimbreLoaderを使用してティンバーを読み込む（現在はスタブ）
+    // TimbreLoaderを使用してティンバーを読み込む
     aguitar = Loader.loadTimbre("/aguitar/aguitar.json");
     if (aguitar) ESP_LOGI(LOG_TAG, "  aguitar loaded");
 

@@ -532,7 +532,7 @@ void AppAutoPlay::songSelectionEventHandler(lv_event_t * e)
 {
     AppAutoPlay* app = (AppAutoPlay*)lv_event_get_user_data(e);
     lv_obj_t* dropdown = lv_event_get_target(e);
-    
+
     app->selectedSongIndex = lv_dropdown_get_selected(dropdown);
     ESP_LOGI(LOG_TAG, "Song selection changed to index: %zu", app->selectedSongIndex);
     
@@ -547,7 +547,7 @@ void AppAutoPlay::continuousModeEventHandler(lv_event_t * e)
 {
     AppAutoPlay* app = (AppAutoPlay*)lv_event_get_user_data(e);
     lv_obj_t* sw = lv_event_get_target(e);
-    
+
     app->isContinuousMode = lv_obj_has_state(sw, LV_STATE_CHECKED);
     ESP_LOGI(LOG_TAG, "Continuous mode: %s", app->isContinuousMode ? "ON" : "OFF");
 }

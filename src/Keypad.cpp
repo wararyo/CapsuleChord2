@@ -4,7 +4,7 @@
 
 static const char* LOG_TAG = "Keypad";
 
-#define EXT_I2C_PORT 0
+#define EXT_I2C_PORT I2C_NUM_0
 
 #define PORTA_SCL  1
 #define PORTA_SDA  2
@@ -133,7 +133,7 @@ void CapsuleChordKeypad::removeKeyEventListener(std::shared_ptr<KeyEventListener
 // LED Layer Management
 void CapsuleChordKeypad::pushLedLayer(std::shared_ptr<LedLayer> layer) {
     if (!layer) return;
-    
+
     _ledLayers.push_back(layer);
     _needsLedUpdate = true;
     ESP_LOGD(LOG_TAG, "LED Layer pushed: %s (stack size: %d)",
@@ -142,7 +142,7 @@ void CapsuleChordKeypad::pushLedLayer(std::shared_ptr<LedLayer> layer) {
 
 void CapsuleChordKeypad::removeLedLayer(std::shared_ptr<LedLayer> layer) {
     if (!layer) return;
-    
+
     for (auto it = _ledLayers.begin(); it != _ledLayers.end(); ++it) {
         if (*it == layer) {
             _ledLayers.erase(it);

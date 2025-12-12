@@ -309,3 +309,11 @@ void loop()
   while(esp_millis() - lastLoopMillis < 5);
   lastLoopMillis = esp_millis();
 }
+
+// ESP-IDF entry point
+extern "C" void app_main(void) {
+  setup();
+  while (true) {
+    loop();
+  }
+}
