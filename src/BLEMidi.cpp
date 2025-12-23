@@ -225,27 +225,32 @@ void BLEMidi::onReset(int reason) {
 void BLEMidi::startAdvertising() {
     struct ble_gap_adv_params advParams;
     struct ble_hs_adv_fields fields;
+    struct ble_hs_adv_fields rspFields;
     int rc;
 
+    // アドバタイズデータ（31バイト制限）: flags + UUID のみ
     memset(&fields, 0, sizeof(fields));
-
-    // Advertise flags
     fields.flags = BLE_HS_ADV_F_DISC_GEN | BLE_HS_ADV_F_BREDR_UNSUP;
-
-    // Include complete 128-bit service UUID
     fields.uuids128 = &midiServiceUuid;
     fields.num_uuids128 = 1;
     fields.uuids128_is_complete = 1;
-
-    // Device name
-    fields.name = (uint8_t*)deviceName.c_str();
-    fields.name_len = deviceName.length();
-    fields.name_is_complete = 1;
 
     rc = ble_gap_adv_set_fields(&fields);
     if (rc != 0) {
         ESP_LOGE(LOG_TAG, "Failed to set adv fields: %d", rc);
         return;
+    }
+
+    // スキャンレスポンスデータ: デバイス名
+    memset(&rspFields, 0, sizeof(rspFields));
+    rspFields.name = (uint8_t*)deviceName.c_str();
+    rspFields.name_len = deviceName.length();
+    rspFields.name_is_complete = 1;
+
+    rc = ble_gap_adv_rsp_set_fields(&rspFields);
+    if (rc != 0) {
+        ESP_LOGE(LOG_TAG, "Failed to set scan response fields: %d", rc);
+        // スキャンレスポンス設定失敗は致命的ではないので続行
     }
 
     // Set advertising parameters
