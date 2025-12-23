@@ -4,7 +4,6 @@
 #include <driver/gpio.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
-#include <esp_task_wdt.h>
 
 static const char* LOG_TAG = "OutputInternal";
 
@@ -129,8 +128,6 @@ void OutputInternal::stopAudioLoop()
         vTaskDelete(audioLoopHandler);
         audioLoopHandler = nullptr;
     }
-    // WDTを再有効化（audioLoopタスク終了後）
-    esp_task_wdt_add(xTaskGetIdleTaskHandleForCPU(0));
 }
 
 void OutputInternal::initAudioOutput(AudioOutput output)
@@ -220,8 +217,6 @@ void OutputInternal::initAudioOutput(AudioOutput output)
         1,
         &audioLoopHandler,
         0);
-    // ウォッチドッグからCore0アイドルタスクを除外（オーディオ処理を妨げないため）
-    esp_task_wdt_delete(xTaskGetIdleTaskHandleForCPU(0));
 }
 
 void OutputInternal::begin()
