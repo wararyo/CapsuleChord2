@@ -7,7 +7,9 @@ Scale::Scale(uint8_t key) : key(key) {
     currentScale = getAvailableScales()[0].get();
 }
 
-Scale::Scale() : key(0) {}
+Scale::Scale() : key(0) {
+    currentScale = getAvailableScales()[0].get();
+}
 
 std::string Scale::toString() {
     return Chord::rootStrings[key] + " " + currentScale->name();
@@ -53,7 +55,8 @@ ScaleBase *Scale::getScaleFromName(const std::string& scaleStr) {
             return i.get();
         }
     }
-    return nullptr;
+    // 見つからない場合はデフォルトを返す
+    return getAvailableScales()[0].get();
 }
 
 //****
