@@ -4,6 +4,8 @@
 #include <esp_log.h>
 #include <esp_timer.h>
 #include <driver/gpio.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
 
 static const char* LOG_TAG = "Main";
 
@@ -306,7 +308,11 @@ void loop()
   playScreen.update();
   lv_task_handler();
 
-  while(esp_millis() - lastLoopMillis < 5);
+  // 5ms間隔でループ（vTaskDelayでIDLEタスクに実行機会を与える）
+  unsigned long elapsed = esp_millis() - lastLoopMillis;
+  if (elapsed < 5) {
+    vTaskDelay(pdMS_TO_TICKS(5 - elapsed));
+  }
   lastLoopMillis = esp_millis();
 }
 
