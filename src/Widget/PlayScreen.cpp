@@ -105,7 +105,7 @@ void PlayScreen::create()
     Tempo.addListener(&tempoCallback);
 
     // 出力先ラベルの初期表示を設定
-    needsOutputUpdate = true;
+    lv_label_set_text(output_label, Output.getCurrentOutput()->getName());
 
     isCreated = true;
 }
@@ -214,18 +214,23 @@ void PlayScreen::update()
         updateTick(lastTickTiming & TempoController::TICK_TIMING_BAR);
         needsTickUpdate = false;
     }
-    if (needsOutputUpdate && isCreated && output_label) {
-        const char* name = Output.getCurrentOutput()->getName();
-        lv_label_set_text(output_label, name);
-        needsOutputUpdate = false;
+    // 出力先切り替えがリクエストされている場合、実際に切り替える
+    if (pendingOutputChange) {
+        Output.setCurrentOutput(pendingOutputType);
+        pendingOutputChange = false;
+        // ラベルを更新
+        if (isCreated && output_label) {
+            const char* name = Output.getCurrentOutput()->getName();
+            lv_label_set_text(output_label, name);
+        }
     }
 }
 
 void PlayScreen::cycleOutput()
 {
-    // 次の出力デバイスに切り替え
+    // 次の出力デバイスに切り替えをリクエスト（実際の切り替えはupdate()で行う）
     int currentType = static_cast<int>(Output.getCurrentOutputType());
     int nextType = (currentType + 1) % static_cast<int>(OutputType::Count);
-    Output.setCurrentOutput(static_cast<OutputType>(nextType));
-    needsOutputUpdate = true;
+    pendingOutputType = static_cast<OutputType>(nextType);
+    pendingOutputChange = true;
 }

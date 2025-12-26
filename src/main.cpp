@@ -1,7 +1,31 @@
 #include <M5Unified.h>
 #include <vector>
-#include <Preferences.h>
 #include <lvgl.h>
+#include <esp_log.h>
+#include <esp_timer.h>
+#include <driver/gpio.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
+
+static const char* LOG_TAG = "Main";
+
+static inline unsigned long esp_millis() {
+    return (unsigned long)(esp_timer_get_time() / 1000ULL);
+}
+
+static inline void esp_pinMode(gpio_num_t pin, gpio_mode_t mode) {
+    gpio_config_t io_conf = {};
+    io_conf.pin_bit_mask = (1ULL << pin);
+    io_conf.mode = mode;
+    io_conf.pull_up_en = (mode == GPIO_MODE_INPUT) ? GPIO_PULLUP_ENABLE : GPIO_PULLUP_DISABLE;
+    io_conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
+    io_conf.intr_type = GPIO_INTR_DISABLE;
+    gpio_config(&io_conf);
+}
+
+static inline int esp_digitalRead(gpio_num_t pin) {
+    return gpio_get_level(pin);
+}
 #include "BLEMidi.h"
 #include "Chord.h"
 #include "Scale.h"
@@ -23,6 +47,7 @@
 #include "Widget/AppLauncher.h"
 #include "Widget/PlayScreen.h"
 #include "I2CHandler.h"
+#include "LittleFSManager.h"
 
 #define GPIO_NUM_BACK GPIO_NUM_7
 #define GPIO_NUM_HOME GPIO_NUM_5
@@ -115,23 +140,29 @@ void setup() {
   BtnHome.setHoldThresh(2500);
   Keypad.begin();
 
-  Serial.begin(115200);
-  Serial.println("Hello.");
+  ESP_LOGI(LOG_TAG, "Hello.");
 
   I2C.begin();
 
-  // Load settings
-  // if(!settings.load()){
-  //   Serial.println("settings.json is not found in SD, so I'll try to create it.");
-  //   if(!settings.save()) Serial.println("Setting file creation failed.");
-  // }
+  // Mount LittleFS (used for settings and timbre loading)
+  if (!mountLittleFS()) {
+    ESP_LOGW(LOG_TAG, "LittleFS mount failed. Settings will use defaults.");
+  }
+
+  // Load settings from LittleFS
+  if (!settings.load()) {
+    ESP_LOGI(LOG_TAG, "Settings file not found, creating with defaults.");
+    if (!settings.save()) {
+      ESP_LOGW(LOG_TAG, "Failed to save default settings.");
+    }
+  }
 
   // Get setting items
-  scale = &((SettingItemScale*)settings.findSettingByKey(String("Scale")))->content;
-  centerNoteNo = &((SettingItemNumeric*)settings.findSettingByKey(String("CenterNoteNo")))->number;
+  scale = &((SettingItemScale*)settings.findSettingByKey("Scale"))->content;
+  centerNoteNo = &((SettingItemNumeric*)settings.findSettingByKey("CenterNoteNo"))->number;
 
   // Set lcd brightness
-  switch(((SettingItemEnum*)settings.findSettingByKey(String("Brightness")))->index) {
+  switch(((SettingItemEnum*)settings.findSettingByKey("Brightness"))->index) {
     case 0: M5.Lcd.setBrightness(255); break;
     case 1: M5.Lcd.setBrightness(127); break;
     case 2: M5.Lcd.setBrightness(32); break;
@@ -147,9 +178,9 @@ void setup() {
   Keypad.addKeyEventListener(keyMapPtr);
 
   // 3ボタン
-  pinMode(GPIO_NUM_BACK, INPUT_PULLUP);
-  pinMode(GPIO_NUM_HOME, INPUT_PULLUP);
-  pinMode(GPIO_NUM_MENU, INPUT_PULLUP);
+  esp_pinMode(GPIO_NUM_BACK, GPIO_MODE_INPUT);
+  esp_pinMode(GPIO_NUM_HOME, GPIO_MODE_INPUT);
+  esp_pinMode(GPIO_NUM_MENU, GPIO_MODE_INPUT);
 
   // 内蔵音源を開始（初期デバイスとして）
   Output.Internal.begin();
@@ -167,10 +198,10 @@ void loop()
 {
   // M5.update()とKeypad.update()はI2Cスレッドで処理される
   
-  unsigned long ms = millis();
-  BtnBack.setRawState(ms, digitalRead(GPIO_NUM_BACK) == 0);
-  BtnHome.setRawState(ms, digitalRead(GPIO_NUM_HOME) == 0);
-  BtnMenu.setRawState(ms, digitalRead(GPIO_NUM_MENU) == 0);
+  unsigned long ms = esp_millis();
+  BtnBack.setRawState(ms, esp_digitalRead(GPIO_NUM_BACK) == 0);
+  BtnHome.setRawState(ms, esp_digitalRead(GPIO_NUM_HOME) == 0);
+  BtnMenu.setRawState(ms, esp_digitalRead(GPIO_NUM_MENU) == 0);
 
   if (BtnBack.wasPressed())
   {
@@ -277,6 +308,18 @@ void loop()
   playScreen.update();
   lv_task_handler();
 
-  while(millis() - lastLoopMillis < 5);
-  lastLoopMillis = millis();
+  // 5ms間隔でループ（vTaskDelayでIDLEタスクに実行機会を与える）
+  unsigned long elapsed = esp_millis() - lastLoopMillis;
+  if (elapsed < 5) {
+    vTaskDelay(pdMS_TO_TICKS(5 - elapsed));
+  }
+  lastLoopMillis = esp_millis();
+}
+
+// ESP-IDF entry point
+extern "C" void app_main(void) {
+  setup();
+  while (true) {
+    loop();
+  }
 }

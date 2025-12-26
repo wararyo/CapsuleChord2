@@ -2,6 +2,8 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
+#include <string>
+#include <vector>
 
 /*********************
  *      DEFINES
@@ -156,11 +158,11 @@ static void lv_chordlabel_event(const lv_obj_class_t *class_p, lv_event_t *e)
 }
 
 // MNotoで正しく表示するためには特殊な表記をする必要があるため、Chord::toString()とは別で実装する
-const std::vector<String> rootStrings = {"C","C[","D","D[","E","F","F[","G","G[","A","A[","B"};
-static String chord_to_string(const Chord &chord)
+const std::vector<std::string> rootStrings = {"C","C[","D","D[","E","F","F[","G","G[","A","A[","B"};
+static std::string chord_to_string(const Chord &chord)
 {
-    String str = rootStrings[chord.root];
-    
+    std::string str = rootStrings[chord.root];
+
     // 3度
     if(chord.option & Chord::Sus4) {
         str += "sus$";
@@ -173,7 +175,7 @@ static String chord_to_string(const Chord &chord)
     } else if(chord.option & Chord::Minor) {
         str += "m";
     } // Major is implied
-    
+
     // 7度
     if(chord.option & Chord::MajorSeventh) {
         str += "M7";
@@ -182,20 +184,20 @@ static String chord_to_string(const Chord &chord)
     } else if(chord.option & Chord::Sixth) {
         str += "6";
     }
-    
+
     // 5度
     bool fifthFlat = (chord.option & Chord::FifthFlat) && !(chord.option & Chord::Dimish);
-    
+
     // 括弧の中に含める文字
     bool hasExtensions = false;
-    String extensions = "";
-    
+    std::string extensions = "";
+
     // フラットファイブとテンションが同時にある場合、フラットファイブは括弧の中に含める
     if(fifthFlat && (chord.option & 0b1111111000000000)) {
         extensions += "]5";
         hasExtensions = true;
     }
-    
+
     // テンション
     if(chord.option & Chord::Ninth || chord.option & Chord::NinthSharp) {
         if(hasExtensions) extensions += "?";
@@ -206,7 +208,7 @@ static String chord_to_string(const Chord &chord)
         }
         hasExtensions = true;
     }
-    
+
     if(chord.option & Chord::Eleventh || chord.option & Chord::EleventhSharp) {
         if(hasExtensions) extensions += "?";
         if(chord.option & Chord::EleventhSharp) {
@@ -216,7 +218,7 @@ static String chord_to_string(const Chord &chord)
         }
         hasExtensions = true;
     }
-    
+
     if(chord.option & Chord::Thirteenth || chord.option & Chord::ThirteenthSharp || chord.option & Chord::ThirteenthFlat) {
         if(hasExtensions) extensions += "?";
         if(chord.option & Chord::ThirteenthSharp) {
@@ -228,7 +230,7 @@ static String chord_to_string(const Chord &chord)
         }
         hasExtensions = true;
     }
-    
+
     // 算出した文字列の合成
     if(hasExtensions) {
         str += "{" + extensions + "}";
@@ -236,12 +238,12 @@ static String chord_to_string(const Chord &chord)
         // フラットファイブは括弧の中に含めない
         str += "-5";
     }
-    
+
     // Add slash chord notation if a bass note is specified
     if (chord.bass != Chord::BASS_DEFAULT) {
         str += "/" + rootStrings[chord.bass];
     }
-    
+
     return str;
 }
 

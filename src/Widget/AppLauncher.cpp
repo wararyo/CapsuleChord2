@@ -2,6 +2,11 @@
 #include "LvglWrapper.h"
 #include "App/AppManager.h"
 #include "lv_appbutton.h"
+#include <esp_timer.h>
+
+static inline unsigned long esp_millis() {
+    return (unsigned long)(esp_timer_get_time() / 1000ULL);
+}
 
 // Constructor - Initialize and register as knock listener
 AppLauncher::AppLauncher() {
@@ -88,7 +93,7 @@ void AppLauncher::create()
             auto data = (AppIconClickEventData *)lv_event_get_user_data(e);
             // スクロール中はプレスイベントを無視
             if (!data->launcher->isScrolling) {
-                data->pressedAt = millis();
+                data->pressedAt = esp_millis();
                 // タッチ位置を記録
                 lv_indev_t *indev = lv_indev_get_act();
                 if (indev != nullptr) lv_indev_get_point(indev, &data->pressPoint);
@@ -101,7 +106,7 @@ void AppLauncher::create()
             // スクロール中はリリースイベントを無視
             if (!data->launcher->isScrolling) {
                 // 長押しながらトグル、通常押しでアプリ画面を表示
-                if (millis() - data->pressedAt >= 250)
+                if (esp_millis() - data->pressedAt >= 250)
                 {
                     if (data->app->getActive()) data->app->onDeactivate();
                     else data->app->onActivate();
@@ -117,8 +122,9 @@ void AppLauncher::create()
                         lv_coord_t dx = data->releasePoint.x - data->pressPoint.x;
                         lv_coord_t dy = data->releasePoint.y - data->pressPoint.y;
                         if (abs(dx) < 10 && abs(dy) < 10){
-                            data->launcher->del();
-                            App.launchApp(data->app);
+                            // 実際の起動処理はupdate()で行う（コールバック内での重い処理を避ける）
+                            data->launcher->pendingApp = data->app;
+                            data->launcher->pendingAppLaunch = true;
                         }
                     }
                 }
@@ -170,6 +176,15 @@ void AppLauncher::onKnock(AppBase* app) {
 
 void AppLauncher::update()
 {
+    // アプリ起動がリクエストされている場合、実際に起動する
+    if (pendingAppLaunch && pendingApp) {
+        del();
+        App.launchApp(pendingApp);
+        pendingAppLaunch = false;
+        pendingApp = nullptr;
+        return;  // del()でUIが削除されたので、これ以降の処理は不要
+    }
+
     // ノック待機中のアプリがある場合、アニメーションを実行
     if (needsKnockAnimation && !appsToKnock.empty()) {
         for (AppBase* app : appsToKnock) {

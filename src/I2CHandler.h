@@ -44,6 +44,7 @@ private:
     SemaphoreHandle_t touchDataMutex = nullptr;
     TouchData currentTouchData = {false, 0, 0};
     bool resetTouchDataRequested = false;
+    volatile bool taskRunning = false;  // タスク停止フラグ
 };
 
 extern I2CHandler I2C;

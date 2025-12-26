@@ -1,18 +1,23 @@
 #ifndef _SETTINGS_H_
 #define _SETTINGS_H_
 
-#include "SD.h"
+#include <M5Unified.h>
 #undef min
 #include <vector>
 #include <memory>
 #include <stdio.h>
+#include <esp_log.h>
+#include "LittleFSManager.h"
 #include "Archive.h"
 #include "Chord.h"
 #include "Scale.h"
 
+static const char* LOG_TAG_SETTINGS = "Settings";
+
 #define MAX_NEST_SIZE 16
 
-const String jsonFilePath = "/capsulechord/settings.json";
+// LittleFS上の設定ファイルパス（マウントポイントからの相対パス）
+static constexpr const char* jsonFilePath = "/settings.json";
 
 class SettingItem {
 protected:
@@ -60,59 +65,91 @@ public:
 class Settings : public SettingItem {
 private:
     uint version;
+
 public:
     Settings(std::vector<std::unique_ptr<SettingItem>> items,uint version=1)
         : SettingItem("Settings",std::move(items)),version(version){}
-    bool load(String path = jsonFilePath){
-        //Read file
-        File file = SD.open(path);
-        if(!file) return false;
 
-        // Check file size to prevent buffer overflow
-        size_t fileSize = file.size();
-        if(fileSize >= maxJsonFileSize) {
-            Serial.printf("Settings file too large: %zu bytes (max: %d)\n", fileSize, maxJsonFileSize - 1);
-            file.close();
+    bool load(const std::string& path = jsonFilePath){
+        if (!isLittleFSMounted()) {
+            ESP_LOGE(LOG_TAG_SETTINGS, "LittleFS not mounted. Call mountLittleFS() first.");
             return false;
         }
 
-        char output[maxJsonFileSize] = {'\0'};
-        size_t bytesRead = file.read((uint8_t *)output, fileSize);
-        output[bytesRead] = '\0';  // Ensure null termination
-        file.close();
-        //Deserialize
-        Serial.println("Start deserialization");
-        InputArchive archive = InputArchive();
-        archive.fromJSON(output);
-        uint jsonVersion = 0;
-        // archive("Version",std::forward<uint>(jsonVersion));
-        Serial.printf("Setting file version = %d",jsonVersion);
-        // if(version > jsonVersion) migration.invoke(jsonVersion);
-        // archive(name,*this);
-        return true;
-    }
-    bool save(String path = jsonFilePath){
-        //Serialize
-        OutputArchive archive = OutputArchive();
-        // archive("Version",std::forward<uint>(version));
-        // archive(name,*this);
-        std::string output = archive.toJSON(true);
-        //Write to file
-        File file = SD.open(path,FILE_WRITE);
-        if(!file) {
-            Serial.println("Something wrong happened with saving settings.");
+        // VFSフルパスを構築
+        std::string fullPath = std::string(LITTLEFS_MOUNT_POINT) + path;
+
+        FILE* file = fopen(fullPath.c_str(), "r");
+        if (file == nullptr) {
+            ESP_LOGW(LOG_TAG_SETTINGS, "Settings file not found: %s", fullPath.c_str());
             return false;
         }
-        file.print(output.c_str());
-        file.close();
+
+        // ファイルサイズを取得
+        fseek(file, 0, SEEK_END);
+        long fileSize = ftell(file);
+        fseek(file, 0, SEEK_SET);
+
+        // ファイル内容を読み込む
+        std::vector<char> jsonBuffer(fileSize + 1);
+        size_t bytesRead = fread(jsonBuffer.data(), 1, fileSize, file);
+        jsonBuffer[bytesRead] = '\0';
+        fclose(file);
+
+        // JSONをデシリアライズ
+        InputArchive archive;
+        archive.fromJSON(jsonBuffer.data());
+
+        // 各設定項目をデシリアライズ
+        for (auto& item : children) {
+            item->deserialize(archive, item->name);
+        }
+
+        ESP_LOGI(LOG_TAG_SETTINGS, "Settings loaded from: %s", fullPath.c_str());
         return true;
     }
-    SettingItem *findSettingByKey(String query){
-        String keys[MAX_NEST_SIZE] = {String("\0")};
+
+    bool save(const std::string& path = jsonFilePath){
+        if (!isLittleFSMounted()) {
+            ESP_LOGE(LOG_TAG_SETTINGS, "LittleFS not mounted. Call mountLittleFS() first.");
+            return false;
+        }
+
+        // VFSフルパスを構築
+        std::string fullPath = std::string(LITTLEFS_MOUNT_POINT) + path;
+
+        // JSONにシリアライズ
+        OutputArchive archive;
+        for (auto& item : children) {
+            item->serialize(archive, item->name);
+        }
+        std::string json = archive.toJSON(true); // Pretty print
+
+        // ファイルに書き込み
+        FILE* file = fopen(fullPath.c_str(), "w");
+        if (file == nullptr) {
+            ESP_LOGE(LOG_TAG_SETTINGS, "Failed to open file for writing: %s", fullPath.c_str());
+            return false;
+        }
+
+        size_t written = fwrite(json.c_str(), 1, json.length(), file);
+        fclose(file);
+
+        if (written != json.length()) {
+            ESP_LOGE(LOG_TAG_SETTINGS, "Failed to write settings file");
+            return false;
+        }
+
+        ESP_LOGI(LOG_TAG_SETTINGS, "Settings saved to: %s", fullPath.c_str());
+        return true;
+    }
+
+    SettingItem *findSettingByKey(const std::string& query){
+        std::string keys[MAX_NEST_SIZE] = {""};
         // Split query by '/'
         int index = 0;
-        for(int i = 0; i < query.length(); i++){
-            char tmp = query.charAt(i);
+        for(size_t i = 0; i < query.length(); i++){
+            char tmp = query[i];
             if(tmp == '/') {
                 index++;
                 if(index > (MAX_NEST_SIZE - 1)) return nullptr;
@@ -121,11 +158,11 @@ public:
         }
         // Find item
         SettingItem * cursor = this;
-        for(String key : keys){
-            if(key == String("\0")) break;
+        for(const std::string& key : keys){
+            if(key.empty()) break;
             auto& children = cursor->children;
             for(auto& k : cursor->children){
-                if(String(k->name) == key){
+                if(std::string(k->name) == key){
                     cursor = k.get();
                     goto next_key; // forループを一気に抜けるための使用ならバチは当たらないはず…
                 }
@@ -209,11 +246,11 @@ public:
         archive(name,memberNames[index]);
     }
     void deserialize(InputArchive &archive,const char *key) override {
-        String memberName = "";
+        std::string memberName = "";
         archive(name,memberName);
-        for(int i = 0;i < memberNames.size();i++){
-            String m = String(memberNames[i]);
-            if(String(m).equals(memberName)) {
+        for(size_t i = 0;i < memberNames.size();i++){
+            std::string m = std::string(memberNames[i]);
+            if(m == memberName) {
                 index = i;
             }
         }

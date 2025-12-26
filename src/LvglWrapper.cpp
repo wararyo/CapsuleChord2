@@ -1,6 +1,9 @@
 #include "LvglWrapper.h"
 #include "M5Unified.h"
 #include "I2CHandler.h"
+#include <esp_log.h>
+
+static const char* LOG_TAG = "LVGL";
 
 static void my_disp_flush( lv_disp_drv_t *disp, const lv_area_t *area, lv_color_t *color_p )
 {
@@ -44,7 +47,7 @@ void LvglWrapper::begin()
     lv_indev_drv_register(&indev_drv);
     lv_disp_set_default(disp);
     lv_log_register_print_cb([](const char *buf) {
-        Serial.print(buf);
+        ESP_LOGI(LOG_TAG, "%s", buf);
     });
 
     lv_style_init(&scr_style);

@@ -1,6 +1,14 @@
 #include <Chord.h>
 #include <cfloat>
 
+#ifdef NATIVE_TEST
+    #define ESP_LOGD(tag, fmt, ...) ((void)0)
+#else
+    #include <esp_log.h>
+#endif
+
+static const char* LOG_TAG = "Chord";
+
 Chord::Chord()
 : Chord(C,0,0,3) {}
 
@@ -18,21 +26,21 @@ Chord::Chord(uint8_t root, uint16_t option, uint8_t inversion)
 Chord::Chord(uint8_t root, uint16_t option, uint8_t inversion, uint8_t octave)
 : root(root), option(option), inversion(inversion), octave(octave), bass(BASS_DEFAULT) {}
 
-String Chord::toString() {
-    String str = rootStrings[root];
+std::string Chord::toString() {
+    std::string str = rootStrings[root];
     str += formatChordOptions(option);
-    
+
     // Add slash chord notation if a bass note is specified
     if (bass != BASS_DEFAULT) {
         str += "/" + rootStrings[bass];
     }
-    
+
     return str;
 }
 
-String Chord::formatChordOptions(uint16_t option) {
-    String str = "";
-    
+std::string Chord::formatChordOptions(uint16_t option) {
+    std::string str = "";
+
     // 3度
     if(option & Sus4) {
         str += "sus4";
@@ -45,7 +53,7 @@ String Chord::formatChordOptions(uint16_t option) {
     } else if(option & Minor) {
         str += "m";
     } // Major is implied
-    
+
     // 7度
     if(option & MajorSeventh) {
         str += "M7";
@@ -54,13 +62,13 @@ String Chord::formatChordOptions(uint16_t option) {
     } else if(option & Sixth) {
         str += "6";
     }
-    
+
     // 5度
     bool fifthFlat = (option & FifthFlat) && !(option & Dimish);
-    
+
     // 括弧の中に含める文字
     bool hasExtensions = false;
-    String extensions = "";
+    std::string extensions = "";
     
     // フラットファイブとテンションが同時にある場合、フラットファイブは括弧の中に含める
     if(fifthFlat && (option & 0b1111111000000000)) {
@@ -175,7 +183,7 @@ void Chord::calcInversion(uint8_t centerNoteNo) {
                     inversion = notes.size() - 1;
                 }
                 else inversion -= 2;
-                Serial.printf("calcInversion %d %d %f\n", octave, inversion, previousScore[1]);
+                ESP_LOGD(LOG_TAG, "calcInversion %d %d %f", octave, inversion, previousScore[1]);
                 return;
             }
             previousScore[1] = previousScore[0];
@@ -216,7 +224,7 @@ void Chord::setBass(int8_t bassNote) {
     }
 }
 
-const std::vector<String> Chord::rootStrings = {"C","C#","D","D#","E","F","F#","G","G#","A","A#","B"};
+const std::vector<std::string> Chord::rootStrings = {"C","C#","D","D#","E","F","F#","G","G#","A","A#","B"};
 
 DegreeChord::DegreeChord()
 : DegreeChord(I,0,0) {}
@@ -227,15 +235,15 @@ DegreeChord::DegreeChord(uint8_t root, uint16_t option)
 DegreeChord::DegreeChord(uint8_t root, uint16_t option, uint8_t inversion)
 : root(root), option(option), inversion(inversion), bass(BASS_DEFAULT) {}
 
-String DegreeChord::toString() {
-    String str = rootStrings[root];
+std::string DegreeChord::toString() {
+    std::string str = rootStrings[root];
     str += Chord::formatChordOptions(option);
-    
+
     // Add slash chord notation if a bass note is specified
     if (bass != BASS_DEFAULT) {
         str += "/" + rootStrings[bass];
     }
-    
+
     return str;
 }
 
@@ -252,4 +260,4 @@ bool DegreeChord::equals(DegreeChord other){
     return true;
 }
 
-const std::vector<String> DegreeChord::rootStrings = {"I","I#","II","II#","III","IV","IV#","V","V#","VI","VI#","VII"};
+const std::vector<std::string> DegreeChord::rootStrings = {"I","I#","II","II#","III","IV","IV#","V","V#","VI","VI#","VII"};

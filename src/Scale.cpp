@@ -7,9 +7,11 @@ Scale::Scale(uint8_t key) : key(key) {
     currentScale = getAvailableScales()[0].get();
 }
 
-Scale::Scale() : key(0) {}
+Scale::Scale() : key(0) {
+    currentScale = getAvailableScales()[0].get();
+}
 
-String Scale::toString() {
+std::string Scale::toString() {
     return Chord::rootStrings[key] + " " + currentScale->name();
 }
 
@@ -38,20 +40,23 @@ int Scale::getScaleIndex() {
     return -1;
 }
 
-int Scale::getScaleIndexFromName(String scaleStr) {
+int Scale::getScaleIndexFromName(const std::string& scaleStr) {
     for(int i = 0;i < getAvailableScales().size();i++){
         if(getAvailableScales()[i]->name() == scaleStr) {
             return i;
         }
     }
+    return -1;
 }
 
-ScaleBase *Scale::getScaleFromName(String scaleStr) {
+ScaleBase *Scale::getScaleFromName(const std::string& scaleStr) {
     for(auto i : getAvailableScales()){
         if(i->name() == scaleStr) {
             return i.get();
         }
     }
+    // 見つからない場合はデフォルトを返す
+    return getAvailableScales()[0].get();
 }
 
 //****

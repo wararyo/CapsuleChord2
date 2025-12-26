@@ -8,10 +8,6 @@
 #include <memory>
 #include <stdio.h>
 
-#ifdef NATIVE_TEST
-    #include "../test/mocks/StubArduino.h"
-#endif
-
 #define AUTO_NVP(T) #T, T
 
 const int maxJsonCapacity = JSON_OBJECT_SIZE(64);
@@ -185,9 +181,9 @@ public:
 void serialize(OutputArchive &archive,const char *key,const char *string);
 void deserialize(InputArchive &archive,const char *key,const char*& string);
 
-//String
-void serialize(OutputArchive &archive,const char *key,String string);
-void deserialize(InputArchive &archive,const char *key,String& string);
+//std::string
+void serialize(OutputArchive &archive,const char *key,const std::string& string);
+void deserialize(InputArchive &archive,const char *key,std::string& string);
 
 //int
 void serialize(OutputArchive &archive,const char *key,int number);

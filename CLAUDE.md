@@ -54,24 +54,26 @@ PLATFORMIO_CORE_DIR=.pio pio test -e native-test
 
 ### シリアルモニタ
 
-- PlatformIO のシリアルモニタはターミナル環境によって ioctl エラーになる場合があるため、代わりに PlatformIO 仮想環境に入って Python の `pyserial` を使用する。
-- 実行例:
-  ```
-  source ~/.platformio/penv/bin/activate
-  python - <<'PY'
-  import serial
-  import time
-  port = '/dev/ttyACM0'
-  baud = 115200
-  with serial.Serial(port, baud, timeout=0.5) as ser:
-      start = time.time()
-      while time.time() - start < 5:
-          raw = ser.readline()
-          if raw:
-              print(raw.decode('utf-8', errors='replace').strip())
-  PY
-  ```
-- `port` は `pio device list` で接続先デバイス（例: `/dev/ttyACM0`）を確認してから指定する。
+Espressif IDF Monitorを使用する。
+引数としてELFファイルのパスを指定する。
+
+```bash
+# 仮想環境を有効化
+. $HOME/esp/esp-idf/export.sh
+
+# シリアルモニタを起動
+python -m esp_idf_monitor -- .pio/build/m5stack-cores3/firmware.elf
+```
+
+起動できなければPlatformIOのシリアルモニタで代用する。
+
+```bash
+# 仮想環境を有効化
+source ~/.platformio/penv/bin/activate
+
+# シリアルモニタを起動
+pio device monitor
+```
 
 ### LittleFSへの書き込み
 

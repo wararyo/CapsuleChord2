@@ -1,17 +1,29 @@
 #include "I2CHandler.h"
 #include "Keypad.h"
 #include <M5Unified.h>
+#include <esp_log.h>
+#include <esp_timer.h>
+
+static const char* LOG_TAG = "I2CHandler";
+
+// ESP-IDF millis replacement
+static inline unsigned long esp_millis() {
+    return (unsigned long)(esp_timer_get_time() / 1000ULL);
+}
 
 void I2CHandler::begin() {
     // ミューテックスを作成
     touchDataMutex = xSemaphoreCreateMutex();
     if (touchDataMutex == nullptr) {
-        Serial.println("Failed to create touch data mutex");
+        ESP_LOGE(LOG_TAG, "Failed to create touch data mutex");
         return;
     }
 
     // タッチデータを初期化
     currentTouchData = {false, 0, 0};
+
+    // タスク開始フラグを設定
+    taskRunning = true;
 
     // Core1でI2Cタスクを開始
     xTaskCreatePinnedToCore(
@@ -24,13 +36,24 @@ void I2CHandler::begin() {
         1   // Core1で実行
     );
 
-    Serial.println("I2C Handler started on Core1");
+    ESP_LOGI(LOG_TAG, "I2C Handler started on Core1");
 }
 
 void I2CHandler::terminate() {
-    // タスクを停止
+    // タスク停止フラグを設定
+    taskRunning = false;
+
+    // タスクが自己終了するのを待つ
     if (i2cTaskHandle != nullptr) {
-        vTaskDelete(i2cTaskHandle);
+        // 最大200ms待機
+        for (int i = 0; i < 20 && eTaskGetState(i2cTaskHandle) != eDeleted; i++) {
+            vTaskDelay(pdMS_TO_TICKS(10));
+        }
+        // タスクが終了していなければ強制削除
+        if (eTaskGetState(i2cTaskHandle) != eDeleted) {
+            ESP_LOGW(LOG_TAG, "I2C task did not stop gracefully, forcing delete");
+            vTaskDelete(i2cTaskHandle);
+        }
         i2cTaskHandle = nullptr;
     }
 
@@ -40,7 +63,7 @@ void I2CHandler::terminate() {
         touchDataMutex = nullptr;
     }
 
-    Serial.println("I2C Handler terminated");
+    ESP_LOGI(LOG_TAG, "I2C Handler terminated");
 }
 
 bool I2CHandler::getTouchData(TouchData* touchData) {
@@ -78,14 +101,14 @@ void I2CHandler::i2cTaskLoop(void* parameter) {
 
 void I2CHandler::i2cLoop() {
     const TickType_t xDelay = pdMS_TO_TICKS(5);
-    
-    Serial.println("I2C thread loop started");
-    
+
+    ESP_LOGI(LOG_TAG, "I2C thread loop started");
+
     static unsigned long lastKeypadUpdate = 0;
     const unsigned long keypadInterval = 15;
-    
-    while (true) {
-        unsigned long startTime = millis();
+
+    while (taskRunning) {
+        unsigned long startTime = esp_millis();
 
         // M5の状態を更新（バッテリー、IMUなど）
         M5.update();
@@ -99,14 +122,14 @@ void I2CHandler::i2cLoop() {
         // タッチデータを更新
         updateTouchData();
 
-        unsigned long endTime = millis();
+        unsigned long endTime = esp_millis();
         unsigned long elapsedTime = endTime - startTime;
 
         // デバッグ用：処理時間が長い場合は警告（最初の数回は除く）
         static int loopCount = 0;
         loopCount++;
         if (elapsedTime > 10 && loopCount > 10) {
-            Serial.printf("I2C loop took %lu ms (warning threshold: 10ms)\n", elapsedTime);
+            ESP_LOGW(LOG_TAG, "I2C loop took %lu ms (warning threshold: 10ms)", elapsedTime);
         }
 
         if (M5.BtnPWR.wasHold()) {
@@ -116,6 +139,9 @@ void I2CHandler::i2cLoop() {
 
         vTaskDelay(xDelay);
     }
+
+    ESP_LOGI(LOG_TAG, "I2C thread loop exiting");
+    vTaskDelete(nullptr);  // タスクを自己削除
 }
 
 void I2CHandler::updateTouchData() {
@@ -139,9 +165,9 @@ void I2CHandler::updateTouchData() {
     } else {
         // ミューテックスの取得に失敗した場合のログ（頻繁すぎないよう制限）
         static unsigned long lastWarning = 0;
-        unsigned long now = millis();
+        unsigned long now = esp_millis();
         if (now - lastWarning > 1000) { // 1秒に1回まで
-            Serial.println("Warning: Failed to acquire touch data mutex in I2C thread");
+            ESP_LOGW(LOG_TAG, "Failed to acquire touch data mutex in I2C thread");
             lastWarning = now;
         }
     }
