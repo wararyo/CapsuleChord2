@@ -122,8 +122,9 @@ void AppLauncher::create()
                         lv_coord_t dx = data->releasePoint.x - data->pressPoint.x;
                         lv_coord_t dy = data->releasePoint.y - data->pressPoint.y;
                         if (abs(dx) < 10 && abs(dy) < 10){
-                            data->launcher->del();
-                            App.launchApp(data->app);
+                            // 実際の起動処理はupdate()で行う（コールバック内での重い処理を避ける）
+                            data->launcher->pendingApp = data->app;
+                            data->launcher->pendingAppLaunch = true;
                         }
                     }
                 }
@@ -175,6 +176,15 @@ void AppLauncher::onKnock(AppBase* app) {
 
 void AppLauncher::update()
 {
+    // アプリ起動がリクエストされている場合、実際に起動する
+    if (pendingAppLaunch && pendingApp) {
+        del();
+        App.launchApp(pendingApp);
+        pendingAppLaunch = false;
+        pendingApp = nullptr;
+        return;  // del()でUIが削除されたので、これ以降の処理は不要
+    }
+
     // ノック待機中のアプリがある場合、アニメーションを実行
     if (needsKnockAnimation && !appsToKnock.empty()) {
         for (AppBase* app : appsToKnock) {

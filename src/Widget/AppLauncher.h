@@ -46,6 +46,10 @@ private:
     bool needsKnockAnimation = false;
     std::set<AppBase*> appsToKnock;
 
+    // アプリ起動の遅延実行用フラグ
+    bool pendingAppLaunch = false;
+    AppBase* pendingApp = nullptr;
+
     // Find the button widget for a given app
     lv_obj_t* findAppButton(AppBase* app);
 };
