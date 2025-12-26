@@ -17,7 +17,7 @@ static const char* LOG_TAG_SETTINGS = "Settings";
 #define MAX_NEST_SIZE 16
 
 // LittleFS上の設定ファイルパス（マウントポイントからの相対パス）
-const std::string jsonFilePath = "/settings.json";
+static constexpr const char* jsonFilePath = "/settings.json";
 
 class SettingItem {
 protected:
