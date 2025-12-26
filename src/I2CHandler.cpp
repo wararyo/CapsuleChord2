@@ -22,6 +22,9 @@ void I2CHandler::begin() {
     // タッチデータを初期化
     currentTouchData = {false, 0, 0};
 
+    // タスク開始フラグを設定
+    taskRunning = true;
+
     // Core1でI2Cタスクを開始
     xTaskCreatePinnedToCore(
         i2cTaskLoop,
@@ -37,9 +40,20 @@ void I2CHandler::begin() {
 }
 
 void I2CHandler::terminate() {
-    // タスクを停止
+    // タスク停止フラグを設定
+    taskRunning = false;
+
+    // タスクが自己終了するのを待つ
     if (i2cTaskHandle != nullptr) {
-        vTaskDelete(i2cTaskHandle);
+        // 最大200ms待機
+        for (int i = 0; i < 20 && eTaskGetState(i2cTaskHandle) != eDeleted; i++) {
+            vTaskDelay(pdMS_TO_TICKS(10));
+        }
+        // タスクが終了していなければ強制削除
+        if (eTaskGetState(i2cTaskHandle) != eDeleted) {
+            ESP_LOGW(LOG_TAG, "I2C task did not stop gracefully, forcing delete");
+            vTaskDelete(i2cTaskHandle);
+        }
         i2cTaskHandle = nullptr;
     }
 
@@ -93,7 +107,7 @@ void I2CHandler::i2cLoop() {
     static unsigned long lastKeypadUpdate = 0;
     const unsigned long keypadInterval = 15;
 
-    while (true) {
+    while (taskRunning) {
         unsigned long startTime = esp_millis();
 
         // M5の状態を更新（バッテリー、IMUなど）
@@ -125,6 +139,9 @@ void I2CHandler::i2cLoop() {
 
         vTaskDelay(xDelay);
     }
+
+    ESP_LOGI(LOG_TAG, "I2C thread loop exiting");
+    vTaskDelete(nullptr);  // タスクを自己削除
 }
 
 void I2CHandler::updateTouchData() {
