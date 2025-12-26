@@ -10,6 +10,8 @@ static const char* LOG_TAG = "Keypad";
 #define PORTA_SDA  2
 
 void CapsuleChordKeypad::begin() {
+    if (_initialized) return;  // 多重初期化を防止
+
     M5.Ex_I2C.begin(EXT_I2C_PORT, PORTA_SDA, PORTA_SCL);
     // キーパッド側のイベントキューをクリア
     while (true) {
@@ -27,6 +29,8 @@ void CapsuleChordKeypad::begin() {
     auto baseLayer = std::make_shared<LedLayer>("Base Layer");
     baseLayer->fillLeds(LED_DIM);
     pushLedLayer(baseLayer);
+
+    _initialized = true;
 }
 
 void CapsuleChordKeypad::update() {

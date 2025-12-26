@@ -201,7 +201,7 @@ public:
 private:
     std::map<int,Key> keys;
     std::vector<std::shared_ptr<KeyEventListener>> _listeners;
-    
+
     // Set LED brightness for a specific key
     void setLedBrightness(uint8_t keyCode, uint8_t brightness);
     // Update all LEDs based on the current top layer
@@ -212,6 +212,7 @@ private:
     // LED Layer Management
     std::vector<std::shared_ptr<LedLayer>> _ledLayers;
     bool _needsLedUpdate = true;
+    bool _initialized = false;  // 初期化済みフラグ
 
 public:
     void begin();
