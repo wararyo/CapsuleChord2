@@ -155,6 +155,11 @@ std::shared_ptr<Timbre> TimbreLoader::loadTimbre(const char *path)
         size_t written_bytes = wavFile.read(data, dataSize);
         assert(written_bytes == dataSize);
         size_t sampleLength = wavFile.getSampleLength();
+        if (!adsrEnabled) {
+            // 処理の高速化の都合上、ワンショット音源は後ろに1024サンプル程度の余白を設ける必要がある
+            if (sampleLength > 1024) sampleLength -= 1024;
+            else sampleLength = SAMPLE_BUFFER_SIZE;
+        }
 
         // unique_ptrでメモリを管理
         std::unique_ptr<const int16_t> sampleData(data);
