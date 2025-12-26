@@ -71,11 +71,10 @@ public:
     static int gattAccessCallback(uint16_t conn_handle, uint16_t attr_handle,
                                   struct ble_gatt_access_ctxt *ctxt, void *arg);
 
-    // Connection handle for notifications
+private:
+    // Connection handles for notifications
     uint16_t connHandle = BLE_HS_CONN_HANDLE_NONE;
     uint16_t midiCharAttrHandle = 0;
-
-private:
     bool initialized = false;
     std::string deviceName;
 

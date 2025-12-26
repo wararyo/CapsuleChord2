@@ -12,6 +12,8 @@ bool mountLittleFS()
     esp_vfs_littlefs_conf_t conf = {
         .base_path = LITTLEFS_MOUNT_POINT,
         .partition_label = "littlefs",
+        // 音源データ（ティンバー）が含まれているため、自動フォーマットは無効
+        // パーティション破損時はpio run --target uploadfsで再書き込みが必要
         .format_if_mount_failed = false,
         .dont_mount = false,
     };
