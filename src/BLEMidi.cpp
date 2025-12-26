@@ -57,10 +57,11 @@ void BLEMidi::begin(const std::string& name) {
     deviceName = name;
     gBLEMidiInstance = this;
 
-    // Queue作成
-    if (messageQueue == nullptr) {
-        messageQueue = xQueueCreate(BLE_MIDI_QUEUE_SIZE, sizeof(MidiMessage));
+    // Queue作成（既存のQueueがあれば削除して再作成）
+    if (messageQueue != nullptr) {
+        vQueueDelete(messageQueue);
     }
+    messageQueue = xQueueCreate(BLE_MIDI_QUEUE_SIZE, sizeof(MidiMessage));
 
     // Initialize NVS (required for NimBLE bonding)
     esp_err_t ret = nvs_flash_init();
