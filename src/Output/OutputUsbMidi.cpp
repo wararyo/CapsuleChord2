@@ -30,8 +30,7 @@ void OutputUsbMidi::end() {
 }
 
 void OutputUsbMidi::update() {
-    // Connection state is checked in isAvailable()
-    // No periodic update needed
+    // MIDI input draining is handled by UsbComposite::midiDrainTask
 }
 
 void OutputUsbMidi::noteOn(uint8_t note, uint8_t velocity, uint8_t channel) {

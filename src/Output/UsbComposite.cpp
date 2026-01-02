@@ -2,11 +2,17 @@
 #include "UsbDescriptors.h"
 #include "tinyusb.h"
 #include "tusb_cdc_acm.h"
+#include "tusb_console.h"
+#include "class/midi/midi_device.h"
 #include <esp_log.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
 
 static const char* TAG = "UsbComposite";
 
 bool UsbComposite::initialized = false;
+bool UsbComposite::consoleRedirected = false;
+TaskHandle_t UsbComposite::midiDrainTaskHandle = nullptr;
 
 bool UsbComposite::begin() {
     if (initialized) {
@@ -54,6 +60,43 @@ bool UsbComposite::begin() {
     return true;
 }
 
+bool UsbComposite::initConsole() {
+    if (!initialized) {
+        ESP_LOGW(TAG, "USB Composite not initialized, cannot redirect console");
+        return false;
+    }
+
+    if (consoleRedirected) {
+        return true;  // Already redirected
+    }
+
+    esp_err_t ret = esp_tusb_init_console(TINYUSB_CDC_ACM_0);
+    if (ret != ESP_OK) {
+        ESP_LOGW(TAG, "Failed to redirect console to USB CDC: %s", esp_err_to_name(ret));
+        return false;
+    }
+
+    consoleRedirected = true;
+    ESP_LOGI(TAG, "Console redirected to USB CDC");
+    return true;
+}
+
+bool UsbComposite::deinitConsole() {
+    if (!consoleRedirected) {
+        return true;  // Already using default output
+    }
+
+    esp_err_t ret = esp_tusb_deinit_console(TINYUSB_CDC_ACM_0);
+    if (ret != ESP_OK) {
+        // Cannot log to ESP_LOG here as console state is uncertain
+        return false;
+    }
+
+    consoleRedirected = false;
+    ESP_LOGI(TAG, "Console restored to UART");
+    return true;
+}
+
 bool UsbComposite::isConnected() {
     if (!initialized) return false;
     return tud_connected();
@@ -67,4 +110,43 @@ bool UsbComposite::isMidiMounted() {
 bool UsbComposite::isCdcConnected() {
     if (!initialized) return false;
     return tud_cdc_connected();
+}
+
+void UsbComposite::midiDrainTask(void* arg) {
+    uint8_t packet[4];
+    for (;;) {
+        vTaskDelay(pdMS_TO_TICKS(1));
+        if (!initialized || !tud_midi_mounted()) continue;
+
+        while (tud_midi_available()) {
+            tud_midi_packet_read(packet);
+            // Discard received MIDI data - we don't process MIDI input
+        }
+    }
+}
+
+void UsbComposite::startMidiDrainTask() {
+    if (midiDrainTaskHandle != nullptr) {
+        ESP_LOGW(TAG, "MIDI drain task already running");
+        return;
+    }
+
+    xTaskCreatePinnedToCore(
+        midiDrainTask,
+        "midi_drain",
+        2048,
+        nullptr,
+        1,  // Low priority
+        &midiDrainTaskHandle,
+        1   // Run on CPU1 (same as TinyUSB task)
+    );
+    ESP_LOGI(TAG, "MIDI drain task started");
+}
+
+void UsbComposite::stopMidiDrainTask() {
+    if (midiDrainTaskHandle == nullptr) return;
+
+    vTaskDelete(midiDrainTaskHandle);
+    midiDrainTaskHandle = nullptr;
+    ESP_LOGI(TAG, "MIDI drain task stopped");
 }

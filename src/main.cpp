@@ -6,6 +6,7 @@
 #include <driver/gpio.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
+#include <soc/rtc_cntl_reg.h>
 
 static const char* LOG_TAG = "Main";
 
@@ -48,6 +49,7 @@ static inline int esp_digitalRead(gpio_num_t pin) {
 #include "Widget/PlayScreen.h"
 #include "I2CHandler.h"
 #include "LittleFSManager.h"
+#include "Output/UsbComposite.h"
 
 #define GPIO_NUM_BACK GPIO_NUM_7
 #define GPIO_NUM_HOME GPIO_NUM_5
@@ -192,6 +194,19 @@ void setup() {
   update_battery();
   update_scale();
   update_tempo();
+
+  // USB開始(HOMEボタンが押されてたら開始しない)
+  if (esp_digitalRead(GPIO_NUM_HOME) == 0) {
+    // ダウンロードモードに入る
+    REG_WRITE(RTC_CNTL_OPTION1_REG, RTC_CNTL_FORCE_DOWNLOAD_BOOT);
+    esp_restart();
+  } else {
+    // Initialize USB CDC/MIDI composite device early for USB CDC logging
+    // MIDI output is still only active when USB MIDI is selected as output
+    UsbComposite::begin();
+    UsbComposite::initConsole();  // Redirect ESP_LOG to USB CDC
+    UsbComposite::startMidiDrainTask();  // Start background task to drain MIDI input
+  }
 }
 
 void loop()
