@@ -7,15 +7,13 @@
 #include "../Tempo.h"
 #include "../ChordPipeline.h"
 #include "../Keypad.h"
-#include "../Settings.h"
+#include "../SettingsStore.h"
 #include <algorithm>
 #include <esp_log.h>
 
 static const char* LOG_TAG = "AppAutoPlay";
 
 extern TempoController Tempo;
-extern Settings settings;
-extern int *centerNoteNo;
 
 void AppAutoPlay::onCreate()
 {
@@ -317,7 +315,7 @@ void AppAutoPlay::executeCommand(const AutoPlayCommand& command)
             // DegreeChordをChordに変換してから演奏開始
             {
                 Chord chord = currentScore.degreeToChord(command.chordData.degreeChord);
-                chord.calcInversion(*(uint8_t *)centerNoteNo);
+                chord.calcInversion((uint8_t)Settings.voicing.centerNoteNo.get());
                 Pipeline.playChord(chord);
                 currentChord = chord;
                 needsChordUpdate = true;
@@ -459,11 +457,10 @@ void AppAutoPlay::loadScoreFromArray(const AutoPlayCommand* commands, size_t com
     sortCommands();
     
     // グローバルのscaleにキー情報を反映
-    Scale* globalScale = &((SettingItemScale*)settings.findSettingByKey("Scale"))->content;
-    if (globalScale) {
-        globalScale->key = key;
-        ESP_LOGI(LOG_TAG, "Updated global scale key to: %d (%s)", key, Chord::rootStrings[key].c_str());
-    }
+    Scale newScale = Settings.performance.scale.get();
+    newScale.key = key;
+    Settings.performance.scale.set(newScale);
+    ESP_LOGI(LOG_TAG, "Updated global scale key to: %d (%s)", key, Chord::rootStrings[key].c_str());
 }
 
 void AppAutoPlay::sortCommands()

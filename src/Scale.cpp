@@ -11,7 +11,7 @@ Scale::Scale() : key(0) {
     currentScale = getAvailableScales()[0].get();
 }
 
-std::string Scale::toString() {
+std::string Scale::toString() const {
     return Chord::rootStrings[key] + " " + currentScale->name();
 }
 

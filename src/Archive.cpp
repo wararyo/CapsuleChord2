@@ -53,6 +53,14 @@ void deserialize(InputArchive &archive,const char *key,uint16_t& number){
     if(archive.getDocument().containsKey(key)) number = archive.getDocument()[key];
 }
 
+//char
+void serialize(OutputArchive &archive,const char *key,char number){
+    archive.getDocument()[key] = static_cast<int>(number);
+}
+void deserialize(InputArchive &archive,const char *key,char& number){
+    if(archive.getDocument().containsKey(key)) number = static_cast<char>(archive.getDocument()[key].as<int>());
+}
+
 //float
 void serialize(OutputArchive &archive,const char *key,float number){
     archive.getDocument()[key] = number;
