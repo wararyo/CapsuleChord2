@@ -29,14 +29,6 @@ void deserialize(InputArchive &archive,const char *key,int& number){
     if(archive.getDocument().containsKey(key)) number = archive.getDocument()[key];
 }
 
-//uint
-void serialize(OutputArchive &archive,const char *key,uint number){
-    archive.getDocument()[key] = number;
-}
-void deserialize(InputArchive &archive,const char *key,uint& number){
-    if(archive.getDocument().containsKey(key)) number = archive.getDocument()[key];
-}
-
 //uint8_t
 void serialize(OutputArchive &archive,const char *key,uint8_t number){
     archive.getDocument()[key] = number;
