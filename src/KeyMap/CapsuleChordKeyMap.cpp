@@ -3,10 +3,7 @@
 #include "BLEMidi.h"
 #include "ChordPipeline.h"
 #include "Scale.h"
-
-// main.cppで定義されているグローバル変数
-extern Scale *scale;
-extern int *centerNoteNo;
+#include "SettingsStore.h"
 
 const uint8_t CapsuleChordKeyMap::numberKeyMap[] = {
     0, //Custom1
@@ -20,14 +17,13 @@ const uint8_t CapsuleChordKeyMap::numberKeyMap[] = {
     2};
 
 bool CapsuleChordKeyMap::onKeyPressed(uint8_t keyCode) {
-  // 初期化前に呼ばれた場合は何もしない
-  if (!scale || !centerNoteNo) return false;
-
   if ((keyCode & 0xF0) == 0x00) { // 左キーパッドが押された場合
     uint8_t button = keyCode & 0x0F;
     uint8_t number = numberKeyMap[button - 1]; // Key number starts from 1
     if(0 <= number && number <= 6) {
-      Chord c = scale->getDiatonic(number,Keypad[KEY_RIGHT_5].isPressed());
+      Scale scale = Settings.performance.scale.get();  // コピーを取得（getDiatonicがnon-constのため）
+      int centerNoteNo = Settings.voicing.centerNoteNo.get();
+      Chord c = scale.getDiatonic(number,Keypad[KEY_RIGHT_5].isPressed());
       if(Keypad[KEY_RIGHT_8].isPressed())   thirdInvert(&c);
       if(Keypad[KEY_RIGHT_7].isPressed())   fifthFlat(&c);
       if(Keypad[KEY_RIGHT_6].isPressed())   augment(&c);
@@ -39,7 +35,7 @@ bool CapsuleChordKeyMap::onKeyPressed(uint8_t keyCode) {
       if(Keypad[KEY_R].isPressed())         pitchUp(&c);
       if(Keypad[KEY_L].isPressed())         pitchDown(&c);
       if(Keypad[KEY_RIGHT_3].isPressed())   blackAdder(&c);
-      c.calcInversion(*(uint8_t *)centerNoteNo);
+      c.calcInversion((uint8_t)centerNoteNo);
       if(Keypad[KEY_RT].isPressed())        inversionUp(&c);
       if(Keypad[KEY_LT].isPressed())        inversionDown(&c);
       Pipeline.playChord(c);

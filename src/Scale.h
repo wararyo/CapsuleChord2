@@ -50,24 +50,32 @@ public:
 
     Chord degreeToChord(DegreeChord degree);
     Chord getDiatonic(uint8_t number, bool seventh, Chord base = Chord());
-    std::string toString();
+    std::string toString() const;
     static std::vector<std::shared_ptr<ScaleBase>> getAvailableScales();
+
+    // 比較演算子
+    bool operator==(const Scale& other) const {
+        return key == other.key && currentScale == other.currentScale;
+    }
+    bool operator!=(const Scale& other) const {
+        return !(*this == other);
+    }
     int getScaleIndex();
     int getScaleIndexFromName(const std::string& scaleStr);
     ScaleBase *getScaleFromName(const std::string& scaleStr);
 
-    void serialize(OutputArchive &archive,const char *key) {
-        archive.pushNest(key);
-        archive("Key",this->key);
-        archive("Scale",currentScale->name());
+    void serialize(OutputArchive &archive,const char *keyName) const {
+        archive.pushNest(keyName);
+        archive("Key", key);
+        archive("Scale", currentScale->name());
         archive.popNest();
     }
-    void deserialize(InputArchive &archive,const char *key) {
-        archive.pushNest(key);
-        archive("Key",this->key);
+    void deserialize(InputArchive &archive,const char *keyName) {
+        archive.pushNest(keyName);
+        archive("Key", key);
         // Find scale which has its name
         std::string scaleStr = "";
-        archive("Scale",scaleStr);
+        archive("Scale", scaleStr);
         currentScale = getScaleFromName(scaleStr);
         archive.popNest();
     }

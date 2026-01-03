@@ -446,8 +446,8 @@
       {
         "id": 9,
         "title": "設定データの永続化",
-        "description": "既存の`Settings`クラスフレームワーク (`src/Settings.h`) を利用して、ユーザー設定を永続化する機能を完成させます。主な作業は、SDカードおよびSPIFFSへのファイルI/O層の実装と、設定変更時の自動保存トリガーの組み込みです。設定は`/capsulechord/settings.json`というパスにJSON形式で保存します。",
-        "status": "pending",
+        "description": "リアクティブな設定ストア(SettingsStore)を実装しました。カテゴリ別に設定をLittleFSに永続化し、変更通知・自動保存機能を備えます。旧Settings.hは削除済み。",
+        "status": "done",
         "dependencies": [
           8
         ],
@@ -467,36 +467,36 @@
           {
             "id": 2,
             "title": "saveメソッドによる設定のファイル書き出し実装",
-            "description": "`main.cpp`内の`settings.save()`呼び出しを有効化し、`Settings::serialize()`から得られるJSONデータをファイルに書き出す機能を実装します。まずは単一のファイルシステム（SDカード）を対象とします。",
+            "description": "SettingsCategoryBase::save()を実装。カテゴリ別にLittleFSへJSON形式で保存。バージョン情報も含む。",
             "dependencies": [
               1
             ],
-            "details": "パスは`/capsulechord/settings.json`を使用します。`Settings::serialize()`を呼び出し、返された`JsonDocument`を`serializeJson()`でファイルストリームに書き込みます。ファイルI/Oのエラーハンドリングを行ってください。",
-            "status": "pending",
-            "testStrategy": "手動で`save`関数を呼び出した後、シリアル経由でファイルシステムの内容をダンプするか、PCでSDカードを読み取り、`/capsulechord/settings.json`が正しく生成されていることを確認します。"
+            "details": "各カテゴリ(/settings/controls.json等)に分離して保存。OutputArchiveでシリアライズ後、fopenで書き込み。",
+            "status": "done",
+            "testStrategy": "設定変更後に再起動し、設定が維持されることを確認。"
           },
           {
             "id": 3,
             "title": "loadメソッドによる設定のファイル読み込み実装",
-            "description": "`main.cpp`の`settings.load()`を有効化し、ファイルからJSONデータを読み込み`Settings::deserialize()`で設定に復元する機能を実装します。まずは単一のファイルシステム（SDカード）を対象とします。",
+            "description": "SettingsCategoryBase::load()を実装。カテゴリ別にLittleFSからJSON読み込み。バージョン不一致時は警告ログを出力。",
             "dependencies": [
               1
             ],
-            "details": "パス`/capsulechord/settings.json`からファイルを読み込み、`deserializeJson()`で`JsonDocument`にパースした後、`Settings::deserialize()`に渡します。ファイルが存在しない場合やパースに失敗した場合は、ログを出力しデフォルト設定が維持されるようにします。",
-            "status": "pending",
-            "testStrategy": "手動で作成した`settings.json`をSDカードに配置し、`load`メソッドを実行して設定が正しく反映されるか確認します。また、ファイルを削除した状態で起動し、デフォルト値が適用されることも確認します。"
+            "details": "fopenでファイルを読み込み、InputArchive::fromJSON()でパース後、deserializeItems()で各設定を復元。",
+            "status": "done",
+            "testStrategy": "設定変更後に再起動し、設定が正しく復元されることを確認。"
           },
           {
             "id": 4,
-            "title": "SDカード優先のフォールバックと自動保存トリガーの実装",
-            "description": "`save`と`load`処理を拡張し、SDカードを優先しSPIFFSにフォールバックするロジックを組み込みます。また、設定変更時に自動で保存が走るトリガーを実装します。",
+            "title": "遅延自動保存とリアクティブ通知の実装",
+            "description": "SDカードは未使用(LittleFSのみ)。設定変更時にdirtyフラグを立て、5秒間隔でsaveIfDirty()を呼び出す遅延保存を実装。SettingDescriptor::set()で変更通知を発火。",
             "dependencies": [
               2,
               3
             ],
-            "details": "`load`時はまずSDカードを試行し、失敗したらSPIFFSを試します。`save`時も同様にSDカードを優先します。自動保存トリガーは、`SettingItem`のセッターに`save`を呼び出すコールバックを仕込む等の方法で実装します。",
-            "status": "pending",
-            "testStrategy": "1. SDを抜いた状態で設定変更・再起動し、SPIFFSへの保存・復元を確認。 2. SDとSPIFFS両方に設定ファイルがある場合、SD側が優先されることを確認。 3. UIで設定変更後、再起動して変更が維持されていることで自動保存を確認。"
+            "details": "main.cppのloopで5秒間隔でSettings.saveIfDirty()を呼び出し。設定変更時にsubscribe()で登録したコールバックに通知。",
+            "status": "done",
+            "testStrategy": "UIで設定変更後、再起動して変更が維持されていることを確認。"
           }
         ]
       },
