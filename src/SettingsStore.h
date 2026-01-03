@@ -14,6 +14,10 @@
 
 static const char* LOG_TAG_SETTINGS_STORE = "SettingsStore";
 
+// 設定ファイルのバージョン（全カテゴリ共通）
+// 設定構造を変更した場合はこの値を上げてマイグレーション処理を追加する
+#define SETTINGS_VERSION 1
+
 // 設定変更リスナーインターフェース
 class SettingsListener {
 public:

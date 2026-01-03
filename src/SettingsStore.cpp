@@ -33,10 +33,20 @@ bool SettingsCategoryBase::load() {
     // JSONをデシリアライズ
     InputArchive archive;
     archive.fromJSON(buffer.data());
+
+    // バージョン情報を読み込み
+    uint16_t fileVersion = 0;
+    archive("version", fileVersion);
+    if (fileVersion != SETTINGS_VERSION) {
+        ESP_LOGW(LOG_TAG_SETTINGS_STORE, "Version mismatch: file=%d, expected=%d (%s)",
+                 fileVersion, SETTINGS_VERSION, fullPath.c_str());
+        // 将来的にはここでマイグレーション処理を追加する
+    }
+
     deserializeItems(archive);
 
     isDirty = false;
-    ESP_LOGI(LOG_TAG_SETTINGS_STORE, "Loaded: %s", fullPath.c_str());
+    ESP_LOGI(LOG_TAG_SETTINGS_STORE, "Loaded: %s (version=%d)", fullPath.c_str(), fileVersion);
     return true;
 }
 
@@ -60,6 +70,7 @@ bool SettingsCategoryBase::save() {
 
     // JSONにシリアライズ
     OutputArchive archive;
+    archive("version", SETTINGS_VERSION);  // バージョン情報を書き込み
     serializeItems(archive);
     std::string json = archive.toJSON(true);
 
