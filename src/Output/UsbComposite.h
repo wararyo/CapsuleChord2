@@ -45,4 +45,5 @@ private:
     static bool initialized;
     static bool consoleRedirected;
     static TaskHandle_t midiDrainTaskHandle;
+    static volatile bool midiDrainTaskRunning;  // Graceful shutdown flag
 };

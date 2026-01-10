@@ -13,6 +13,7 @@ static const char* TAG = "UsbComposite";
 bool UsbComposite::initialized = false;
 bool UsbComposite::consoleRedirected = false;
 TaskHandle_t UsbComposite::midiDrainTaskHandle = nullptr;
+volatile bool UsbComposite::midiDrainTaskRunning = false;
 
 bool UsbComposite::begin() {
     if (initialized) {
@@ -114,7 +115,7 @@ bool UsbComposite::isCdcConnected() {
 
 void UsbComposite::midiDrainTask(void* arg) {
     uint8_t packet[4];
-    for (;;) {
+    while (midiDrainTaskRunning) {
         vTaskDelay(pdMS_TO_TICKS(1));
         if (!initialized || !tud_midi_mounted()) continue;
 
@@ -123,6 +124,9 @@ void UsbComposite::midiDrainTask(void* arg) {
             // Discard received MIDI data - we don't process MIDI input
         }
     }
+
+    // Self-delete when shutdown flag is set
+    vTaskDelete(nullptr);
 }
 
 void UsbComposite::startMidiDrainTask() {
@@ -131,6 +135,7 @@ void UsbComposite::startMidiDrainTask() {
         return;
     }
 
+    midiDrainTaskRunning = true;
     xTaskCreatePinnedToCore(
         midiDrainTask,
         "midi_drain",
@@ -146,7 +151,21 @@ void UsbComposite::startMidiDrainTask() {
 void UsbComposite::stopMidiDrainTask() {
     if (midiDrainTaskHandle == nullptr) return;
 
-    vTaskDelete(midiDrainTaskHandle);
+    // Signal task to stop
+    midiDrainTaskRunning = false;
+
+    // Wait for task to self-delete (max 200ms)
+    ESP_LOGI(TAG, "Waiting for MIDI drain task to stop...");
+    for (int i = 0; i < 20 && eTaskGetState(midiDrainTaskHandle) != eDeleted; i++) {
+        vTaskDelay(pdMS_TO_TICKS(10));
+    }
+
+    // Force delete if task didn't stop gracefully
+    if (eTaskGetState(midiDrainTaskHandle) != eDeleted) {
+        ESP_LOGW(TAG, "MIDI drain task did not stop gracefully, forcing delete");
+        vTaskDelete(midiDrainTaskHandle);
+    }
+
     midiDrainTaskHandle = nullptr;
     ESP_LOGI(TAG, "MIDI drain task stopped");
 }
