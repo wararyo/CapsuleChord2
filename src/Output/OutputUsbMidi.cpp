@@ -41,7 +41,10 @@ void OutputUsbMidi::noteOn(uint8_t note, uint8_t velocity, uint8_t channel) {
         static_cast<uint8_t>(note & 0x7F),              // Note number
         static_cast<uint8_t>(velocity & 0x7F)           // Velocity
     };
-    tud_midi_stream_write(0, msg, 3);
+    uint32_t written = tud_midi_stream_write(0, msg, sizeof(msg));
+    if (written != sizeof(msg)) {
+        ESP_LOGW(TAG, "MIDI noteOn write failed: expected %u bytes, wrote %lu", sizeof(msg), written);
+    }
 }
 
 void OutputUsbMidi::noteOff(uint8_t note, uint8_t velocity, uint8_t channel) {
@@ -52,7 +55,10 @@ void OutputUsbMidi::noteOff(uint8_t note, uint8_t velocity, uint8_t channel) {
         static_cast<uint8_t>(note & 0x7F),              // Note number
         static_cast<uint8_t>(velocity & 0x7F)           // Velocity
     };
-    tud_midi_stream_write(0, msg, 3);
+    uint32_t written = tud_midi_stream_write(0, msg, sizeof(msg));
+    if (written != sizeof(msg)) {
+        ESP_LOGW(TAG, "MIDI noteOff write failed: expected %u bytes, wrote %lu", sizeof(msg), written);
+    }
 }
 
 void OutputUsbMidi::pitchBend(int16_t pitchBend, uint8_t channel) {
@@ -65,7 +71,10 @@ void OutputUsbMidi::pitchBend(int16_t pitchBend, uint8_t channel) {
         static_cast<uint8_t>(value & 0x7F),             // LSB (7 bits)
         static_cast<uint8_t>((value >> 7) & 0x7F)       // MSB (7 bits)
     };
-    tud_midi_stream_write(0, msg, 3);
+    uint32_t written = tud_midi_stream_write(0, msg, sizeof(msg));
+    if (written != sizeof(msg)) {
+        ESP_LOGW(TAG, "MIDI pitchBend write failed: expected %u bytes, wrote %lu", sizeof(msg), written);
+    }
 }
 
 bool OutputUsbMidi::isAvailable() const {
