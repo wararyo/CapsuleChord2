@@ -11,6 +11,7 @@
 static const char* TAG = "UsbComposite";
 
 bool UsbComposite::initialized = false;
+bool UsbComposite::cdcInitialized = false;
 bool UsbComposite::consoleRedirected = false;
 TaskHandle_t UsbComposite::midiDrainTaskHandle = nullptr;
 volatile bool UsbComposite::midiDrainTaskRunning = false;
@@ -51,9 +52,9 @@ bool UsbComposite::begin() {
     };
 
     ret = tusb_cdc_acm_init(&acm_cfg);
-    if (ret != ESP_OK) {
-        ESP_LOGW(TAG, "Failed to initialize CDC ACM: %s (MIDI will still work)", esp_err_to_name(ret));
-        // Continue even if CDC init fails - MIDI can still work
+    cdcInitialized = (ret == ESP_OK);
+    if (!cdcInitialized) {
+        ESP_LOGW(TAG, "Failed to initialize CDC ACM: %s (MIDI will still work, console redirect unavailable)", esp_err_to_name(ret));
     }
 
     initialized = true;
@@ -64,6 +65,11 @@ bool UsbComposite::begin() {
 bool UsbComposite::initConsole() {
     if (!initialized) {
         ESP_LOGW(TAG, "USB Composite not initialized, cannot redirect console");
+        return false;
+    }
+
+    if (!cdcInitialized) {
+        ESP_LOGW(TAG, "CDC ACM not initialized, cannot redirect console");
         return false;
     }
 
