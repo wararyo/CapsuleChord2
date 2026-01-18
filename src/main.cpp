@@ -47,6 +47,7 @@ static inline int esp_digitalRead(gpio_num_t pin) {
 #include "App/AppAutoPlay.h"
 #include "Widget/AppLauncher.h"
 #include "Widget/PlayScreen.h"
+#include "Widget/MenuScreen.h"
 #include "I2CHandler.h"
 #include "LittleFSManager.h"
 #include "Output/UsbComposite.h"
@@ -63,6 +64,10 @@ m5::Button_Class BtnMenu;
 
 PlayScreen playScreen;
 AppLauncher appLauncher;
+MenuScreen menuScreen;
+
+// BtnMenu短押し/長押し判定用フラグ
+static bool btnMenuPressedForScaleChange = false;
 
 // PlayScreen表示状態の管理用
 bool shouldShowPlayScreen = true;
@@ -90,7 +95,7 @@ void update_tempo() {
 
 // PlayScreenの表示状態を管理する関数
 void updatePlayScreenVisibility() {
-  bool shouldShow = !appLauncher.getShown() && (App.getCurrentApp() == nullptr);
+  bool shouldShow = !appLauncher.getShown() && !menuScreen.getShown() && (App.getCurrentApp() == nullptr);
   
   if (shouldShow && !playScreen.isShown()) {
     // PlayScreenを表示する必要があり、現在非表示の場合
@@ -112,6 +117,7 @@ void setup() {
   Lvgl.begin();
 
   BtnHome.setHoldThresh(2500);
+  BtnMenu.setHoldThresh(500);  // 500msでメニュー画面を開く
   Keypad.begin();
 
   ESP_LOGI(LOG_TAG, "Hello.");
@@ -184,28 +190,64 @@ void loop()
   BtnHome.setRawState(ms, esp_digitalRead(GPIO_NUM_HOME) == 0);
   BtnMenu.setRawState(ms, esp_digitalRead(GPIO_NUM_MENU) == 0);
 
+  // BtnBack: メニュー画面が開いていれば閉じる、そうでなければスケールキー変更
   if (BtnBack.wasPressed())
   {
-    Scale newScale = Settings.performance.scale.get();
-    if(newScale.key > 0) newScale.key--;
-    else newScale.key = 11;
-    Settings.performance.scale.set(newScale);
-    update_scale();
+    if (menuScreen.getShown()) {
+      menuScreen.del();
+    } else {
+      Scale newScale = Settings.performance.scale.get();
+      if(newScale.key > 0) newScale.key--;
+      else newScale.key = 11;
+      Settings.performance.scale.set(newScale);
+      update_scale();
+      Output.Internal.NoteOn(60 + Settings.performance.scale.get().key, 100, 0);
+    }
   }
+  if (BtnBack.wasReleased() && !menuScreen.getShown())
+  {
+    Output.Internal.NoteOff(60 + Settings.performance.scale.get().key, 0, 0);
+  }
+
+  // BtnMenu: 押下開始を記録
   if (BtnMenu.wasPressed())
   {
-    Scale newScale = Settings.performance.scale.get();
-    if(newScale.key < 11) newScale.key++;
-    else newScale.key = 0;
-    Settings.performance.scale.set(newScale);
-    update_scale();
+    btnMenuPressedForScaleChange = true;
   }
-  if (BtnBack.wasPressed() || BtnMenu.wasPressed())
+
+  // BtnMenu長押し: メニュー画面を開く
+  if (BtnMenu.wasHold())
   {
-    Output.Internal.NoteOn(60 + Settings.performance.scale.get().key, 100, 0);
-    // 設定は saveIfDirty() で自動保存される
+    btnMenuPressedForScaleChange = false;  // スケール変更をキャンセル
+    if (!menuScreen.getShown()) {
+      // 他のUIを閉じてからメニューを開く
+      if (playScreen.getTempoDialog().getShown()) {
+        playScreen.getTempoDialog().del();
+      }
+      if (appLauncher.getShown()) {
+        appLauncher.del();
+      }
+      if (App.getCurrentApp() != nullptr) {
+        App.hideApp();
+      }
+      menuScreen.create();
+    }
   }
-  else if (BtnBack.wasReleased() || BtnMenu.wasReleased())
+
+  // BtnMenu短押しリリース: スケールキー変更（既存動作）
+  if (BtnMenu.wasReleased() && btnMenuPressedForScaleChange)
+  {
+    if (!menuScreen.getShown()) {
+      Scale newScale = Settings.performance.scale.get();
+      if(newScale.key < 11) newScale.key++;
+      else newScale.key = 0;
+      Settings.performance.scale.set(newScale);
+      update_scale();
+      Output.Internal.NoteOn(60 + Settings.performance.scale.get().key, 100, 0);
+    }
+    btnMenuPressedForScaleChange = false;
+  }
+  if (BtnMenu.wasReleased() && !menuScreen.getShown())
   {
     Output.Internal.NoteOff(60 + Settings.performance.scale.get().key, 0, 0);
   }
@@ -267,6 +309,10 @@ void loop()
   if (BtnHome.wasPressed()) {
     if (playScreen.getTempoDialog().getShown()) {
       playScreen.getTempoDialog().del();
+    }
+    else if (menuScreen.getShown())
+    {
+      menuScreen.del();
     }
     else if (App.getCurrentApp() != nullptr)
     {
