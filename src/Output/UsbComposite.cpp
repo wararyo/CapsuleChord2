@@ -116,7 +116,7 @@ bool UsbComposite::isCdcConnected() {
 void UsbComposite::midiDrainTask(void* arg) {
     uint8_t packet[4];
     while (midiDrainTaskRunning) {
-        vTaskDelay(pdMS_TO_TICKS(1));
+        vTaskDelay(pdMS_TO_TICKS(MIDI_DRAIN_POLL_INTERVAL_MS));
         if (!initialized || !tud_midi_mounted()) continue;
 
         while (tud_midi_available()) {
@@ -139,11 +139,11 @@ void UsbComposite::startMidiDrainTask() {
     xTaskCreatePinnedToCore(
         midiDrainTask,
         "midi_drain",
-        2048,
+        MIDI_DRAIN_TASK_STACK_SIZE,
         nullptr,
-        1,  // Low priority
+        MIDI_DRAIN_TASK_PRIORITY,
         &midiDrainTaskHandle,
-        1   // Run on CPU1 (same as TinyUSB task)
+        MIDI_DRAIN_TASK_CORE
     );
     ESP_LOGI(TAG, "MIDI drain task started");
 }

@@ -43,7 +43,14 @@ private:
     static void midiDrainTask(void* arg);
 
     static bool initialized;
+    static bool cdcInitialized;   // CDC ACM initialization status
     static bool consoleRedirected;
     static TaskHandle_t midiDrainTaskHandle;
     static volatile bool midiDrainTaskRunning;  // Graceful shutdown flag
+
+    // MIDI drain task configuration
+    static constexpr uint32_t MIDI_DRAIN_TASK_STACK_SIZE = 2048;  // Minimal stack for simple polling
+    static constexpr uint32_t MIDI_DRAIN_POLL_INTERVAL_MS = 1;    // Fast polling to prevent host buffer overflow
+    static constexpr uint32_t MIDI_DRAIN_TASK_PRIORITY = 1;       // Low priority background task
+    static constexpr int MIDI_DRAIN_TASK_CORE = 1;                // Run on CPU1 (same as TinyUSB task)
 };
