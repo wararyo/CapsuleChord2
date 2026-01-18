@@ -40,11 +40,18 @@ private:
     const char* key;
     T value;
     T defaultValue;
+    // ローカルリスナー: この設定項目に対する個別の変更通知を受け取る
+    // subscribe()で登録し、値変更時にコールバックが呼ばれる
+    // トークンをキーとしたmapで管理し、unsubscribe()で解除可能
     std::map<SubscriptionToken, std::function<void(const T&, const T&)>> listeners;
     SubscriptionToken nextToken = 1;
     portMUX_TYPE mutex = portMUX_INITIALIZER_UNLOCKED;
-    bool* categoryDirtyFlag;  // 所属カテゴリのdirtyフラグへの参照
-    SettingsStore* store;     // グローバルリスナー通知用
+    // 所属カテゴリのdirtyフラグへのポインタ（所有権はSettingsCategoryBaseが持つ）
+    // 値が変更されるとこのフラグがtrueになり、saveIfDirty()で保存対象となる
+    bool* categoryDirtyFlag;
+    // グローバルリスナー通知用のSettingsStoreへの参照（所有権は持たない）
+    // グローバルリスナーは全設定項目の変更を一括で監視したい場合に使用
+    SettingsStore* store;
 
 public:
     SettingDescriptor(const char* key, T defaultValue, bool* dirtyFlag, SettingsStore* store)
@@ -84,7 +91,9 @@ public:
         set(defaultValue);
     }
 
-    // 内部用: 通知なしで値を設定（デシリアライズ用）
+    // 内部用: 通知なしで値を設定
+    // デシリアライズ時やマイグレーション時に使用。リスナーへの通知をスキップし、
+    // dirtyフラグも更新しないため、ファイルから読み込んだ値の復元に適している
     void setValueWithoutNotify(const T& newValue) {
         value = newValue;
     }
