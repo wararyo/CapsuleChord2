@@ -30,6 +30,61 @@ static inline void esp_delay(uint32_t ms) {
     vTaskDelay(pdMS_TO_TICKS(ms));
 }
 
+// 設定値(0-31)からmasterVolume(float)への変換テーブル
+// 設定値23 = 0.1f（基準、-20dB）、各ステップ = 1dB
+static const float VOLUME_TABLE[32] = {
+    7.0795e-03f, // 0
+    7.9433e-03f, // 1
+    8.9125e-03f, // 2
+    1.0000e-02f, // 3
+    1.1220e-02f, // 4
+    1.2589e-02f, // 5
+    1.4125e-02f, // 6
+    1.5849e-02f, // 7
+    1.7783e-02f, // 8
+    1.9953e-02f, // 9
+    2.2387e-02f, // 10
+    2.5119e-02f, // 11
+    2.8184e-02f, // 12
+    3.1623e-02f, // 13
+    3.5481e-02f, // 14
+    3.9811e-02f, // 15
+    4.4668e-02f, // 16
+    5.0119e-02f, // 17
+    5.6234e-02f, // 18
+    6.3096e-02f, // 19
+    7.0795e-02f, // 20
+    7.9433e-02f, // 21
+    8.9125e-02f, // 22
+    1.0000e-01f, // 23 (基準: -20dB)
+    1.1220e-01f, // 24
+    1.2589e-01f, // 25
+    1.4125e-01f, // 26
+    1.5849e-01f, // 27
+    1.7783e-01f, // 28
+    1.9953e-01f, // 29
+    2.2387e-01f, // 30
+    2.5119e-01f  // 31
+};
+
+float OutputInternal::settingToMasterVolume(uint8_t setting) {
+    if (setting > 31) setting = 31;
+    return VOLUME_TABLE[setting];
+}
+
+void OutputInternal::applyVolume(uint8_t setting) {
+    float volume = settingToMasterVolume(setting);
+    sampler->masterVolume = volume;
+    ESP_LOGI(LOG_TAG, "Volume set: setting=%d, masterVolume=%.4f", setting, volume);
+}
+
+void OutputInternal::applyCurrentVolume() {
+    uint8_t volumeSetting = (audioOutput == AudioOutput::headphone)
+        ? Settings.output.headphoneVolume.get()
+        : Settings.output.speakerVolume.get();
+    applyVolume(volumeSetting);
+}
+
 void OutputInternal::NoteOn(uint8_t noteNo, uint8_t velocity, uint8_t channel)
 {
     sampler->NoteOn(noteNo, velocity, channel);
@@ -198,8 +253,8 @@ void OutputInternal::initAudioOutput(AudioOutput output)
         aw88298_write_reg(0x05, 0x0008); // RMSE=0 HAGCE=0 HDCCE=0 HMUTE=0
         aw88298_write_reg(0x06, reg0x06_value);
         // aw88298_write_reg(0x0C, 0x0064);  // volume setting (full volume)
-        // aw88298_write_reg(0x0C, 0x1064); // volume setting (-6db)
-        aw88298_write_reg(0x0C, 0x1664); // volume setting (-9db)
+        aw88298_write_reg(0x0C, 0x1064); // volume setting (-6db)
+        // aw88298_write_reg(0x0C, 0x1664); // volume setting (-9db)
         // aw88298_write_reg(0x0C, 0x2064); // volume setting (-12db)
         esp_pinMode(PIN_EN_HP, GPIO_MODE_OUTPUT);
         esp_digitalWrite(PIN_EN_HP, 0);
@@ -217,6 +272,9 @@ void OutputInternal::initAudioOutput(AudioOutput output)
         1,
         &audioLoopHandler,
         0);
+
+    // 新しい出力先に適した音量を適用
+    applyCurrentVolume();
 }
 
 void OutputInternal::begin()
@@ -236,8 +294,20 @@ void OutputInternal::begin()
     if (drumset) sampler->SetTimbre(0x9, drumset);
     sampler->SetTimbre(0xF, system);
 
-    // サンプラーの設定
-    sampler->masterVolume = masterVolume;
+    // 音量設定の変更を購読
+    speakerVolumeToken = Settings.output.speakerVolume.subscribe(
+        [this](const uint8_t& oldVal, const uint8_t& newVal) {
+            if (audioOutput == AudioOutput::speaker) {
+                applyVolume(newVal);
+            }
+        });
+
+    headphoneVolumeToken = Settings.output.headphoneVolume.subscribe(
+        [this](const uint8_t& oldVal, const uint8_t& newVal) {
+            if (audioOutput == AudioOutput::headphone) {
+                applyVolume(newVal);
+            }
+        });
 
     // 現在のヘッドフォン接続状態を取得してI2S初期化
     isHeadphonePreviously = esp_digitalRead(PIN_HP_DETECT);
@@ -248,6 +318,16 @@ void OutputInternal::end()
 {
     // AudioLoopを停止
     stopAudioLoop();
+
+    // 音量設定の購読解除
+    if (speakerVolumeToken != 0) {
+        Settings.output.speakerVolume.unsubscribe(speakerVolumeToken);
+        speakerVolumeToken = 0;
+    }
+    if (headphoneVolumeToken != 0) {
+        Settings.output.headphoneVolume.unsubscribe(headphoneVolumeToken);
+        headphoneVolumeToken = 0;
+    }
 
     // ティンバーを解放してメモリを節約
     unloadTimbres();
