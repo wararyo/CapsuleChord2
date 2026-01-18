@@ -32,7 +32,7 @@ static inline int esp_digitalRead(gpio_num_t pin) {
 #include "Scale.h"
 #include "Keypad.h"
 #include "KeyMap/KeyMap.h"
-#include "Settings.h"
+#include "SettingsStore.h"
 #include "Output/MidiOutput.h"
 #include "Tempo.h"
 #include "ChordPipeline.h"
@@ -68,35 +68,7 @@ AppLauncher appLauncher;
 bool shouldShowPlayScreen = true;
 
 // Initialize at setup()
-Scale *scale;
-int *centerNoteNo;
 KeyMapBase *currentKeyMap;
-
-typedef std::vector<const char *> strs;
-
-// Helper function to create unique_ptr vector
-std::vector<std::unique_ptr<SettingItem>> makeSettingsItems() {
-    std::vector<std::unique_ptr<SettingItem>> items;
-    items.push_back(std::make_unique<SettingItemEnum>("Mode",strs{"CapsuleChord","CAmDion","Presets"},0));
-    items.push_back(std::make_unique<SettingItemScale>("Scale",Scale(0)));
-    items.push_back(std::make_unique<SettingItemEnum>("Bass",strs{"None","C1","C2"},0));
-    items.push_back(std::make_unique<SettingItemEnum>("Voicing",strs{"Open","Closed"},0));
-    items.push_back(std::make_unique<SettingItemNumeric>("CenterNoteNo",24,81,60));
-    items.push_back(std::make_unique<SettingItemDegreeChord>("Custom 1", DegreeChord(4,Chord::Minor|Chord::MajorSeventh)));
-    items.push_back(std::make_unique<SettingItemDegreeChord>("Custom 2", DegreeChord(5,Chord::Minor|Chord::Seventh)));
-
-    // Keymap with nested children
-    std::vector<std::unique_ptr<SettingItem>> keymapChildren;
-    keymapChildren.push_back(std::make_unique<SettingItemEnum>("Fuction 1",strs{"Gyro","Sustain","Note","CC"},0));
-    keymapChildren.push_back(std::make_unique<SettingItemEnum>("Fuction 2",strs{"Gyro","Sustain","Note","CC"},1));
-    items.push_back(std::make_unique<SettingItem>("Keymap",std::move(keymapChildren)));
-
-    items.push_back(std::make_unique<SettingItemEnum>("SustainBehavior",strs{"Normal","Trigger"},0));
-    items.push_back(std::make_unique<SettingItemEnum>("Brightness",strs{"Bright","Normal","Dark"},1));
-    return items;
-}
-
-Settings settings(makeSettingsItems());
 
 void update_battery() {
   if (playScreen.isShown()) {
@@ -106,7 +78,7 @@ void update_battery() {
 
 void update_scale() {
   if (playScreen.isShown()) {
-    playScreen.updateScale(scale->toString().c_str());
+    playScreen.updateScale(Settings.performance.scale.get().toString().c_str());
   }
 }
 
@@ -151,20 +123,14 @@ void setup() {
     ESP_LOGW(LOG_TAG, "LittleFS mount failed. Settings will use defaults.");
   }
 
-  // Load settings from LittleFS
-  if (!settings.load()) {
-    ESP_LOGI(LOG_TAG, "Settings file not found, creating with defaults.");
-    if (!settings.save()) {
-      ESP_LOGW(LOG_TAG, "Failed to save default settings.");
-    }
-  }
+  // Migrate from legacy settings.json if exists
+  Settings.migrateFromLegacy();
 
-  // Get setting items
-  scale = &((SettingItemScale*)settings.findSettingByKey("Scale"))->content;
-  centerNoteNo = &((SettingItemNumeric*)settings.findSettingByKey("CenterNoteNo"))->number;
+  // Load settings from LittleFS (each category)
+  Settings.loadAll();
 
   // Set lcd brightness
-  switch(((SettingItemEnum*)settings.findSettingByKey("Brightness"))->index) {
+  switch(Settings.display.brightness.get()) {
     case 0: M5.Lcd.setBrightness(255); break;
     case 1: M5.Lcd.setBrightness(127); break;
     case 2: M5.Lcd.setBrightness(32); break;
@@ -220,23 +186,28 @@ void loop()
 
   if (BtnBack.wasPressed())
   {
-    if(scale->key > 0) scale->key--;
-    else scale->key = 11;
+    Scale newScale = Settings.performance.scale.get();
+    if(newScale.key > 0) newScale.key--;
+    else newScale.key = 11;
+    Settings.performance.scale.set(newScale);
     update_scale();
   }
   if (BtnMenu.wasPressed())
   {
-    if(scale->key < 11) scale->key++;
-    else scale->key = 0;
+    Scale newScale = Settings.performance.scale.get();
+    if(newScale.key < 11) newScale.key++;
+    else newScale.key = 0;
+    Settings.performance.scale.set(newScale);
     update_scale();
   }
   if (BtnBack.wasPressed() || BtnMenu.wasPressed())
   {
-    Output.Internal.NoteOn(60 + scale->key, 100, 0);
+    Output.Internal.NoteOn(60 + Settings.performance.scale.get().key, 100, 0);
+    // 設定は saveIfDirty() で自動保存される
   }
   else if (BtnBack.wasReleased() || BtnMenu.wasReleased())
   {
-    Output.Internal.NoteOff(60 + scale->key, 0, 0);
+    Output.Internal.NoteOff(60 + Settings.performance.scale.get().key, 0, 0);
   }
 
   // 出力デバイスの更新（ヘッドフォン検出など）
@@ -322,6 +293,13 @@ void loop()
   }
   playScreen.update();
   lv_task_handler();
+
+  // 設定の遅延保存（dirty flagがtrueのカテゴリのみ保存）
+  static unsigned long lastSaveCheck = 0;
+  if (esp_millis() - lastSaveCheck > 5000) {  // 5秒間隔
+    Settings.saveIfDirty();
+    lastSaveCheck = esp_millis();
+  }
 
   // 5ms間隔でループ（vTaskDelayでIDLEタスクに実行機会を与える）
   unsigned long elapsed = esp_millis() - lastLoopMillis;

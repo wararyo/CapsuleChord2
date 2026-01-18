@@ -189,10 +189,6 @@ void deserialize(InputArchive &archive,const char *key,std::string& string);
 void serialize(OutputArchive &archive,const char *key,int number);
 void deserialize(InputArchive &archive,const char *key,int& number);
 
-//uint
-void serialize(OutputArchive &archive,const char *key,uint number);
-void deserialize(InputArchive &archive,const char *key,uint& number);
-
 //uint8_t
 void serialize(OutputArchive &archive,const char *key,uint8_t number);
 void deserialize(InputArchive &archive,const char *key,uint8_t& number);
