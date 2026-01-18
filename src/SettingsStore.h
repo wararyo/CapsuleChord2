@@ -5,6 +5,7 @@
 #include <freertos/portmacro.h>
 #include <list>
 #include <vector>
+#include <map>
 #include <functional>
 #include <string>
 #include <esp_log.h>
@@ -31,11 +32,16 @@ class SettingsStore;
 // 設定項目テンプレート
 template<typename T>
 class SettingDescriptor {
+public:
+    // subscribe()の戻り値。unsubscribe()に渡して購読解除する
+    using SubscriptionToken = size_t;
+
 private:
     const char* key;
     T value;
     T defaultValue;
-    std::list<std::function<void(const T&, const T&)>> listeners;
+    std::map<SubscriptionToken, std::function<void(const T&, const T&)>> listeners;
+    SubscriptionToken nextToken = 1;
     portMUX_TYPE mutex = portMUX_INITIALIZER_UNLOCKED;
     bool* categoryDirtyFlag;  // 所属カテゴリのdirtyフラグへの参照
     SettingsStore* store;     // グローバルリスナー通知用
@@ -51,13 +57,20 @@ public:
 
     void set(const T& newValue);
 
-    // 変更の購読（戻り値は将来のunsubscribe用）
-    size_t subscribe(std::function<void(const T&, const T&)> callback) {
+    // 変更の購読。戻り値のトークンをunsubscribe()に渡すと購読解除できる
+    SubscriptionToken subscribe(std::function<void(const T&, const T&)> callback) {
         portENTER_CRITICAL(&mutex);
-        listeners.push_back(callback);
-        size_t token = listeners.size();
+        SubscriptionToken token = nextToken++;
+        listeners[token] = callback;
         portEXIT_CRITICAL(&mutex);
         return token;
+    }
+
+    // 購読解除
+    void unsubscribe(SubscriptionToken token) {
+        portENTER_CRITICAL(&mutex);
+        listeners.erase(token);
+        portEXIT_CRITICAL(&mutex);
     }
 
     // シリアライズ
@@ -248,7 +261,7 @@ inline void SettingDescriptor<Scale>::deserialize(InputArchive& archive) {
 template<typename T>
 void SettingDescriptor<T>::set(const T& newValue) {
     T oldValue;
-    std::list<std::function<void(const T&, const T&)>> listenersCopy;
+    std::map<SubscriptionToken, std::function<void(const T&, const T&)>> listenersCopy;
 
     // クリティカルセクション: 値の更新とリスナーのコピー
     portENTER_CRITICAL(&mutex);
@@ -267,7 +280,7 @@ void SettingDescriptor<T>::set(const T& newValue) {
     }
 
     // ローカルリスナーへの通知（クリティカルセクション外で実行）
-    for (auto& listener : listenersCopy) {
+    for (auto& [token, listener] : listenersCopy) {
         listener(oldValue, newValue);
     }
 
