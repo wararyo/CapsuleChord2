@@ -35,12 +35,12 @@ private:
         AppDrumPattern *app;
         void onPlayingStateChanged(bool isPlaying) override
         {
-            if (isPlaying) app->previousTime = Tempo.getMusicalTime();
+            if (isPlaying) app->previousTime = Tempo.timeInBar();
         }
         void onTempoChanged(TempoController::tempo_t tempo) override
         {
         }
-        void onTick(TempoController::tick_timing_t timing, musical_time_t time) override;
+        void onTick(const TempoController::TickInfo &info) override;
         TempoController::tick_timing_t getTimingMask() override
         {
             return TempoController::TICK_TIMING_BAR |

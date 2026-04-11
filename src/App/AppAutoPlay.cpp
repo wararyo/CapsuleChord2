@@ -218,18 +218,18 @@ void AppAutoPlay::TempoCallbacks::onTempoChanged(TempoController::tempo_t tempo)
     // テンポ変更時の処理（必要に応じて実装）
 }
 
-void AppAutoPlay::TempoCallbacks::onTick(TempoController::tick_timing_t timing, musical_time_t time)
+void AppAutoPlay::TempoCallbacks::onTick(const TempoController::TickInfo &info)
 {
     if (!app->isActive || !app->playbackTaskRunning) return;
-    
+
     // タスク通知を使って演奏タスクに時刻を送信
     if (app->playbackTaskHandle != nullptr)
     {
         // 時刻をnotification valueとして直接送信
-        xTaskNotifyFromISR(app->playbackTaskHandle, (uint32_t)time, eSetValueWithOverwrite, nullptr);
+        xTaskNotifyFromISR(app->playbackTaskHandle, (uint32_t)info.time, eSetValueWithOverwrite, nullptr);
     }
-    
-    app->previousTime = time;
+
+    app->previousTime = info.time;
 }
 
 // 演奏制御メソッド

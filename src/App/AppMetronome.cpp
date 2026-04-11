@@ -1,9 +1,9 @@
 #include "AppMetronome.h"
 #include "AppManager.h"
 
-void AppMetronome::MetronomeSoundTempoCallback::onTick(TempoController::tick_timing_t timing, musical_time_t time)
+void AppMetronome::MetronomeSoundTempoCallback::onTick(const TempoController::TickInfo &info)
 {
-    Pipeline.sendNotes(true, {timing & TempoController::TICK_TIMING_BAR ? 25 : 24}, 64, 0xF);
+    Pipeline.sendNotes(true, {info.timing & TempoController::TICK_TIMING_BAR ? 25 : 24}, 64, 0xF);
 
     if (app->isActive) {
         App.knock(app);
@@ -16,7 +16,6 @@ static void tempo_button_plus_event_cb(lv_event_t *e)
     if (code == LV_EVENT_CLICKED || code == LV_EVENT_LONG_PRESSED_REPEAT)
     {
         Tempo.setTempo(Tempo.getTempo() + 1);
-        Tempo.stop();
     }
 }
 
@@ -26,7 +25,6 @@ static void tempo_button_minus_event_cb(lv_event_t *e)
     if (code == LV_EVENT_CLICKED || code == LV_EVENT_LONG_PRESSED_REPEAT)
     {
         Tempo.setTempo(Tempo.getTempo() - 1);
-        Tempo.stop();
     }
 }
 
