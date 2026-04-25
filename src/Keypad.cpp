@@ -237,6 +237,15 @@ void CapsuleChordKeypad::markLedNeedsUpdate() {
     _needsLedUpdate = true;
 }
 
+void CapsuleChordKeypad::turnOffAllLeds() {
+    if (_protocol != KeypadProtocol::V3) return;
+    uint8_t data[2] = {REG_GLOBAL_BRIGHTNESS, 0x00};
+    if (M5.Ex_I2C.start(KEYPAD_I2C_ADDR, false, 400000)) {
+        M5.Ex_I2C.write(data, 2);
+        M5.Ex_I2C.stop();
+    }
+}
+
 void CapsuleChordKeypad::updateLeds() {
     if (_ledLayers.empty()) return;
     

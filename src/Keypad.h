@@ -18,6 +18,7 @@
 // Full map: src/protocol/registers.h on the keypad firmware
 #define REG_FW_VERSION       0x00  // RO 2B [major, minor]
 #define REG_LED_BRIGHT_BASE  0x70  // RW 1B per key (0x70 + kc)
+#define REG_GLOBAL_BRIGHTNESS 0xC8 // WO 1B (write 0x00 to turn all LEDs off)
 #define REG_KEY_EVENT        0xD0  // RO 1B FIFO pop (state<<7 | kc, 0x00 if empty)
 
 // Keypad firmware protocol variant (detected at begin()).
@@ -256,6 +257,12 @@ public:
     void removeLedLayer(std::shared_ptr<LedLayer> layer);
 
     void markLedNeedsUpdate();
+
+    // Force-turn off all LEDs via REG_GLOBAL_BRIGHTNESS (V3 protocol only).
+    // 電源OFF直前に呼ぶ。USB給電時、本体3.3Vが切れた後も5V系のLEDは
+    // 給電が続くため、ハードウェア側で消灯させておく必要がある。
+    // Legacy FWではno-op。
+    void turnOffAllLeds();
     
     class Key {
         private:
