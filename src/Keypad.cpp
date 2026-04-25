@@ -13,16 +13,31 @@ void CapsuleChordKeypad::begin() {
     if (_initialized) return;  // 多重初期化を防止
 
     M5.Ex_I2C.begin(EXT_I2C_PORT, PORTA_SDA, PORTA_SCL);
-    // キーパッド側のイベントキューをクリア
-    while (true) {
+
+    // Step 1: 旧FW互換のbareリードでイベントキューをドレインする。
+    // 新FWでpointer未設定のbareリードが非ゼロを返し続ける場合に備え、
+    // 反復回数に上限を設ける。
+    for (int i = 0; i < 32; i++) {
         uint8_t data = 0;
-        if (!M5.Ex_I2C.start(KEYPAD_I2C_ADDR, true, 400000)) break;  // read mode
+        if (!M5.Ex_I2C.start(KEYPAD_I2C_ADDR, true, 400000)) break;
         if (!M5.Ex_I2C.read(&data, 1)) {
             M5.Ex_I2C.stop();
             break;
         }
         M5.Ex_I2C.stop();
         if (data == 0) break;
+    }
+
+    // Step 2: キューが空になったうえでFWバージョンを問い合わせ、
+    // プロトコル種別を判定する。
+    _protocol = detectProtocol();
+
+    // Step 3: 新FWの場合はREG_KEY_EVENT経由でもう一度ドレインしておく
+    // (step1のbareリードが新FWで効かない可能性があるため)。
+    if (_protocol == KeypadProtocol::V3) {
+        for (int i = 0; i < 32; i++) {
+            if (readKeyEventV3() == 0) break;
+        }
     }
 
     // LEDベースレイヤーを登録
@@ -33,43 +48,97 @@ void CapsuleChordKeypad::begin() {
     _initialized = true;
 }
 
-void CapsuleChordKeypad::update() {
-    // Send command to get key event
+KeypadProtocol CapsuleChordKeypad::detectProtocol() {
+    uint8_t regAddr = REG_FW_VERSION;
+    uint8_t version[2] = {0, 0};
+
+    if (!M5.Ex_I2C.start(KEYPAD_I2C_ADDR, false, 400000)) {
+        ESP_LOGW(LOG_TAG, "Version probe write-start failed, falling back to legacy");
+        return KeypadProtocol::Legacy;
+    }
+    bool writeOk = M5.Ex_I2C.write(&regAddr, 1);
+    M5.Ex_I2C.stop();
+    if (!writeOk) {
+        ESP_LOGW(LOG_TAG, "Version probe write failed, falling back to legacy");
+        return KeypadProtocol::Legacy;
+    }
+
+    if (!M5.Ex_I2C.start(KEYPAD_I2C_ADDR, true, 400000)) {
+        ESP_LOGW(LOG_TAG, "Version probe read-start failed, falling back to legacy");
+        return KeypadProtocol::Legacy;
+    }
+    bool readOk = M5.Ex_I2C.read(version, 2);
+    M5.Ex_I2C.stop();
+    if (!readOk) {
+        ESP_LOGW(LOG_TAG, "Version probe read failed, falling back to legacy");
+        return KeypadProtocol::Legacy;
+    }
+
+    if (version[0] >= 3) {
+        ESP_LOGI(LOG_TAG, "Keypad firmware v%u.%u detected (new protocol)",
+                 version[0], version[1]);
+        return KeypadProtocol::V3;
+    }
+
+    ESP_LOGI(LOG_TAG, "Legacy keypad firmware detected (version bytes: 0x%02X 0x%02X)",
+             version[0], version[1]);
+    return KeypadProtocol::Legacy;
+}
+
+uint8_t CapsuleChordKeypad::readKeyEventLegacy() {
     uint8_t cmd = CMD_GET_KEY_EVENT;
-    if (M5.Ex_I2C.start(KEYPAD_I2C_ADDR, false, 400000)) {  // write mode
+    uint8_t val = 0;
+    if (M5.Ex_I2C.start(KEYPAD_I2C_ADDR, false, 400000)) {
         M5.Ex_I2C.write(&cmd, 1);
         M5.Ex_I2C.stop();
     }
-
-    // Read key event data
-    uint8_t val = 0;
-    if (M5.Ex_I2C.start(KEYPAD_I2C_ADDR, true, 400000)) {  // read mode
-        if (M5.Ex_I2C.read(&val, 1)) {
-            if (val != 0) {
-                // KeyEventオブジェクトを作成
-                KeyEvent event(static_cast<char>(val));
-
-                // Update keys
-                int keyCode = event.getKeyCode();
-                if (keys.find(keyCode) != keys.end())
-                {
-                    if(event.isPressed()) keys[keyCode].press();
-                    else keys[keyCode].release();
-                }
-                else
-                {
-                    keys[keyCode] = Key();
-                    if(event.isPressed()) keys[keyCode].press();
-                    else keys[keyCode].release();
-                }
-
-                // Process the event through listener stack
-                if (processKeyEvent(event)) {
-                    // Event was consumed by a listener
-                }
-            }
-        }
+    if (M5.Ex_I2C.start(KEYPAD_I2C_ADDR, true, 400000)) {
+        M5.Ex_I2C.read(&val, 1);
         M5.Ex_I2C.stop();
+    }
+    return val;
+}
+
+uint8_t CapsuleChordKeypad::readKeyEventV3() {
+    uint8_t regAddr = REG_KEY_EVENT;
+    uint8_t val = 0;
+    if (M5.Ex_I2C.start(KEYPAD_I2C_ADDR, false, 400000)) {
+        M5.Ex_I2C.write(&regAddr, 1);
+        M5.Ex_I2C.stop();
+    }
+    if (M5.Ex_I2C.start(KEYPAD_I2C_ADDR, true, 400000)) {
+        M5.Ex_I2C.read(&val, 1);
+        M5.Ex_I2C.stop();
+    }
+    return val;
+}
+
+void CapsuleChordKeypad::update() {
+    auto dispatch = [this](uint8_t val) {
+        KeyEvent event(static_cast<char>(val));
+
+        int keyCode = event.getKeyCode();
+        if (keys.find(keyCode) == keys.end()) {
+            keys[keyCode] = Key();
+        }
+        if (event.isPressed()) keys[keyCode].press();
+        else keys[keyCode].release();
+
+        processKeyEvent(event);
+    };
+
+    if (_protocol == KeypadProtocol::V3) {
+        // V3はFIFOなのでポーリング間隔中に積まれた分をまとめて取り出す。
+        // 想定外の事態でループが抜けない場合に備え、1回の更新での処理数に上限を設ける。
+        constexpr int MAX_EVENTS_PER_UPDATE = 32;
+        for (int i = 0; i < MAX_EVENTS_PER_UPDATE; ++i) {
+            uint8_t val = readKeyEventV3();
+            if (val == 0) break;
+            dispatch(val);
+        }
+    } else {
+        uint8_t val = readKeyEventLegacy();
+        if (val != 0) dispatch(val);
     }
 
     // Update LEDs if needed
@@ -111,10 +180,31 @@ void CapsuleChordKeypad::setLedBrightness(uint8_t keyCode, uint8_t brightness) {
         brightness = LED_OFF;
     }
 
-    // Send command through I2C using M5Unified
+    if (_protocol == KeypadProtocol::V3) {
+        writeLedBrightnessV3(keyCode, brightness);
+    } else {
+        writeLedBrightnessLegacy(keyCode, brightness);
+    }
+}
+
+void CapsuleChordKeypad::writeLedBrightnessLegacy(uint8_t keyCode, uint8_t brightness) {
     uint8_t data[3] = {CMD_SET_LED, keyCode, brightness};
-    if (M5.Ex_I2C.start(KEYPAD_I2C_ADDR, false, 400000)) {  // write mode
+    if (M5.Ex_I2C.start(KEYPAD_I2C_ADDR, false, 400000)) {
         M5.Ex_I2C.write(data, 3);
+        M5.Ex_I2C.stop();
+    }
+}
+
+void CapsuleChordKeypad::writeLedBrightnessV3(uint8_t keyCode, uint8_t brightness) {
+    // REG_LED_BRIGHT_BASE (0x70) + sparse keycode, 1B data.
+    // keyCode が REG_GLOBAL_BRIGHTNESS (0xC8) 以降の領域に被ると別レジスタを誤書きするため、ここで弾く。
+    if (keyCode >= (REG_GLOBAL_BRIGHTNESS - REG_LED_BRIGHT_BASE)) {
+        ESP_LOGW(LOG_TAG, "keyCode 0x%02X out of V3 LED register range, skipped", keyCode);
+        return;
+    }
+    uint8_t data[2] = {static_cast<uint8_t>(REG_LED_BRIGHT_BASE + keyCode), brightness};
+    if (M5.Ex_I2C.start(KEYPAD_I2C_ADDR, false, 400000)) {
+        M5.Ex_I2C.write(data, 2);
         M5.Ex_I2C.stop();
     }
 }
@@ -160,6 +250,15 @@ void CapsuleChordKeypad::removeLedLayer(std::shared_ptr<LedLayer> layer) {
 
 void CapsuleChordKeypad::markLedNeedsUpdate() {
     _needsLedUpdate = true;
+}
+
+void CapsuleChordKeypad::turnOffAllLeds() {
+    if (_protocol != KeypadProtocol::V3) return;
+    uint8_t data[2] = {REG_GLOBAL_BRIGHTNESS, 0x00};
+    if (M5.Ex_I2C.start(KEYPAD_I2C_ADDR, false, 400000)) {
+        M5.Ex_I2C.write(data, 2);
+        M5.Ex_I2C.stop();
+    }
 }
 
 void CapsuleChordKeypad::updateLeds() {
