@@ -35,7 +35,7 @@ enum {
 static const uint8_t usb_lang_descriptor[] = {0x09, 0x04}; // English (United States)
 static const char* usb_string_descriptor[] = {
     (const char*)usb_lang_descriptor,    // 0: Language
-    "CapsuleChord",          // 1: Manufacturer
+    "wararyo (contact@wararyo.com)", // 1: Manufacturer (V-USB free PID 0x16C0:0x05E4 requires contact info here)
     "CapsuleChord2",         // 2: Product
     "000001",                // 3: Serial
     "CapsuleChord2 CDC",     // 4: CDC Interface
