@@ -26,7 +26,7 @@ private:
         {
             dialog->update();
         }
-        void onTick(TempoController::tick_timing_t timing, musical_time_t time) override
+        void onTick(const TempoController::TickInfo &info) override
         {
         }
     };

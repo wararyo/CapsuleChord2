@@ -511,47 +511,6 @@ void test_scale_getDiatonic_AMinor(void) {
 }
 
 // ====================
-// MusicalTime: time_in_bar() テスト
-// ====================
-
-void test_musicalTime_time_in_bar_zero(void) {
-    // 時間0は小節内位置0
-    TEST_ASSERT_EQUAL(0, time_in_bar(0));
-}
-
-void test_musicalTime_time_in_bar_quarterNote(void) {
-    // 4分音符1つ = 480 ticks
-    TEST_ASSERT_EQUAL(480, time_in_bar(480));
-}
-
-void test_musicalTime_time_in_bar_halfBar(void) {
-    // 半小節 = 960 ticks (4/4拍子で2拍)
-    TEST_ASSERT_EQUAL(960, time_in_bar(960));
-}
-
-void test_musicalTime_time_in_bar_oneBar(void) {
-    // 1小節 = 1920 ticks (4/4拍子で4拍)
-    // 1小節ちょうどは次の小節の開始なので位置0
-    TEST_ASSERT_EQUAL(0, time_in_bar(1920));
-}
-
-void test_musicalTime_time_in_bar_oneBarPlus(void) {
-    // 1小節 + 480 ticks
-    TEST_ASSERT_EQUAL(480, time_in_bar(1920 + 480));
-}
-
-void test_musicalTime_time_in_bar_multipleBars(void) {
-    // 5小節 + 240 ticks
-    TEST_ASSERT_EQUAL(240, time_in_bar(5 * 1920 + 240));
-}
-
-void test_musicalTime_time_in_bar_negative(void) {
-    // time_in_barに負の値を渡した場合でも、0から1920までの値を返すのが望ましい
-    musical_time_t result = time_in_bar(-480);
-    TEST_ASSERT_EQUAL(1440, result);
-}
-
-// ====================
 // テスト実行の共通化
 // ====================
 
@@ -653,17 +612,6 @@ void runAllTests() {
     RUN_TEST(test_scale_getDiatonic_DMajor);
     RUN_TEST(test_scale_getDiatonic_DMajor_V);
     RUN_TEST(test_scale_getDiatonic_AMinor);
-
-    // ===== MusicalTime テスト =====
-
-    // time_in_bar() テスト
-    RUN_TEST(test_musicalTime_time_in_bar_zero);
-    RUN_TEST(test_musicalTime_time_in_bar_quarterNote);
-    RUN_TEST(test_musicalTime_time_in_bar_halfBar);
-    RUN_TEST(test_musicalTime_time_in_bar_oneBar);
-    RUN_TEST(test_musicalTime_time_in_bar_oneBarPlus);
-    RUN_TEST(test_musicalTime_time_in_bar_multipleBars);
-    RUN_TEST(test_musicalTime_time_in_bar_negative);
 }
 
 // ====================

@@ -201,7 +201,7 @@ void AppSequencer::onCreate()
 void AppSequencer::onActivate()
 {
     isActive = true;
-    previousTime = Tempo.getMusicalTime();
+    previousTime = Tempo.timeInBar();
     Tempo.addListener(&tempoCallbacks);
     Pipeline.addNoteFilter(&noteFilter);
 }
@@ -369,8 +369,9 @@ bool AppSequencer::isTransitionPoint(musical_time_t previousTime, musical_time_t
 {
     if (!currentSequence) return false;
 
-    while (previousTime > currentTime) previousTime -= 1920; // 小節の長さで正規化
-    
+    const musical_time_t bl = Tempo.barLength();
+    while (previousTime > currentTime) previousTime -= bl; // 小節の長さで正規化
+
     for (musical_time_t transitionPoint : currentSequence->transitionPoints)
     {
         if (previousTime < transitionPoint && currentTime >= transitionPoint)
@@ -401,9 +402,10 @@ void AppSequencer::processItem(const AppSequencer::SequenceItem &item)
     }
 }
 
-void AppSequencer::TempoCallbacks::onTick(TempoController::tick_timing_t timing, musical_time_t time)
+void AppSequencer::TempoCallbacks::onTick(const TempoController::TickInfo &info)
 {
-    const musical_time_t timeInBar = time_in_bar(time);
+    const musical_time_t timeInBar = info.timeInBar;
+    const musical_time_t bl = Tempo.barLength();
     // コードを切り替えるときに音が途切れないようにするために、Transition Pointsで入力を更新する
     // ただし直前が無音だった場合は即座に鳴らす
     if (app->isTransitionPoint(app->previousTime, timeInBar) ||
@@ -432,8 +434,8 @@ void AppSequencer::TempoCallbacks::onTick(TempoController::tick_timing_t timing,
         if (previousTime > 0) {
             for (const AppSequencer::SequenceItem &item : *(app->currentSequence->items))
             {
-                if (previousTime < item.time && item.time <= 1920) app->processItem(item);
-                else if (item.time > 1920) break;
+                if (previousTime < item.time && item.time <= bl) app->processItem(item);
+                else if (item.time > bl) break;
             }
         }
         // 小節頭のノートを発音する
