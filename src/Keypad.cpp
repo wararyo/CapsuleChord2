@@ -114,11 +114,7 @@ uint8_t CapsuleChordKeypad::readKeyEventV3() {
 }
 
 void CapsuleChordKeypad::update() {
-    uint8_t val = (_protocol == KeypadProtocol::V3)
-        ? readKeyEventV3()
-        : readKeyEventLegacy();
-
-    if (val != 0) {
+    auto dispatch = [this](uint8_t val) {
         KeyEvent event(static_cast<char>(val));
 
         int keyCode = event.getKeyCode();
@@ -129,6 +125,20 @@ void CapsuleChordKeypad::update() {
         else keys[keyCode].release();
 
         processKeyEvent(event);
+    };
+
+    if (_protocol == KeypadProtocol::V3) {
+        // V3はFIFOなのでポーリング間隔中に積まれた分をまとめて取り出す。
+        // 想定外の事態でループが抜けない場合に備え、1回の更新での処理数に上限を設ける。
+        constexpr int MAX_EVENTS_PER_UPDATE = 32;
+        for (int i = 0; i < MAX_EVENTS_PER_UPDATE; ++i) {
+            uint8_t val = readKeyEventV3();
+            if (val == 0) break;
+            dispatch(val);
+        }
+    } else {
+        uint8_t val = readKeyEventLegacy();
+        if (val != 0) dispatch(val);
     }
 
     // Update LEDs if needed
