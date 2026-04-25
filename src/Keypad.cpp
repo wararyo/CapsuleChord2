@@ -187,6 +187,11 @@ void CapsuleChordKeypad::writeLedBrightnessLegacy(uint8_t keyCode, uint8_t brigh
 
 void CapsuleChordKeypad::writeLedBrightnessV3(uint8_t keyCode, uint8_t brightness) {
     // REG_LED_BRIGHT_BASE (0x70) + sparse keycode, 1B data.
+    // keyCode が REG_GLOBAL_BRIGHTNESS (0xC8) 以降の領域に被ると別レジスタを誤書きするため、ここで弾く。
+    if (keyCode >= (REG_GLOBAL_BRIGHTNESS - REG_LED_BRIGHT_BASE)) {
+        ESP_LOGW(LOG_TAG, "keyCode 0x%02X out of V3 LED register range, skipped", keyCode);
+        return;
+    }
     uint8_t data[2] = {static_cast<uint8_t>(REG_LED_BRIGHT_BASE + keyCode), brightness};
     if (M5.Ex_I2C.start(KEYPAD_I2C_ADDR, false, 400000)) {
         M5.Ex_I2C.write(data, 2);
