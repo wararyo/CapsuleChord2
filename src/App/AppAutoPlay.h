@@ -148,7 +148,7 @@ private:
         AppAutoPlay *app;
         void onPlayingStateChanged(bool isPlaying) override;
         void onTempoChanged(TempoController::tempo_t tempo) override;
-        void onTick(TempoController::tick_timing_t timing, musical_time_t time) override;
+        void onTick(const TempoController::TickInfo &info) override;
         TempoController::tick_timing_t getTimingMask() override
         {
             // すべてのタイミングで呼び出されるようにする（高精度な演奏のため）

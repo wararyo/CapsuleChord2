@@ -6,6 +6,9 @@
 #include "Foundation/MusicalTime.h"
 
 // テンポの管理と通知を行うクラス
+// 内部的にはウォールクロック (esp_timer_get_time) を一次ソースとして
+// musical_time_t を都度導出する。これによりタイマーサービスタスクが遅延しても
+// ドリフトせず、また再生中のテンポ変更もシームレスに反映される。
 class TempoController
 {
 public:
@@ -18,6 +21,23 @@ public:
     static const tick_timing_t TICK_TIMING_HALF_TRIPLET = 0b00010000; // 6連符
     static const tick_timing_t TICK_TIMING_QUARTER      = 0b00100000; // 1/4拍
     static const tick_timing_t TICK_TIMING_EIGHTH       = 0b10000000; // 1/8拍
+
+    // 拍子
+    struct TimeSignature
+    {
+        uint8_t num = 4;
+        uint8_t denom = 4;
+    };
+
+    // Tick発火時にコールバックへ渡される情報
+    struct TickInfo
+    {
+        tick_timing_t timing;      // 発火した種別のビットマスク
+        musical_time_t time;       // 累積 musical_time (正確な境界値)
+        musical_time_t timeInBar;  // 現在の小節内位置
+        uint32_t bar;              // 0始まりの小節番号
+    };
+
     // テンポの変更を通知するためのインターフェース
     // 各種コールバック内でTempo.start()やTempo.stop()を呼び出さない！(デッドロックが発生するため)
     class TempoCallbacks
@@ -25,12 +45,12 @@ public:
     public:
         virtual void onPlayingStateChanged(bool isPlaying) = 0;
         virtual void onTempoChanged(tempo_t tempo) = 0;
-        virtual void onTick(tick_timing_t timing, musical_time_t time) = 0;
+        virtual void onTick(const TickInfo &info) = 0;
         // Tickを通知するタイミング
-        // tick_beat_tのビットフラグで指定する
+        // tick_timing_tのビットフラグで指定する
         virtual tick_timing_t getTimingMask()
         {
-            return TICK_TIMING_BAR; // TODO: 0が初期値でいいよね多分
+            return TICK_TIMING_BAR;
         }
     };
 
@@ -40,25 +60,11 @@ public:
         return tempo;
     }
 
-    // カウント開始からの積算音楽時間を取得する
-    musical_time_t getMusicalTime() const
-    {
-        return musicalTime;
-    }
+    // カウント開始からの積算音楽時間を取得する (非再生時は0)
+    musical_time_t getMusicalTime() const;
 
-    // テンポを変更する
-    void setTempo(tempo_t tempo)
-    {
-        this->tempo = tempo;
-        // Make a copy of listeners while holding the mutex to avoid race conditions
-        portENTER_CRITICAL(&mutex);
-        std::list<TempoCallbacks *> listenersCopy = listeners;
-        portEXIT_CRITICAL(&mutex);
-        for (TempoCallbacks *listener : listenersCopy)
-        {
-            listener->onTempoChanged(tempo);
-        }
-    }
+    // テンポを変更する (再生中でもシームレスに反映される)
+    void setTempo(tempo_t newTempo);
 
     bool getPlaying() const
     {
@@ -87,34 +93,55 @@ public:
         portEXIT_CRITICAL(&mutex);
     }
 
+    // 現在の小節内位置
+    musical_time_t timeInBar() const;
+    // 任意時刻の小節内位置
+    musical_time_t timeInBar(musical_time_t t) const;
+    // 現在の小節番号 (0始まり)
+    uint32_t getCurrentBar() const { return currentBar; }
+    // 現在の拍子における1小節の長さ
+    musical_time_t barLength() const;
+
 private:
     bool isPlaying = false;
-    portMUX_TYPE mutex = portMUX_INITIALIZER_UNLOCKED;
+    mutable portMUX_TYPE mutex = portMUX_INITIALIZER_UNLOCKED;
     tempo_t tempo = 110;
-    // beat = BEAT_4_4;
     std::list<TempoCallbacks *> listeners;
     TimerHandle_t timer = nullptr;
-    // 直前の小節頭からの経過時間(ミリ秒)
-    uint32_t elapsedTime = 0;
-    // elapsedTimeがこれら以上である場合、Tickを通知する
-    float nextTimeToTickBar = 0;
-    float nextTimeToTickFullBeat = 0;
-    float nextTimeToTickFullBeatTriplet = 0;
-    float nextTimeToTickHalfBeat = 0;
-    float nextTimeToTickHalfBeatTriplet = 0;
-    float nextTimeToTickQuarterBeat = 0;
-    float nextTimeToTickEighthBeat = 0;
-    uint32_t nearestNextTimeToTick = 0; // 高速化のために、直近でトリガーされる時間は整数で用意しておく
-    float intervalBar = 0.0f;
-    float intervalFullBeat = 0.0f;
-    float intervalFullBeatTriplet = 0.0f;
-    float intervalHalfBeat = 0.0f;
-    float intervalHalfBeatTriplet = 0.0f;
-    float intervalQuarterBeat = 0.0f;
-    float intervalEighthBeat = 0.0f;
 
-    // カウント開始からの積算音楽時間
-    musical_time_t musicalTime = 0;
+    // ウォールクロックアンカー
+    int64_t realTimeBase = 0;           // 最後のアンカー時の esp_timer_get_time() (μs)
+    musical_time_t musicalTimeBase = 0; // 最後のアンカー時点での累積 musical_time
+
+    // 各 tick 種別の最終発火位置 (musical_time_t)
+    musical_time_t lastFiredMt[7] = {0};
+
+    // 小節アンカー
+    musical_time_t barAnchor = 0;
+    uint32_t currentBar = 0;
+    TimeSignature currentSig;
+
+    // 各 tick 種別のインターバル (musical_time_t)
+    static constexpr musical_time_t INTERVAL_FULL         = 480;
+    static constexpr musical_time_t INTERVAL_FULL_TRIPLET = 160;
+    static constexpr musical_time_t INTERVAL_HALF         = 240;
+    static constexpr musical_time_t INTERVAL_HALF_TRIPLET = 80;
+    static constexpr musical_time_t INTERVAL_QUARTER      = 120;
+    static constexpr musical_time_t INTERVAL_EIGHTH       = 60;
+
+    static constexpr size_t IDX_BAR          = 0;
+    static constexpr size_t IDX_FULL         = 1;
+    static constexpr size_t IDX_FULL_TRIPLET = 2;
+    static constexpr size_t IDX_HALF         = 3;
+    static constexpr size_t IDX_HALF_TRIPLET = 4;
+    static constexpr size_t IDX_QUARTER      = 5;
+    static constexpr size_t IDX_EIGHTH       = 6;
+
+    static musical_time_t barLengthOf(TimeSignature sig);
+    musical_time_t intervalOf(size_t idx) const;
+    static tick_timing_t maskOf(size_t idx);
+    // ロック取得中に現在の累積 musical_time を計算する
+    musical_time_t computeCurrentMusicalTimeLocked() const;
 
     void timerWorkInner();
     static void timerWork(TimerHandle_t t);

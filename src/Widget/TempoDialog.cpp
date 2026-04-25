@@ -7,7 +7,6 @@ static void tempo_button_plus_event_cb(lv_event_t *e)
     if (code == LV_EVENT_PRESSED || code == LV_EVENT_LONG_PRESSED_REPEAT)
     {
         Tempo.setTempo(Tempo.getTempo() + 1);
-        Tempo.stop();
     }
 }
 
@@ -17,7 +16,6 @@ static void tempo_button_minus_event_cb(lv_event_t *e)
     if (code == LV_EVENT_PRESSED || code == LV_EVENT_LONG_PRESSED_REPEAT)
     {
         Tempo.setTempo(Tempo.getTempo() - 1);
-        Tempo.stop();
     }
 }
 

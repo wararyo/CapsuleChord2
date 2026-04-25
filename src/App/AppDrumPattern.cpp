@@ -37,7 +37,7 @@ void AppDrumPattern::onCreate()
 void AppDrumPattern::onActivate()
 {
     isActive = true;
-    previousTime = Tempo.getMusicalTime();
+    previousTime = Tempo.timeInBar();
     Tempo.addListener(&tempoCallbacks);
 }
 
@@ -64,7 +64,7 @@ void AppDrumPattern::onShowGui(lv_obj_t *container)
         // 以降のisActiveの値は変更後の値
         if (self->isActive)
         {
-            self->previousTime = Tempo.getMusicalTime();
+            self->previousTime = Tempo.timeInBar();
             Tempo.addListener(&self->tempoCallbacks);
         }
         else
@@ -187,17 +187,18 @@ void AppDrumPattern::TempoCallbacks::processItem(const AppDrumPattern::DrumPatte
     }
 }
 
-void AppDrumPattern::TempoCallbacks::onTick(TempoController::tick_timing_t timing, musical_time_t time)
+void AppDrumPattern::TempoCallbacks::onTick(const TempoController::TickInfo &info)
 {
-    const musical_time_t timeInBar = time_in_bar(time);
+    const musical_time_t timeInBar = info.timeInBar;
+    const musical_time_t bl = Tempo.barLength();
     const musical_time_t previousTime = app->previousTime;
     if (timeInBar == 0) {
         // 小節終わりのノート(ノートオフ想定)を発音する
         if (previousTime > 0) {
             for (const AppDrumPattern::DrumPatternItem &item : pattern)
             {
-                if (previousTime < item.time && item.time <= 1920) processItem(item);
-                else if (item.time > 1920) break;
+                if (previousTime < item.time && item.time <= bl) processItem(item);
+                else if (item.time > bl) break;
             }
         }
         // 小節頭のノートを発音する
@@ -218,7 +219,7 @@ void AppDrumPattern::TempoCallbacks::onTick(TempoController::tick_timing_t timin
     }
 
     // UIのカーソルを更新するためのフラグを設定
-    if (timing & TempoController::TICK_TIMING_QUARTER && app->isShowingGui)
+    if (info.timing & TempoController::TICK_TIMING_QUARTER && app->isShowingGui)
     {
         app->needsCursorUpdate = true;
         app->cursorTimeInBar = timeInBar;

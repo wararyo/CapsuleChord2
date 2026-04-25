@@ -134,6 +134,10 @@ void I2CHandler::i2cLoop() {
 
         if (M5.BtnPWR.wasHold()) {
             // 電源ボタンが長押しされた場合、シャットダウンを要求
+            // 電源OFF前にキーパッドの全LEDを消灯
+            // (USB給電時は5V系のLEDが電源OFF後も点灯し続けるため)
+            Keypad.turnOffAllLeds();
+            vTaskDelay(pdMS_TO_TICKS(40));
             M5.Power.powerOff();
         }
 

@@ -19,10 +19,10 @@ void PlayScreen::TempoCallbackHandler::onTempoChanged(TempoController::tempo_t t
     }
 }
 
-void PlayScreen::TempoCallbackHandler::onTick(TempoController::tick_timing_t timing, musical_time_t time) {
+void PlayScreen::TempoCallbackHandler::onTick(const TempoController::TickInfo &info) {
     if (screen) {
         screen->needsTickUpdate = true;
-        screen->lastTickTiming = timing;
+        screen->lastTickTiming = info.timing;
     }
 }
 
