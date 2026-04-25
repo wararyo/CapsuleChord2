@@ -10,9 +10,23 @@
 
 #define KEYPAD_I2C_ADDR 0x09
 
-// I2C Commands
+// Legacy protocol I2C Commands (v2.x firmware)
 #define CMD_GET_KEY_EVENT 0x01
 #define CMD_SET_LED 0x02
+
+// New protocol registers (v3.0+ firmware, SMBus style)
+// Full map: src/protocol/registers.h on the keypad firmware
+#define REG_FW_VERSION       0x00  // RO 2B [major, minor]
+#define REG_LED_BRIGHT_BASE  0x70  // RW 1B per key (0x70 + kc)
+#define REG_GLOBAL_BRIGHTNESS 0xC8 // WO 1B (write 0x00 to turn all LEDs off)
+#define REG_KEY_EVENT        0xD0  // RO 1B FIFO pop (state<<7 | kc, 0x00 if empty)
+
+// Keypad firmware protocol variant (detected at begin()).
+// Legacy path will be removed once all deployed keypads ship with v3.0+.
+enum class KeypadProtocol : uint8_t {
+    Legacy = 0,
+    V3 = 3
+};
 
 // LED Brightness Levels
 #define LED_BRIGHT 0
@@ -209,10 +223,18 @@ private:
     // Get the current top LED layer (for debugging)
     std::shared_ptr<LedLayer> getTopLedLayer() const;
 
+    // Protocol detection + per-protocol I2C helpers
+    KeypadProtocol detectProtocol();
+    uint8_t readKeyEventLegacy();
+    uint8_t readKeyEventV3();
+    void writeLedBrightnessLegacy(uint8_t keyCode, uint8_t brightness);
+    void writeLedBrightnessV3(uint8_t keyCode, uint8_t brightness);
+
     // LED Layer Management
     std::vector<std::shared_ptr<LedLayer>> _ledLayers;
     bool _needsLedUpdate = true;
     bool _initialized = false;  // 初期化済みフラグ
+    KeypadProtocol _protocol = KeypadProtocol::Legacy;
 
 public:
     void begin();
@@ -235,6 +257,12 @@ public:
     void removeLedLayer(std::shared_ptr<LedLayer> layer);
 
     void markLedNeedsUpdate();
+
+    // Force-turn off all LEDs via REG_GLOBAL_BRIGHTNESS (V3 protocol only).
+    // 電源OFF直前に呼ぶ。USB給電時、本体3.3Vが切れた後も5V系のLEDは
+    // 給電が続くため、ハードウェア側で消灯させておく必要がある。
+    // Legacy FWではno-op。
+    void turnOffAllLeds();
     
     class Key {
         private:
