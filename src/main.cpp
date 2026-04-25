@@ -163,9 +163,7 @@ void setup() {
 
   // USB開始(HOMEボタンが押されてたら開始しない)
   if (esp_digitalRead(GPIO_NUM_HOME) == 0) {
-    // ダウンロードモードに入る
-    REG_WRITE(RTC_CNTL_OPTION1_REG, RTC_CNTL_FORCE_DOWNLOAD_BOOT);
-    esp_restart();
+    // 何もしない
   } else {
     // Initialize USB CDC/MIDI composite device early for USB CDC logging
     // MIDI output is still only active when USB MIDI is selected as output
