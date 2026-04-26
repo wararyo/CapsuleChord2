@@ -47,19 +47,27 @@ void OutputInternal::PitchBend(int16_t pitchBend, uint8_t channel)
 
 void OutputInternal::AudioLoop()
 {
-    int16_t output[4][SAMPLE_BUFFER_SIZE] = {0};
+    int16_t mono[SAMPLE_BUFFER_SIZE] = {0};
+    int16_t stereo[4][SAMPLE_BUFFER_SIZE * 2] = {0};
     uint8_t buf_idx = 0;
     while (true)
     {
         unsigned long startTime = capsule::sampler::micros();
 
-        sampler->Process(output[buf_idx]);
-        
+        sampler->Process(mono);
+        // ESP-IDFの特定のバージョンから、I2S_CHANNEL_FMT_ONLY_LEFTを指定すると左チャンネルのみに出力されるようになってしまった
+        // 回避策として、I2S_CHANNEL_FMT_RIGHT_LEFTを指定してモノラル信号を両チャンネルにコピーする
+        // よりよい解決策が見つかればそちらに移行するのが望ましい
+        for (size_t i = 0; i < SAMPLE_BUFFER_SIZE; i++) {
+            stereo[buf_idx][i * 2] = mono[i];
+            stereo[buf_idx][i * 2 + 1] = mono[i];
+        }
+
         unsigned long endTime = capsule::sampler::micros();
         audioProcessTime = endTime - startTime;
 
         static size_t bytes_written = 0;
-        i2s_write(audioOutput == AudioOutput::headphone ? I2S_NUM_HP : I2S_NUM_SPK, (const unsigned char *)output[buf_idx], 2 * SAMPLE_BUFFER_SIZE, &bytes_written, portMAX_DELAY);
+        i2s_write(audioOutput == AudioOutput::headphone ? I2S_NUM_HP : I2S_NUM_SPK, (const unsigned char *)stereo[buf_idx], 4 * SAMPLE_BUFFER_SIZE, &bytes_written, portMAX_DELAY);
 
         buf_idx = (buf_idx + 1) & 3;
     }
@@ -147,7 +155,7 @@ void OutputInternal::initAudioOutput(AudioOutput output)
         .mode = (i2s_mode_t)(I2S_MODE_MASTER),
         .sample_rate = SAMPLE_RATE,
         .bits_per_sample = I2S_BITS_PER_SAMPLE_16BIT,
-        .channel_format = I2S_CHANNEL_FMT_ONLY_LEFT,
+        .channel_format = I2S_CHANNEL_FMT_RIGHT_LEFT,
         .communication_format = I2S_COMM_FORMAT_I2S,
         .intr_alloc_flags = ESP_INTR_FLAG_LEVEL1,
         .dma_buf_count = 8,
