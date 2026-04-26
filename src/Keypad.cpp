@@ -1,4 +1,5 @@
 #include "Keypad.h"
+#include "InactivityWatcher.h"
 #include <M5Unified.h>
 #include <esp_log.h>
 
@@ -149,8 +150,9 @@ void CapsuleChordKeypad::update() {
 }
 
 bool CapsuleChordKeypad::processKeyEvent(const KeyEvent& event) {
+    Inactivity.notify();
     uint8_t keyCode = event.getKeyCode();
-    
+
     // Iterate through listeners from top of stack
     for (auto it = _listeners.rbegin(); it != _listeners.rend(); ++it) {
         auto listener = *it;

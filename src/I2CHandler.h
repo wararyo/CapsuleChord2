@@ -1,5 +1,6 @@
 #pragma once
 
+#include <atomic>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include <freertos/semphr.h>
@@ -35,6 +36,12 @@ public:
 
     bool resetTouchData();
 
+    /**
+     * I2Cスレッドにシャットダウンを要求する。
+     * 電源ボタン長押しと同じシーケンス（LED消灯→電源OFF）が実行される。
+     */
+    void requestShutdown() { shutdownRequested.store(true); }
+
 private:
     static void i2cTaskLoop(void* parameter);
     void i2cLoop();
@@ -45,6 +52,7 @@ private:
     TouchData currentTouchData = {false, 0, 0};
     bool resetTouchDataRequested = false;
     volatile bool taskRunning = false;  // タスク停止フラグ
+    std::atomic<bool> shutdownRequested{false};
 };
 
 extern I2CHandler I2C;

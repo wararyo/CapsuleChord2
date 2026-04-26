@@ -48,6 +48,7 @@ static inline int esp_digitalRead(gpio_num_t pin) {
 #include "Widget/AppLauncher.h"
 #include "Widget/PlayScreen.h"
 #include "I2CHandler.h"
+#include "InactivityWatcher.h"
 #include "LittleFSManager.h"
 #include "Output/UsbComposite.h"
 
@@ -118,6 +119,8 @@ void setup() {
 
   I2C.begin();
 
+  Inactivity.begin();
+
   // Mount LittleFS (used for settings and timbre loading)
   if (!mountLittleFS()) {
     ESP_LOGW(LOG_TAG, "LittleFS mount failed. Settings will use defaults.");
@@ -182,6 +185,17 @@ void loop()
   BtnHome.setRawState(ms, esp_digitalRead(GPIO_NUM_HOME) == 0);
   BtnMenu.setRawState(ms, esp_digitalRead(GPIO_NUM_MENU) == 0);
 
+  // 物理ボタンが押されている間は無操作タイマをリセット
+  if (BtnBack.isPressed() || BtnHome.isPressed() || BtnMenu.isPressed()) {
+    Inactivity.notify();
+  }
+
+  // 無操作タイムアウト時は電源ボタン長押しと同じシャットダウンを要求
+  if (Inactivity.isIdle()) {
+    I2C.requestShutdown();
+  }
+
+  // BtnBack: メニュー画面が開いていれば閉じる、そうでなければスケールキー変更
   if (BtnBack.wasPressed())
   {
     Scale newScale = Settings.performance.scale.get();
