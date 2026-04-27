@@ -324,11 +324,17 @@ void MenuScreen::buildOutputCategory() {
     ));
 
     // スピーカー音量
+    static char volumeLabels[32][4];
+    static bool volumeLabelsInitialized = false;
+    if (!volumeLabelsInitialized) {
+        for (int i = 0; i <= 31; i++) {
+            snprintf(volumeLabels[i], sizeof(volumeLabels[i]), "%d", i);
+        }
+        volumeLabelsInitialized = true;
+    }
     std::vector<MenuItemSelection::Option> volumeOptions;
     for (int i = 0; i <= 31; i++) {
-        char* label = new char[4];
-        snprintf(label, 4, "%d", i);
-        volumeOptions.push_back({label, i});
+        volumeOptions.push_back({volumeLabels[i], i});
     }
 
     category.items.push_back(std::make_unique<MenuItemSelection>(
