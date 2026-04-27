@@ -78,6 +78,20 @@ PLATFORMIO_CORE_DIR=.pio pio test -e native-test
 Espressif IDF Monitorを使用する。
 引数としてELFファイルのパスを指定する。
 
+#### Windows (PowerShell)
+
+ESP-IDF環境を有効化したPowerShellを起動し、シリアルモニタを実行する。
+
+```powershell
+# ESP-IDF環境を有効化したPowerShellを起動
+C:\WINDOWS\System32\WindowsPowerShell\v1.0\powershell.exe -NoExit -ExecutionPolicy Bypass -NoProfile -Command "& {. 'C:\Espressif\tools\Microsoft.v6.0.PowerShell_profile.ps1'}"
+
+# シリアルモニタを起動
+python -m esp_idf_monitor -- .pio\build\m5stack-cores3\firmware.elf
+```
+
+#### Linux/macOS
+
 ```bash
 # 仮想環境を有効化
 . $HOME/esp/esp-idf/export.sh
@@ -86,10 +100,12 @@ Espressif IDF Monitorを使用する。
 python -m esp_idf_monitor -- .pio/build/m5stack-cores3/firmware.elf
 ```
 
+#### 代替手段
+
 起動できなければPlatformIOのシリアルモニタで代用する。
 
 ```bash
-# 仮想環境を有効化
+# 仮想環境を有効化（Linux/macOS）
 source ~/.platformio/penv/bin/activate
 
 # シリアルモニタを起動
