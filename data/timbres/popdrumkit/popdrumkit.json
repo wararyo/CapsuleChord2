@@ -1,5 +1,6 @@
 {
     "name": "Pop Drum Kit",
+    "category": "drum",
     "samples": [
       {
         "lower-note-no": 36,

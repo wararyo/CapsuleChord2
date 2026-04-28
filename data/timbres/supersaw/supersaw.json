@@ -1,5 +1,6 @@
 {
-    "name": "Acoustic Bass",
+    "name": "SuperSaw",
+    "category": "synth",
     "samples": [
       {
         "lower-note-no": 0,
@@ -7,15 +8,15 @@
         "lower-velocity": 0,
         "upper-velocity": 127,
         "sample": {
-          "path": "c2.wav",
-          "root": 36,
-          "loop-start": 21714,
-          "loop-end": 22448,
+          "path": "c4.wav",
+          "root": 60,
+          "loop-start": 23979,
+          "loop-end": 25263,
           "adsr-enabled": true,
           "attack": 1.0,
-          "decay": 0.999,
-          "sustain": 0.25,
-          "release": 0.97
+          "decay": 0.982,
+          "sustain": 0.0,
+          "release": 0.5
         }
       }
     ]

@@ -1,5 +1,6 @@
 {
     "name": "Piano",
+    "category": "keys",
     "samples": [
       {
         "lower-note-no": 0,
