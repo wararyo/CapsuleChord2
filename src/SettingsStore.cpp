@@ -146,8 +146,8 @@ void VoicingSettings::deserializeItems(InputArchive& archive) {
 OutputSettings::OutputSettings(SettingsStore* store)
     : SettingsCategoryBase("/settings/output.json"),
       outputTarget("outputTarget", 0, &isDirty, store),
-      speakerVolume("speakerVolume", 16, &isDirty, store),
-      headphoneVolume("headphoneVolume", 16, &isDirty, store) {}
+      speakerVolume("speakerVolume", 23, &isDirty, store),
+      headphoneVolume("headphoneVolume", 23, &isDirty, store) {}
 
 void OutputSettings::serializeItems(OutputArchive& archive) const {
     outputTarget.serialize(archive);

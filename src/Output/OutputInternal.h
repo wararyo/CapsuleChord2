@@ -5,6 +5,7 @@
 #include <driver/i2s.h>
 #include <Sampler.h>
 #include "IMidiOutput.h"
+#include "SettingsStore.h"
 
 #define PIN_I2S_BCK_SPK GPIO_NUM_34
 #define PIN_I2S_BCK_HP GPIO_NUM_6
@@ -39,8 +40,6 @@ public:
         headphone = 0,
         speaker
     };
-
-    float masterVolume = 0.3f;
 
     void NoteOn(uint8_t noteNo, uint8_t velocity, uint8_t channel);
     void NoteOff(uint8_t noteNo, uint8_t velocity, uint8_t channel);
@@ -110,6 +109,15 @@ private:
 
     void AudioLoop();
     static void StartAudioLoop(void* _this);
+
+    // 音量設定の購読トークン
+    SettingDescriptor<uint8_t>::SubscriptionToken speakerVolumeToken = 0;
+    SettingDescriptor<uint8_t>::SubscriptionToken headphoneVolumeToken = 0;
+
+    // 音量変換・適用メソッド
+    static float settingToMasterVolume(uint8_t setting);
+    void applyVolume(uint8_t setting);
+    void applyCurrentVolume();
 };
 
 #endif
