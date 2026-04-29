@@ -61,3 +61,7 @@ CONFIG_TINYUSB_DESC_BCD_DEVICE=0x0100
 
 # Use UART for console (ESP_LOG will output to UART, not USB CDC)
 CONFIG_ESP_CONSOLE_UART_DEFAULT=y
+
+# Main (Arduino loop) task stack: default 3584 is too small for LVGL callbacks
+# that load timbres (JSON + WAV from LittleFS) synchronously
+CONFIG_ESP_MAIN_TASK_STACK_SIZE=16384
