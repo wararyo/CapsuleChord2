@@ -1,5 +1,6 @@
 {
-  "name": "Acoustic Guitar",
+  "name": "Electronic Piano",
+  "category": "keys",
   "samples": [
     {
       "lower-note-no": 0,
@@ -9,13 +10,13 @@
       "sample": {
         "path": "c4.wav",
         "root": 60,
-        "loop-start": 83347,
-        "loop-end": 83714,
+        "loop-start": 120048,
+        "loop-end": 120415,
         "adsr-enabled": true,
         "attack": 1.0,
-        "decay": 0.9985,
-        "sustain": 0.03,
-        "release": 0.97
+        "decay": 0.98,
+        "sustain": 0.5,
+        "release": 0.95
       }
     }
   ]

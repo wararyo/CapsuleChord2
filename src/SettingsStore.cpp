@@ -147,18 +147,21 @@ OutputSettings::OutputSettings(SettingsStore* store)
     : SettingsCategoryBase("/settings/output.json"),
       outputTarget("outputTarget", 0, &isDirty, store),
       speakerVolume("speakerVolume", 23, &isDirty, store),
-      headphoneVolume("headphoneVolume", 23, &isDirty, store) {}
+      headphoneVolume("headphoneVolume", 23, &isDirty, store),
+      timbreId("timbreId", std::string("piano"), &isDirty, store) {}
 
 void OutputSettings::serializeItems(OutputArchive& archive) const {
     outputTarget.serialize(archive);
     speakerVolume.serialize(archive);
     headphoneVolume.serialize(archive);
+    timbreId.serialize(archive);
 }
 
 void OutputSettings::deserializeItems(InputArchive& archive) {
     outputTarget.deserialize(archive);
     speakerVolume.deserialize(archive);
     headphoneVolume.deserialize(archive);
+    timbreId.deserialize(archive);
 }
 
 // DisplaySettings
