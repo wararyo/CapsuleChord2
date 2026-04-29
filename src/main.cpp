@@ -156,8 +156,8 @@ void setup() {
   esp_pinMode(GPIO_NUM_HOME, GPIO_MODE_INPUT);
   esp_pinMode(GPIO_NUM_MENU, GPIO_MODE_INPUT);
 
-  // 内蔵音源を開始（初期デバイスとして）
-  Output.Internal.begin();
+  // 保存された出力先を初期化（不正値は initializeOutput 内で Internal にフォールバック）
+  Output.initializeOutput(static_cast<OutputType>(Settings.output.outputTarget.get()));
 
   // PlayScreen UI の初期化（内部でコード/テンポのコールバックも登録される）
   playScreen.create();
@@ -249,6 +249,9 @@ void loop()
   {
     Output.Internal.NoteOff(60 + Settings.performance.scale.get().key, 0, 0);
   }
+
+  // 予約された出力先切替を反映
+  Output.applyPendingChange();
 
   // 出力デバイスの更新（ヘッドフォン検出など）
   Output.getCurrentOutput()->update();
