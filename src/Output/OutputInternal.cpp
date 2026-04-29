@@ -141,47 +141,57 @@ void aw88298_write_reg(uint8_t reg, uint16_t value)
   M5.In_I2C.writeRegister(aw88298_i2c_addr, reg, (const uint8_t *)&value, 2, 400000);
 }
 
-bool OutputInternal::loadTimbres()
+bool OutputInternal::loadMainTimbre(const std::string& id)
 {
-    // LittleFSからティンバーを読み込む（LittleFSは事前にマウント済みであること）
-    ESP_LOGI(LOG_TAG, "Loading timbres...");
+    // availableTimbres から対応するエントリを検索
+    const TimbreInfo* info = nullptr;
+    for (const auto& t : availableTimbres) {
+        if (t.id == id) {
+            info = &t;
+            break;
+        }
+    }
+    if (!info) {
+        ESP_LOGW(LOG_TAG, "Timbre not found: %s", id.c_str());
+        return false;
+    }
+    if (info->category == "drum") {
+        ESP_LOGW(LOG_TAG, "drum category cannot be used as main timbre: %s", id.c_str());
+        return false;
+    }
 
-    // TimbreLoaderを使用してティンバーを読み込む
-    aguitar = Loader.loadTimbre("/aguitar/aguitar.json");
-    if (aguitar) ESP_LOGI(LOG_TAG, "  aguitar loaded");
+    auto newTimbre = Loader.loadTimbre(info->jsonPath.c_str());
+    if (!newTimbre) {
+        ESP_LOGE(LOG_TAG, "Failed to load main timbre: %s", info->jsonPath.c_str());
+        return false;
+    }
 
-    bass = Loader.loadTimbre("/ebass/ebass.json");
-    if (bass) ESP_LOGI(LOG_TAG, "  bass loaded");
-
-    epiano = Loader.loadTimbre("/epiano/epiano.json");
-    if (epiano) ESP_LOGI(LOG_TAG, "  epiano loaded");
-
-    piano = Loader.loadTimbre("/piano/piano.json");
-    if (piano) ESP_LOGI(LOG_TAG, "  piano loaded");
-
-    supersaw = Loader.loadTimbre("/supersaw/supersaw.json");
-    if (supersaw) ESP_LOGI(LOG_TAG, "  supersaw loaded");
-
-    drumset = Loader.loadTimbre("/popdrumkit/popdrumkit.json");
-    if (drumset) ESP_LOGI(LOG_TAG, "  drumset loaded");
-
-    ESP_LOGI(LOG_TAG, "Timbres loading complete");
+    // 既存をチャンネル0x0にセット → 旧 currentMainTimbre は shared_ptr 上書きで解放される
+    sampler->SetTimbre(0x0, newTimbre);
+    currentMainTimbre = newTimbre;
+    ESP_LOGI(LOG_TAG, "Main timbre loaded: %s (%s)", id.c_str(), info->name.c_str());
     return true;
 }
 
 void OutputInternal::unloadTimbres()
 {
     // shared_ptrをnullptrにすることでメモリを解放
-    // ティンバー内のSampleが持つデータはheap_caps_mallocで確保されているため
-    // Sampleのデストラクタで解放される必要がある
-    piano = nullptr;
-    aguitar = nullptr;
     bass = nullptr;
-    epiano = nullptr;
-    supersaw = nullptr;
     drumset = nullptr;
+    currentMainTimbre = nullptr;
 
     ESP_LOGI(LOG_TAG, "Timbres unloaded");
+}
+
+std::vector<const TimbreInfo*> OutputInternal::getMainTimbreCandidates() const
+{
+    std::vector<const TimbreInfo*> result;
+    for (const auto& t : availableTimbres) {
+        if (t.category != "drum") {
+            result.push_back(&t);
+        }
+    }
+    return result;
 }
 
 void OutputInternal::stopAudioLoop()
@@ -290,17 +300,36 @@ void OutputInternal::begin()
     // イヤホン端子スイッチのピン設定
     esp_pinMode(PIN_HP_DETECT, GPIO_MODE_INPUT);
 
-    // ティンバーを読み込む
-    if (!loadTimbres()) {
-        ESP_LOGW(LOG_TAG, "Failed to load timbres");
-    }
+    // LittleFSをスキャンして利用可能な音色のメタデータを集める
+    availableTimbres = Loader.scanTimbres();
 
-    // ティンバーをサンプラーに設定
-    if (aguitar) sampler->SetTimbre(0x0, aguitar);
+    // bass / drum は常時ロード（別チャンネル用途）
+    for (const auto& info : availableTimbres) {
+        if (info.category == "bass" && !bass) {
+            bass = Loader.loadTimbre(info.jsonPath.c_str());
+            if (bass) ESP_LOGI(LOG_TAG, "  bass loaded: %s", info.id.c_str());
+        } else if (info.category == "drum" && !drumset) {
+            drumset = Loader.loadTimbre(info.jsonPath.c_str());
+            if (drumset) ESP_LOGI(LOG_TAG, "  drumset loaded: %s", info.id.c_str());
+        }
+    }
     if (bass) sampler->SetTimbre(0x1, bass);
-    if (epiano) sampler->SetTimbre(0x3, epiano);
     if (drumset) sampler->SetTimbre(0x9, drumset);
     sampler->SetTimbre(0xF, system);
+
+    // メイン音色を設定値に従って1つだけロード
+    std::string id = Settings.output.timbreId.get();
+    if (!loadMainTimbre(id)) {
+        // 見つからなければ候補の先頭にフォールバック
+        auto candidates = getMainTimbreCandidates();
+        if (!candidates.empty()) {
+            const std::string& fallback = candidates[0]->id;
+            ESP_LOGW(LOG_TAG, "Falling back to: %s", fallback.c_str());
+            if (loadMainTimbre(fallback)) {
+                Settings.output.timbreId.set(fallback);
+            }
+        }
+    }
 
     // 音量設定の変更を購読
     speakerVolumeToken = Settings.output.speakerVolume.subscribe(
@@ -317,9 +346,17 @@ void OutputInternal::begin()
             }
         });
 
+    // 音色変更を購読: 値が変わったらスワップロード
+    timbreIdToken = Settings.output.timbreId.subscribe(
+        [this](const std::string& oldVal, const std::string& newVal) {
+            loadMainTimbre(newVal);
+        });
+    ESP_LOGI(LOG_TAG, "[begin] subscriptions registered");
+
     // 現在のヘッドフォン接続状態を取得してI2S初期化
     isHeadphonePreviously = esp_digitalRead(PIN_HP_DETECT);
     initAudioOutput(isHeadphonePreviously ? AudioOutput::headphone : AudioOutput::speaker);
+    ESP_LOGI(LOG_TAG, "[begin] returning");
 }
 
 void OutputInternal::end()
@@ -327,7 +364,7 @@ void OutputInternal::end()
     // AudioLoopを停止
     stopAudioLoop();
 
-    // 音量設定の購読解除
+    // 設定の購読解除
     if (speakerVolumeToken != 0) {
         Settings.output.speakerVolume.unsubscribe(speakerVolumeToken);
         speakerVolumeToken = 0;
@@ -335,6 +372,10 @@ void OutputInternal::end()
     if (headphoneVolumeToken != 0) {
         Settings.output.headphoneVolume.unsubscribe(headphoneVolumeToken);
         headphoneVolumeToken = 0;
+    }
+    if (timbreIdToken != 0) {
+        Settings.output.timbreId.unsubscribe(timbreIdToken);
+        timbreIdToken = 0;
     }
 
     // ティンバーを解放してメモリを節約
@@ -351,22 +392,3 @@ void OutputInternal::update()
     }
 }
 
-void OutputInternal::loadPiano()
-{
-    sampler->SetTimbre(0x0, piano);
-}
-
-void OutputInternal::loadAGuitar()
-{
-    sampler->SetTimbre(0x0, aguitar);
-}
-
-void OutputInternal::loadEPiano()
-{
-    sampler->SetTimbre(0x0, epiano);
-}
-
-void OutputInternal::loadSuperSaw()
-{
-    sampler->SetTimbre(0x0, supersaw);
-}

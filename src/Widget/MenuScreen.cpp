@@ -1,5 +1,6 @@
 #include "MenuScreen.h"
 #include "SettingsStore.h"
+#include "Output/MidiOutput.h"
 
 // 定数
 static const int SCREEN_WIDTH = 240;
@@ -351,6 +352,36 @@ void MenuScreen::buildOutputCategory() {
         []() { return Settings.output.headphoneVolume.get(); },
         [](int v) { Settings.output.headphoneVolume.set(static_cast<uint8_t>(v)); }
     ));
+
+    // 音色（drum 以外を列挙、indexで選択しsetterで id 文字列に変換）
+    auto candidates = Output.Internal.getMainTimbreCandidates();
+    if (!candidates.empty()) {
+        std::vector<MenuItemSelection::Option> timbreOptions;
+        timbreOptions.reserve(candidates.size());
+        for (size_t i = 0; i < candidates.size(); ++i) {
+            // label は TimbreInfo::name の c_str(); availableTimbres は Output.Internal が
+            // プロセス全体で保持するため寿命は十分
+            timbreOptions.push_back({candidates[i]->name.c_str(), static_cast<int>(i)});
+        }
+        category.items.push_back(std::make_unique<MenuItemSelection>(
+            "音色",
+            timbreOptions,
+            []() {
+                auto cands = Output.Internal.getMainTimbreCandidates();
+                const std::string& cur = Settings.output.timbreId.get();
+                for (size_t i = 0; i < cands.size(); ++i) {
+                    if (cands[i]->id == cur) return static_cast<int>(i);
+                }
+                return 0;
+            },
+            [](int v) {
+                auto cands = Output.Internal.getMainTimbreCandidates();
+                if (v >= 0 && v < (int)cands.size()) {
+                    Settings.output.timbreId.set(cands[v]->id);
+                }
+            }
+        ));
+    }
 
     categories.push_back(std::move(category));
 }

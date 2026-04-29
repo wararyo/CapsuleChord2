@@ -3,9 +3,12 @@
 
 #include <M5Unified.h>
 #include <driver/i2s.h>
+#include <vector>
+#include <string>
 #include <Sampler.h>
 #include "IMidiOutput.h"
 #include "SettingsStore.h"
+#include "TimbreLoader.h"
 
 #define PIN_I2S_BCK_SPK GPIO_NUM_34
 #define PIN_I2S_BCK_HP GPIO_NUM_6
@@ -44,10 +47,9 @@ public:
     void NoteOn(uint8_t noteNo, uint8_t velocity, uint8_t channel);
     void NoteOff(uint8_t noteNo, uint8_t velocity, uint8_t channel);
     void PitchBend(int16_t pitchBend, uint8_t channel);
-    void loadPiano();
-    void loadAGuitar();
-    void loadEPiano();
-    void loadSuperSaw();
+
+    // メニュー表示用: drum 以外のメイン音色候補を返す（ポインタの寿命は availableTimbres に従う）
+    std::vector<const TimbreInfo*> getMainTimbreCandidates() const;
 
     // IMidiOutput interface implementation
     void begin() override;
@@ -66,13 +68,15 @@ public:
     const char* getName() const override { return "Internal"; }
 
 private:
-    // LittleFSから動的に読み込んだティンバー
-    std::shared_ptr<Timbre> piano = nullptr;
-    std::shared_ptr<Timbre> aguitar = nullptr;
-    std::shared_ptr<Timbre> bass = nullptr;
-    std::shared_ptr<Timbre> epiano = nullptr;
-    std::shared_ptr<Timbre> supersaw = nullptr;
-    std::shared_ptr<Timbre> drumset = nullptr;
+    // LittleFSスキャン結果（起動時に1回構築）
+    std::vector<TimbreInfo> availableTimbres;
+
+    // 常時ロードしておく特殊用途のティンバー
+    std::shared_ptr<Timbre> bass = nullptr;     // チャンネル 0x1
+    std::shared_ptr<Timbre> drumset = nullptr;  // チャンネル 0x9
+
+    // 現在チャンネル0x0 にセットしているメイン音色（スワップロード）
+    std::shared_ptr<Timbre> currentMainTimbre = nullptr;
 
     // システム音ティンバー（静的データから初期化）
     std::shared_ptr<Sample> metronomeTickSample = std::make_shared<Sample>(
@@ -90,8 +94,9 @@ private:
 
     std::shared_ptr<Sampler> sampler = Sampler::Create();
 
-    // LittleFSからティンバーを読み込む
-    bool loadTimbres();
+    // 指定IDのメイン音色をロードしてチャンネル0x0にセットする。成功時 true。
+    bool loadMainTimbre(const std::string& id);
+
     // 読み込んだティンバーを解放する
     void unloadTimbres();
 
@@ -113,6 +118,7 @@ private:
     // 音量設定の購読トークン
     SettingDescriptor<uint8_t>::SubscriptionToken speakerVolumeToken = 0;
     SettingDescriptor<uint8_t>::SubscriptionToken headphoneVolumeToken = 0;
+    SettingDescriptor<std::string>::SubscriptionToken timbreIdToken = 0;
 
     // 音量変換・適用メソッド
     static float settingToMasterVolume(uint8_t setting);

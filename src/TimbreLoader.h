@@ -1,12 +1,22 @@
 #pragma once
 
 #include <memory>
+#include <string>
+#include <vector>
 #include <stdint.h>
 #include <stdio.h>
 #include <Sampler.h>
 #include "LittleFSManager.h"
 
 using namespace capsule::sampler;
+
+// 音色のメタデータ（WAVは含まない、軽量）
+struct TimbreInfo {
+    std::string id;        // ディレクトリ名 (例: "piano")
+    std::string jsonPath;  // 例: "/timbres/piano/piano.json"
+    std::string name;      // 表示名 (JSONの "name")
+    std::string category;  // "keys" / "synth" / "bass" / "drum"
+};
 
 /**
  * Timbre JSONファイル構造
@@ -115,6 +125,12 @@ public:
      * @note LittleFSは事前にmountLittleFS()でマウントしておく必要がある
      */
     std::shared_ptr<Timbre> loadTimbre(const char *path);
+
+    /**
+     * @brief /timbres/ 直下を走査し、各<id>/<id>.json から TimbreInfo を集めて返す
+     *        WAVは読み込まない軽量メタデータのみ。再帰しない。
+     */
+    std::vector<TimbreInfo> scanTimbres();
 };
 
 extern TimbreLoader Loader;

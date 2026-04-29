@@ -2,6 +2,8 @@
 #include <string>
 #include <cstring>
 #include <cassert>
+#include <dirent.h>
+#include <sys/stat.h>
 #include <esp_log.h>
 #include <esp_heap_caps.h>
 #include <ArduinoJson.h>
@@ -180,6 +182,75 @@ std::shared_ptr<Timbre> TimbreLoader::loadTimbre(const char *path)
 
     ESP_LOGI(LOG_TAG, "Loaded timbre: %s (%zu samples)", path, samples->size());
     return std::make_shared<Timbre>(samples.release());
+}
+
+std::vector<TimbreInfo> TimbreLoader::scanTimbres()
+{
+    std::vector<TimbreInfo> result;
+
+    if (!isLittleFSMounted()) {
+        ESP_LOGE(LOG_TAG, "LittleFS not mounted. Call mountLittleFS() first.");
+        return result;
+    }
+
+    std::string scanRoot = std::string(LITTLEFS_MOUNT_POINT) + "/timbres";
+    DIR* dir = opendir(scanRoot.c_str());
+    if (!dir) {
+        ESP_LOGW(LOG_TAG, "Failed to open directory: %s", scanRoot.c_str());
+        return result;
+    }
+
+    struct dirent* entry;
+    while ((entry = readdir(dir)) != nullptr) {
+        // "." と ".." をスキップ
+        if (entry->d_name[0] == '.') continue;
+
+        std::string id = entry->d_name;
+        std::string jsonRel = "/timbres/" + id + "/" + id + ".json";
+        std::string jsonFull = std::string(LITTLEFS_MOUNT_POINT) + jsonRel;
+
+        // ディレクトリかどうか確認（JSONを開いてみるだけでも代用可能）
+        FILE* file = fopen(jsonFull.c_str(), "r");
+        if (!file) {
+            // <id>/<id>.json がなければスキップ
+            continue;
+        }
+
+        fseek(file, 0, SEEK_END);
+        long fileSize = ftell(file);
+        fseek(file, 0, SEEK_SET);
+
+        std::vector<char> buffer(fileSize + 1);
+        size_t bytesRead = fread(buffer.data(), 1, fileSize, file);
+        buffer[bytesRead] = '\0';
+        fclose(file);
+
+        // 軽量JSONパース。samples 配列はスキップしたいので
+        // DeserializationOption::Filter を使う
+        StaticJsonDocument<64> filter;
+        filter["name"] = true;
+        filter["category"] = true;
+
+        DynamicJsonDocument doc(256);
+        DeserializationError error = deserializeJson(doc, buffer.data(),
+            DeserializationOption::Filter(filter));
+        if (error) {
+            ESP_LOGW(LOG_TAG, "Failed to parse JSON: %s (%s)", jsonFull.c_str(), error.c_str());
+            continue;
+        }
+
+        TimbreInfo info;
+        info.id = id;
+        info.jsonPath = jsonRel;
+        info.name = doc["name"] | id.c_str();          // name がなければ id を流用
+        info.category = doc["category"] | "";          // category 未指定はメイン音色から除外する想定
+
+        result.push_back(std::move(info));
+    }
+
+    closedir(dir);
+    ESP_LOGI(LOG_TAG, "Scanned %zu timbres in %s", result.size(), scanRoot.c_str());
+    return result;
 }
 
 TimbreLoader Loader;

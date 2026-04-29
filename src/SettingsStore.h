@@ -165,6 +165,7 @@ public:
     SettingDescriptor<uint8_t> outputTarget;     // 出力先 (0:内蔵音源, 1:BLE, 2:USB)
     SettingDescriptor<uint8_t> speakerVolume;    // スピーカー音量 (0-31)
     SettingDescriptor<uint8_t> headphoneVolume;  // ヘッドホン音量 (0-31)
+    SettingDescriptor<std::string> timbreId;     // メイン音色ID（ディレクトリ名）
 
     OutputSettings(SettingsStore* store);
 
