@@ -48,6 +48,15 @@ GEN_START_ADDRS_COARSE = 4
 GEN_END_ADDRS_COARSE = 12
 GEN_STARTLOOP_ADDRS_COARSE = 45
 GEN_ENDLOOP_ADDRS_COARSE = 50
+GEN_INITIAL_FILTER_FC = 8
+GEN_INITIAL_FILTER_Q = 9
+GEN_MOD_ENV_TO_FILTER_FC = 11
+GEN_DELAY_MOD_ENV = 25
+GEN_ATTACK_MOD_ENV = 26
+GEN_HOLD_MOD_ENV = 27
+GEN_DECAY_MOD_ENV = 28
+GEN_SUSTAIN_MOD_ENV = 29
+GEN_RELEASE_MOD_ENV = 30
 GEN_DELAY_VOL_ENV = 33
 GEN_ATTACK_VOL_ENV = 34
 GEN_HOLD_VOL_ENV = 35
@@ -60,6 +69,11 @@ GEN_COARSE_TUNE = 51
 GEN_FINE_TUNE = 52
 GEN_SAMPLE_MODES = 54
 GEN_OVERRIDING_ROOT_KEY = 58
+
+# initialFilterFc のデフォルト値 (cent)。13500 cent ≈ 19.9kHz でほぼ素通しを意味する。
+DEFAULT_FILTER_CUTOFF_CENT = 13500
+# CapsuleSampler のフィルター Q デフォルト値 (Butterworth)
+DEFAULT_FILTER_Q = 0.707
 
 TARGET_SAMPLE_RATE = 48000
 LOOP_TAIL_PADDING = 1024
@@ -142,6 +156,16 @@ class Zone:
     end_offset: int
     startloop_offset: int
     endloop_offset: int
+    # フィルター関連 (SF2 generator 由来。preset-level の値も加算済み)
+    initial_filter_fc: int          # cent
+    initial_filter_q: int           # cb
+    mod_env_to_filter_fc: int       # cent
+    delay_mod_env_tc: int           # timecent
+    attack_mod_env_tc: int          # timecent
+    hold_mod_env_tc: int            # timecent
+    decay_mod_env_tc: int           # timecent
+    sustain_mod_env: int            # 0..1000 (1000 = 100% decrease)
+    release_mod_env_tc: int         # timecent
 
 
 def _merge_gens(parent: dict, child: dict) -> dict:
@@ -170,9 +194,13 @@ def _bag_vel_range(bag, fallback_gens: dict) -> Optional[Tuple[int, int]]:
 
 
 def _zones_from_instrument(instr,
+                           preset_total_gens: dict,
                            preset_key_range: Optional[Tuple[int, int]],
                            preset_vel_range: Optional[Tuple[int, int]]) -> List[Zone]:
-    """1つの Sf2Instrument から Zone のリストを作る。"""
+    """1つの Sf2Instrument から Zone のリストを作る。
+    preset_total_gens は preset の global zone と該当 preset bag の gen を
+    合成したもの。SF2 仕様に従い、cent/timecent/cb 系 generator は
+    instrument 側の値に preset 側の値を加算する。"""
     zones: List[Zone] = []
     inst_bags = list(getattr(instr, "bags", []) or [])
 
@@ -207,11 +235,20 @@ def _zones_from_instrument(instr,
         if key_lo > key_hi or vel_lo > vel_hi:
             continue
 
-        def short(oper, default=0):
+        def add_short(oper, default=0):
+            """instrument 側に preset 側を加算した値を返す。
+            どちらにも無ければ default。"""
+            i = _gen_short(merged_gens, oper)
+            p = _gen_short(preset_total_gens, oper)
+            if i is None and p is None:
+                return default
+            return (i if i is not None else default) + (p or 0)
+
+        def instr_short(oper, default=0):
             v = _gen_short(merged_gens, oper)
             return default if v is None else v
 
-        def word(oper, default=0):
+        def instr_word(oper, default=0):
             v = _gen_word(merged_gens, oper)
             return default if v is None else v
 
@@ -221,41 +258,64 @@ def _zones_from_instrument(instr,
             vel_lo=vel_lo,
             vel_hi=vel_hi,
             sample=sample,
-            sample_modes=word(GEN_SAMPLE_MODES, 0),
-            delay_tc=short(GEN_DELAY_VOL_ENV, -12000),
-            attack_tc=short(GEN_ATTACK_VOL_ENV, -12000),
-            hold_tc=short(GEN_HOLD_VOL_ENV, -12000),
-            decay_tc=short(GEN_DECAY_VOL_ENV, -12000),
-            sustain_cb=short(GEN_SUSTAIN_VOL_ENV, 0),
-            release_tc=short(GEN_RELEASE_VOL_ENV, -12000),
-            coarse_tune=short(GEN_COARSE_TUNE, 0),
-            fine_tune=short(GEN_FINE_TUNE, 0),
+            # instrument-only な generator
+            sample_modes=instr_word(GEN_SAMPLE_MODES, 0),
             overriding_root=_gen_short(merged_gens, GEN_OVERRIDING_ROOT_KEY),
-            start_offset=(short(GEN_START_ADDRS_COARSE, 0) * 32768
-                          + short(GEN_START_ADDRS_OFFSET, 0)),
-            end_offset=(short(GEN_END_ADDRS_COARSE, 0) * 32768
-                        + short(GEN_END_ADDRS_OFFSET, 0)),
-            startloop_offset=(short(GEN_STARTLOOP_ADDRS_COARSE, 0) * 32768
-                              + short(GEN_STARTLOOP_ADDRS_OFFSET, 0)),
-            endloop_offset=(short(GEN_ENDLOOP_ADDRS_COARSE, 0) * 32768
-                            + short(GEN_ENDLOOP_ADDRS_OFFSET, 0)),
+            start_offset=(instr_short(GEN_START_ADDRS_COARSE, 0) * 32768
+                          + instr_short(GEN_START_ADDRS_OFFSET, 0)),
+            end_offset=(instr_short(GEN_END_ADDRS_COARSE, 0) * 32768
+                        + instr_short(GEN_END_ADDRS_OFFSET, 0)),
+            startloop_offset=(instr_short(GEN_STARTLOOP_ADDRS_COARSE, 0) * 32768
+                              + instr_short(GEN_STARTLOOP_ADDRS_OFFSET, 0)),
+            endloop_offset=(instr_short(GEN_ENDLOOP_ADDRS_COARSE, 0) * 32768
+                            + instr_short(GEN_ENDLOOP_ADDRS_OFFSET, 0)),
+            # preset 加算対象の数値型 generator
+            delay_tc=add_short(GEN_DELAY_VOL_ENV, -12000),
+            attack_tc=add_short(GEN_ATTACK_VOL_ENV, -12000),
+            hold_tc=add_short(GEN_HOLD_VOL_ENV, -12000),
+            decay_tc=add_short(GEN_DECAY_VOL_ENV, -12000),
+            sustain_cb=add_short(GEN_SUSTAIN_VOL_ENV, 0),
+            release_tc=add_short(GEN_RELEASE_VOL_ENV, -12000),
+            coarse_tune=add_short(GEN_COARSE_TUNE, 0),
+            fine_tune=add_short(GEN_FINE_TUNE, 0),
+            # フィルター関連
+            initial_filter_fc=add_short(GEN_INITIAL_FILTER_FC, DEFAULT_FILTER_CUTOFF_CENT),
+            initial_filter_q=add_short(GEN_INITIAL_FILTER_Q, 0),
+            mod_env_to_filter_fc=add_short(GEN_MOD_ENV_TO_FILTER_FC, 0),
+            delay_mod_env_tc=add_short(GEN_DELAY_MOD_ENV, -12000),
+            attack_mod_env_tc=add_short(GEN_ATTACK_MOD_ENV, -12000),
+            hold_mod_env_tc=add_short(GEN_HOLD_MOD_ENV, -12000),
+            decay_mod_env_tc=add_short(GEN_DECAY_MOD_ENV, -12000),
+            sustain_mod_env=add_short(GEN_SUSTAIN_MOD_ENV, 0),
+            release_mod_env_tc=add_short(GEN_RELEASE_MOD_ENV, -12000),
         ))
 
     return zones
 
 
 def collect_zones(preset) -> List[Zone]:
-    """Sf2Preset 全体から Zone を集める。"""
+    """Sf2Preset 全体から Zone を集める。
+    preset の global zone と各 bag の gen を合成して、それを instrument 側へ
+    加算的に伝播する。"""
     zones: List[Zone] = []
     preset_bags = list(getattr(preset, "bags", []) or [])
+
+    preset_global_gens: dict = {}
+    for bag in preset_bags:
+        if getattr(bag, "instrument", None) is None:
+            preset_global_gens = _bag_gens_dict(bag)
+            break
+
     for bag in preset_bags:
         instr = getattr(bag, "instrument", None)
         if instr is None:
             continue
-        merged_gens = _bag_gens_dict(bag)
-        pkr = _bag_key_range(bag, merged_gens)
-        pvr = _bag_vel_range(bag, merged_gens)
-        zones.extend(_zones_from_instrument(instr, pkr, pvr))
+        bag_gens = _bag_gens_dict(bag)
+        # preset 側の最終 gen 値: bag が global を上書き
+        preset_total = _merge_gens(preset_global_gens, bag_gens)
+        pkr = _bag_key_range(bag, bag_gens) or _gen_range(preset_global_gens, GEN_KEY_RANGE)
+        pvr = _bag_vel_range(bag, bag_gens) or _gen_range(preset_global_gens, GEN_VEL_RANGE)
+        zones.extend(_zones_from_instrument(instr, preset_total, pkr, pvr))
     return zones
 
 
@@ -433,6 +493,40 @@ def adsr_from_zone(zone: Zone, has_loop: bool) -> Tuple[bool, float, float, floa
 
 
 # ---------------------------------------------------------------------------
+# Filter conversion (SF2 -> CapsuleSampler)
+# ---------------------------------------------------------------------------
+def _filter_q_from_cb(q_cb: int) -> float:
+    """SF2 initialFilterQ (cb) → CapsuleSampler の Q 値。
+    SF2 default 0cb のとき 0.707 (Butterworth) になるよう指数スケール。"""
+    return DEFAULT_FILTER_Q * (10.0 ** (max(0, q_cb) / 200.0))
+
+
+def _mod_env_sustain_level(units: int) -> float:
+    """SF2 sustainModEnv: 1000 単位で 100% → 0%。0..1 にマップ。"""
+    return max(0.0, min(1.0, 1.0 - units / 1000.0))
+
+
+def filter_from_zone(zone: Zone) -> Optional[dict]:
+    """フィルターが有効そうなら CapsuleSampler 用の値を辞書で返す。
+    SF2 がフィルターを使っていない (cutoff デフォルト & env 量 0) なら None。"""
+    cutoff = zone.initial_filter_fc
+    env_amount_cent = max(0, zone.mod_env_to_filter_fc)
+    enabled = (cutoff < DEFAULT_FILTER_CUTOFF_CENT) or (env_amount_cent > 0)
+    if not enabled:
+        return None
+    return {
+        "filter-enabled": True,
+        "filter-cutoff-cent": float(cutoff),
+        "filter-resonance": round(_filter_q_from_cb(zone.initial_filter_q), 6),
+        "filter-env-amount-cent": float(env_amount_cent),
+        "filter-attack": round(_attack_coeff(_tc_to_seconds(zone.attack_mod_env_tc)), 6),
+        "filter-decay": round(_decay_or_release_coeff(_tc_to_seconds(zone.decay_mod_env_tc)), 6),
+        "filter-sustain": round(_mod_env_sustain_level(zone.sustain_mod_env), 6),
+        "filter-release": round(_decay_or_release_coeff(_tc_to_seconds(zone.release_mod_env_tc)), 6),
+    }
+
+
+# ---------------------------------------------------------------------------
 # Effective root key (簡略化)
 # ---------------------------------------------------------------------------
 def effective_root_key(zone: Zone) -> int:
@@ -469,6 +563,9 @@ def _zone_signature(z: Zone) -> tuple:
         z.startloop_offset, z.endloop_offset,
         z.attack_tc, z.decay_tc, z.sustain_cb, z.release_tc,
         z.coarse_tune, z.fine_tune, z.overriding_root,
+        z.initial_filter_fc, z.initial_filter_q, z.mod_env_to_filter_fc,
+        z.attack_mod_env_tc, z.decay_mod_env_tc, z.sustain_mod_env,
+        z.release_mod_env_tc,
     )
 
 
@@ -704,22 +801,26 @@ def convert(sf2_path: str, preset_spec: str, name: str, category: str,
 
             loop_start, loop_end, has_loop = wav_meta[cache_path]
             adsr_enabled, attack, decay, sustain, release = adsr_from_zone(z, has_loop)
+            sample_obj = {
+                "path": cache_path,
+                "root": effective_root_key(z),
+                "loop-start": loop_start,
+                "loop-end": loop_end,
+                "adsr-enabled": adsr_enabled,
+                "attack": round(attack, 6),
+                "decay": round(decay, 6),
+                "sustain": round(sustain, 6),
+                "release": round(release, 6),
+            }
+            filter_dict = filter_from_zone(z)
+            if filter_dict is not None:
+                sample_obj.update(filter_dict)
             samples_json.append({
                 "lower-note-no": fz.key_lo,
                 "upper-note-no": fz.key_hi,
                 "lower-velocity": fz.vel_lo,
                 "upper-velocity": fz.vel_hi,
-                "sample": {
-                    "path": cache_path,
-                    "root": effective_root_key(z),
-                    "loop-start": loop_start,
-                    "loop-end": loop_end,
-                    "adsr-enabled": adsr_enabled,
-                    "attack": round(attack, 6),
-                    "decay": round(decay, 6),
-                    "sustain": round(sustain, 6),
-                    "release": round(release, 6),
-                },
+                "sample": sample_obj,
             })
 
         timbre = {

@@ -80,3 +80,37 @@ python midi_to_capsule_chord.py --input sample.mid --song_name TestSong
 これにより以下のファイルが生成されます：
 - `../src/Assets/TestSong.h`
 - `../src/Assets/TestSong.cpp`
+
+---
+
+# SF2 → ティンバー変換ツール (`sf2_to_timbre.py`)
+
+SoundFont 2 (.sf2) ファイルから CapsuleSampler 用のティンバー
+(`data/timbres/<name>/` 配下の WAV と JSON) を生成します。
+
+忠実な変換ではなく、おおまかにプレイアブルなティンバーへ近似変換するのが目的です。
+- フィルタ / LFO / モジュレーションエンベロープは無視されます
+- delay / hold エンベロープは無視されます
+- ステレオサンプルはモノラルにダウンミックスされます
+- pitch_correction / fineTune の端数は四捨五入で root note に丸められます
+- 部分的に重なるゾーンはノート/ベロシティ軸で分割し、CapsuleSampler の
+  「完全一致 or 完全分離」制約を満たすよう正規化されます
+
+## 使用方法
+
+```bash
+# プリセット一覧を表示
+python sf2_to_timbre.py --sf2 GeneralUser.sf2 --list
+
+# bank=0 program=0 のプリセットを 'piano2' という名前で出力
+python sf2_to_timbre.py --sf2 GeneralUser.sf2 --preset 0:0 --name piano2 --category keys
+```
+
+## パラメータ
+
+- `--sf2`: 入力 SF2 ファイル（必須）
+- `--list`: プリセット一覧を表示して終了
+- `--preset`: プリセット指定。`bank:program` 形式 / プリセット名 / インデックスが使用可能
+- `--name`: 出力ティンバー名（ディレクトリ名と JSON ファイル名に使われる）
+- `--category`: ティンバーの category フィールド（default: `keys`）
+- `--output-dir`: 出力先のティンバールート（default: `../data/timbres`）
