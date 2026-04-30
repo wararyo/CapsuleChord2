@@ -109,7 +109,7 @@ std::shared_ptr<Timbre> TimbreLoader::loadTimbre(const char *path)
     fclose(file);
 
     // JSONをパース
-    DynamicJsonDocument doc(8192);
+    DynamicJsonDocument doc(65536);
     DeserializationError error = deserializeJson(doc, jsonBuffer.data());
     if (error) {
         ESP_LOGE(LOG_TAG, "Failed to parse JSON: %s", error.c_str());
@@ -133,11 +133,19 @@ std::shared_ptr<Timbre> TimbreLoader::loadTimbre(const char *path)
         const uint8_t root = sampleJson["sample"]["root"];
         const uint32_t loopStart = sampleJson["sample"]["loop-start"];
         const uint32_t loopEnd = sampleJson["sample"]["loop-end"];
-        const bool adsrEnabled = sampleJson["sample"]["adsr-enabled"];
-        const float attack = sampleJson["sample"]["attack"];
-        const float decay = sampleJson["sample"]["decay"];
-        const float sustain = sampleJson["sample"]["sustain"];
-        const float release = sampleJson["sample"]["release"];
+        const bool  adsrEnabled       = sampleJson["sample"]["adsr-enabled"]           | true;
+        const float attack            = sampleJson["sample"]["attack"];
+        const float decay             = sampleJson["sample"]["decay"];
+        const float sustain           = sampleJson["sample"]["sustain"];
+        const float release           = sampleJson["sample"]["release"];
+        const bool  filterEnabled     = sampleJson["sample"]["filter-enabled"]         | false;
+        const float filterCutoffCent  = sampleJson["sample"]["filter-cutoff-cent"]     | 13500.0f;
+        const float filterResonance   = sampleJson["sample"]["filter-resonance"]       | 0.707f;
+        const float filterEnvAmount   = sampleJson["sample"]["filter-env-amount-cent"] | 0.0f;
+        const float filterAttack      = sampleJson["sample"]["filter-attack"]          | 1.0f;
+        const float filterDecay       = sampleJson["sample"]["filter-decay"]           | 1.0f;
+        const float filterSustain     = sampleJson["sample"]["filter-sustain"]         | 1.0f;
+        const float filterRelease     = sampleJson["sample"]["filter-release"]         | 1.0f;
 
         std::string fullSamplePath = directoryPath + "/" + samplePath;
         WavFile wavFile = WavFile::open(fullSamplePath.c_str());
@@ -168,7 +176,10 @@ std::shared_ptr<Timbre> TimbreLoader::loadTimbre(const char *path)
         std::shared_ptr<Sample> s = std::make_shared<Sample>(
             std::move(sampleData), sampleLength, root,
             loopStart, loopEnd,
-            adsrEnabled, attack, decay, sustain, release);
+            adsrEnabled, attack, decay, sustain, release,
+            filterEnabled,
+            filterCutoffCent, filterResonance, filterEnvAmount,
+            filterAttack, filterDecay, filterSustain, filterRelease);
 
         auto ms = std::make_unique<Timbre::MappedSample>(s, lowerNoteNo, upperNoteNo, lowerVelocity, upperVelocity);
         samples->push_back(std::move(ms));
