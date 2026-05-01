@@ -167,14 +167,17 @@ void OutputSettings::deserializeItems(InputArchive& archive) {
 // DisplaySettings
 DisplaySettings::DisplaySettings(SettingsStore* store)
     : SettingsCategoryBase("/settings/display.json"),
-      brightness("brightness", 1, &isDirty, store) {}  // 1 = Normal
+      brightness("brightness", 1, &isDirty, store),                // 1 = Normal
+      keypadBrightness("keypadBrightness", 1, &isDirty, store) {}  // 1 = Normal
 
 void DisplaySettings::serializeItems(OutputArchive& archive) const {
     brightness.serialize(archive);
+    keypadBrightness.serialize(archive);
 }
 
 void DisplaySettings::deserializeItems(InputArchive& archive) {
     brightness.deserialize(archive);
+    keypadBrightness.deserialize(archive);
 }
 
 // SystemSettings
