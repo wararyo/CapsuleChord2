@@ -51,6 +51,7 @@ static inline int esp_digitalRead(gpio_num_t pin) {
 #include "I2CHandler.h"
 #include "LittleFSManager.h"
 #include "Output/UsbComposite.h"
+#include "Display/DisplayController.h"
 
 #define GPIO_NUM_BACK GPIO_NUM_7
 #define GPIO_NUM_HOME GPIO_NUM_5
@@ -135,12 +136,12 @@ void setup() {
   // Load settings from LittleFS (each category)
   Settings.loadAll();
 
-  // Set lcd brightness
-  switch(Settings.display.brightness.get()) {
-    case 0: M5.Lcd.setBrightness(255); break;
-    case 1: M5.Lcd.setBrightness(127); break;
-    case 2: M5.Lcd.setBrightness(32); break;
-  }
+  // 画面まわりの初期化（明るさ反映と設定変更購読）
+  Display.begin();
+
+  // キーパッドLED全体輝度の設定購読（Keypad.begin()はSettings.loadAll()前に
+  // 呼ばれているため、購読セットアップはここで行う必要がある）
+  Keypad.subscribeBrightnessSetting();
 
   // Keymap initialization
   currentKeyMap = KeyMap::getAvailableKeyMaps()[0].get();
