@@ -1,6 +1,7 @@
 #include <vector>
 #include <string>
 #include <cstring>
+#include <unordered_map>
 #include <cassert>
 #include <dirent.h>
 #include <sys/stat.h>
@@ -123,6 +124,14 @@ std::shared_ptr<Timbre> TimbreLoader::loadTimbre(const char *path)
     // サンプルを読み込む
     auto samples = std::make_unique<std::vector<std::unique_ptr<Timbre::MappedSample>>>();
 
+    // 同一WAVファイルが複数のSampleエントリ(ベロシティレイヤなど)から参照されることがあるため、
+    // パスをキーにしたWAVバッファのキャッシュを持つ。各Sampleはshared_ptrで同じバッファを共有する。
+    struct CachedWav {
+        std::shared_ptr<const int16_t> data;
+        size_t sampleLength; // WAVヘッダ由来の生のサンプル長(adsrEnabledによる短縮は適用前)
+    };
+    std::unordered_map<std::string, CachedWav> wavCache;
+
     JsonArray samplesJson = doc["samples"].as<JsonArray>();
     for (JsonVariant sampleJson : samplesJson) {
         const uint8_t lowerNoteNo = sampleJson["lower-note-no"];
@@ -148,33 +157,50 @@ std::shared_ptr<Timbre> TimbreLoader::loadTimbre(const char *path)
         const float filterRelease     = sampleJson["sample"]["filter-release"]         | 1.0f;
 
         std::string fullSamplePath = directoryPath + "/" + samplePath;
-        WavFile wavFile = WavFile::open(fullSamplePath.c_str());
-        if (!wavFile.isValid()) {
-            ESP_LOGE(LOG_TAG, "Failed to open wav file: %s", fullSamplePath.c_str());
-            return nullptr;
-        }
 
-        size_t dataSize = wavFile.getDataSize();
-        int16_t *data = (int16_t *)heap_caps_malloc(dataSize, MALLOC_CAP_SPIRAM);
-        if (!data) {
-            ESP_LOGE(LOG_TAG, "Failed to allocate %zu bytes for sample: %s", dataSize, fullSamplePath.c_str());
+        // キャッシュヒットなら同じバッファを共有し、なければWAVを新規ロードしてキャッシュに登録
+        std::shared_ptr<const int16_t> sampleData;
+        size_t rawSampleLength;
+        auto cacheIt = wavCache.find(fullSamplePath);
+        if (cacheIt != wavCache.end()) {
+            sampleData = cacheIt->second.data;
+            rawSampleLength = cacheIt->second.sampleLength;
+        } else {
+            WavFile wavFile = WavFile::open(fullSamplePath.c_str());
+            if (!wavFile.isValid()) {
+                ESP_LOGE(LOG_TAG, "Failed to open wav file: %s", fullSamplePath.c_str());
+                return nullptr;
+            }
+
+            size_t dataSize = wavFile.getDataSize();
+            int16_t *data = (int16_t *)heap_caps_malloc(dataSize, MALLOC_CAP_SPIRAM);
+            if (!data) {
+                ESP_LOGE(LOG_TAG, "Failed to allocate %zu bytes for sample: %s", dataSize, fullSamplePath.c_str());
+                wavFile.close();
+                return nullptr;
+            }
+
+            size_t written_bytes = wavFile.read(data, dataSize);
+            assert(written_bytes == dataSize);
+            rawSampleLength = wavFile.getSampleLength();
             wavFile.close();
-            return nullptr;
+
+            // heap_caps_mallocで確保したメモリを正しく解放するため、カスタムデリータ付きshared_ptrでラップする
+            sampleData = std::shared_ptr<const int16_t>(
+                static_cast<const int16_t *>(data),
+                [](const int16_t *p) { heap_caps_free(const_cast<int16_t *>(p)); });
+            wavCache.emplace(fullSamplePath, CachedWav{sampleData, rawSampleLength});
         }
 
-        size_t written_bytes = wavFile.read(data, dataSize);
-        assert(written_bytes == dataSize);
-        size_t sampleLength = wavFile.getSampleLength();
+        size_t sampleLength = rawSampleLength;
         if (!adsrEnabled) {
             // 処理の高速化の都合上、ワンショット音源は後ろに1024サンプル程度の余白を設ける必要がある
             if (sampleLength > 1024) sampleLength -= 1024;
             else sampleLength = SAMPLE_BUFFER_SIZE;
         }
 
-        // unique_ptrでメモリを管理
-        std::unique_ptr<const int16_t> sampleData(data);
         std::shared_ptr<Sample> s = std::make_shared<Sample>(
-            std::move(sampleData), sampleLength, root,
+            sampleData, sampleLength, root,
             loopStart, loopEnd,
             adsrEnabled, attack, decay, sustain, release,
             filterEnabled,
@@ -183,7 +209,6 @@ std::shared_ptr<Timbre> TimbreLoader::loadTimbre(const char *path)
 
         auto ms = std::make_unique<Timbre::MappedSample>(s, lowerNoteNo, upperNoteNo, lowerVelocity, upperVelocity);
         samples->push_back(std::move(ms));
-        wavFile.close();
     }
 
     if (samples->empty()) {
