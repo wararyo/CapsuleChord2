@@ -406,6 +406,18 @@ void MenuScreen::buildDisplayCategory() {
         [](int v) { Settings.display.brightness.set(static_cast<uint8_t>(v)); }
     ));
 
+    // キーパッドLEDの明るさ
+    category.items.push_back(std::make_unique<MenuItemSelection>(
+        "キー明るさ",
+        std::vector<MenuItemSelection::Option>{
+            {"明るい", 0},
+            {"普通", 1},
+            {"暗い", 2}
+        },
+        []() { return Settings.display.keypadBrightness.get(); },
+        [](int v) { Settings.display.keypadBrightness.set(static_cast<uint8_t>(v)); }
+    ));
+
     categories.push_back(std::move(category));
 }
 

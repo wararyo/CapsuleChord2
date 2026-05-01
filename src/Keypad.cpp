@@ -261,6 +261,32 @@ void CapsuleChordKeypad::turnOffAllLeds() {
     }
 }
 
+void CapsuleChordKeypad::setGlobalBrightness(uint8_t value) {
+    if (_protocol != KeypadProtocol::V3) return;
+    uint8_t data[2] = {REG_GLOBAL_BRIGHTNESS, value};
+    if (M5.Ex_I2C.start(KEYPAD_I2C_ADDR, false, 400000)) {
+        M5.Ex_I2C.write(data, 2);
+        M5.Ex_I2C.stop();
+    }
+}
+
+uint8_t CapsuleChordKeypad::brightnessLevelToValue(uint8_t level) {
+    switch (level) {
+        case 0: return 64;   // 明るい
+        case 1: return 32;   // 普通
+        case 2: return 16;   // 暗い
+        default: return 32;
+    }
+}
+
+void CapsuleChordKeypad::subscribeBrightnessSetting() {
+    setGlobalBrightness(brightnessLevelToValue(Settings.display.keypadBrightness.get()));
+    brightnessToken = Settings.display.keypadBrightness.subscribe(
+        [this](const uint8_t&, const uint8_t& newVal) {
+            setGlobalBrightness(brightnessLevelToValue(newVal));
+        });
+}
+
 void CapsuleChordKeypad::updateLeds() {
     if (_ledLayers.empty()) return;
     

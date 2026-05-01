@@ -7,6 +7,7 @@
 #include <memory>
 #include <array>
 #include <string>
+#include "SettingsStore.h"
 
 #define KEYPAD_I2C_ADDR 0x09
 
@@ -236,6 +237,10 @@ private:
     bool _initialized = false;  // 初期化済みフラグ
     KeypadProtocol _protocol = KeypadProtocol::Legacy;
 
+    // 設定値 (0:Bright, 1:Normal, 2:Dark) を REG_GLOBAL_BRIGHTNESS の生値に変換
+    static uint8_t brightnessLevelToValue(uint8_t level);
+    SettingDescriptor<uint8_t>::SubscriptionToken brightnessToken = 0;
+
 public:
     void begin();
     void update();
@@ -263,6 +268,16 @@ public:
     // 給電が続くため、ハードウェア側で消灯させておく必要がある。
     // Legacy FWではno-op。
     void turnOffAllLeds();
+
+    // Set global LED brightness (V3 protocol only).
+    // value は 0-255 の PWM 生値。各キーの個別輝度に乗算的に作用する。
+    // Legacy FWではno-op。
+    void setGlobalBrightness(uint8_t value);
+
+    // Settings.display.keypadBrightness を購読して全体輝度を制御する。
+    // begin() とは分離し、Settings.loadAll() の後に呼ぶ必要がある
+    // （初期化順序: Keypad.begin() → Settings.loadAll() → ここ）。
+    void subscribeBrightnessSetting();
     
     class Key {
         private:

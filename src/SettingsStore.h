@@ -177,7 +177,8 @@ protected:
 // 表示設定
 class DisplaySettings : public SettingsCategoryBase {
 public:
-    SettingDescriptor<uint8_t> brightness;  // 画面の明るさ (0:Bright, 1:Normal, 2:Dark)
+    SettingDescriptor<uint8_t> brightness;          // 画面の明るさ (0:Bright, 1:Normal, 2:Dark)
+    SettingDescriptor<uint8_t> keypadBrightness;    // キーパッドLEDの全体輝度 (0:Bright, 1:Normal, 2:Dark)
 
     DisplaySettings(SettingsStore* store);
 
