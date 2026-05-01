@@ -146,32 +146,38 @@ void VoicingSettings::deserializeItems(InputArchive& archive) {
 OutputSettings::OutputSettings(SettingsStore* store)
     : SettingsCategoryBase("/settings/output.json"),
       outputTarget("outputTarget", 0, &isDirty, store),
-      speakerVolume("speakerVolume", 16, &isDirty, store),
-      headphoneVolume("headphoneVolume", 16, &isDirty, store) {}
+      speakerVolume("speakerVolume", 23, &isDirty, store),
+      headphoneVolume("headphoneVolume", 23, &isDirty, store),
+      timbreId("timbreId", std::string("piano"), &isDirty, store) {}
 
 void OutputSettings::serializeItems(OutputArchive& archive) const {
     outputTarget.serialize(archive);
     speakerVolume.serialize(archive);
     headphoneVolume.serialize(archive);
+    timbreId.serialize(archive);
 }
 
 void OutputSettings::deserializeItems(InputArchive& archive) {
     outputTarget.deserialize(archive);
     speakerVolume.deserialize(archive);
     headphoneVolume.deserialize(archive);
+    timbreId.deserialize(archive);
 }
 
 // DisplaySettings
 DisplaySettings::DisplaySettings(SettingsStore* store)
     : SettingsCategoryBase("/settings/display.json"),
-      brightness("brightness", 1, &isDirty, store) {}  // 1 = Normal
+      brightness("brightness", 1, &isDirty, store),                // 1 = Normal
+      keypadBrightness("keypadBrightness", 1, &isDirty, store) {}  // 1 = Normal
 
 void DisplaySettings::serializeItems(OutputArchive& archive) const {
     brightness.serialize(archive);
+    keypadBrightness.serialize(archive);
 }
 
 void DisplaySettings::deserializeItems(InputArchive& archive) {
     brightness.deserialize(archive);
+    keypadBrightness.deserialize(archive);
 }
 
 // SystemSettings

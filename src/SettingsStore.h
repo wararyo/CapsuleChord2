@@ -165,6 +165,7 @@ public:
     SettingDescriptor<uint8_t> outputTarget;     // 出力先 (0:内蔵音源, 1:BLE, 2:USB)
     SettingDescriptor<uint8_t> speakerVolume;    // スピーカー音量 (0-31)
     SettingDescriptor<uint8_t> headphoneVolume;  // ヘッドホン音量 (0-31)
+    SettingDescriptor<std::string> timbreId;     // メイン音色ID（ディレクトリ名）
 
     OutputSettings(SettingsStore* store);
 
@@ -176,7 +177,8 @@ protected:
 // 表示設定
 class DisplaySettings : public SettingsCategoryBase {
 public:
-    SettingDescriptor<uint8_t> brightness;  // 画面の明るさ (0:Bright, 1:Normal, 2:Dark)
+    SettingDescriptor<uint8_t> brightness;          // 画面の明るさ (0:Bright, 1:Normal, 2:Dark)
+    SettingDescriptor<uint8_t> keypadBrightness;    // キーパッドLEDの全体輝度 (0:Bright, 1:Normal, 2:Dark)
 
     DisplaySettings(SettingsStore* store);
 

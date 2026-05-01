@@ -11,10 +11,13 @@ CapsuleChord2は、PlatformIOとArduinoフレームワークで構築されたM5
 ### 事前準備
 
 ```bash
+# Linux/macOS
 source ~/.platformio/penv/bin/activate
 ```
 
 ### ビルド
+
+#### Linux/macOS
 
 ```bash
 # 通常ビルド
@@ -24,7 +27,19 @@ PLATFORMIO_CORE_DIR=.pio pio run
 PLATFORMIO_CORE_DIR=.pio pio run -t clean
 ```
 
+#### Windows
+
+```bash
+# 通常ビルド
+pio run
+
+# クリーンビルド
+pio run -t clean
+```
+
 ### 実機への書き込み
+
+#### Linux/macOS
 
 ```bash
 PLATFORMIO_CORE_DIR=.pio pio run -t upload
@@ -43,6 +58,12 @@ sudo service udev restart
 
 # brlttyのアンインストール
 sudo apt remove brltty
+```
+
+#### Windows
+
+```bash
+pio run -t upload
 ```
 
 ### テスト

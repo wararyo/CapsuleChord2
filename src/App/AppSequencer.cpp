@@ -250,66 +250,40 @@ void AppSequencer::onShowGui(lv_obj_t *container)
         bool isActive = !self->isActive;
         if (isActive) self->onActivate();
         else self->onDeactivate();
-    
+
         self->updateUi();
     }, LV_EVENT_CLICKED, (void *)this);
 
-    // 音色ラベル
-    lv_obj_t *timbreLabel = lv_label_create(container);
-    lv_label_set_text(timbreLabel, "音色変更ボタン(仮)");
-    lv_obj_align(timbreLabel, LV_ALIGN_TOP_MID, 0, 94);
-
-    // ピアノボタン
+    // パターン切替の仮UI
     lv_obj_t *pianoButton = lv_btn_create(container);
     lv_obj_set_size(pianoButton, 200, 40);
-    lv_obj_align(pianoButton, LV_ALIGN_BOTTOM_MID, 0, -132);
+    lv_obj_align(pianoButton, LV_ALIGN_BOTTOM_MID, 0, -88);
     lv_obj_add_event_cb(pianoButton, [](lv_event_t *e) {
-        auto *self = (AppSequencer *)lv_event_get_user_data(e);
-        Output.Internal.loadPiano();
-        self->currentSequence = sequencePiano;
+        ((AppSequencer *)lv_event_get_user_data(e))->setPianoPattern();
     }, LV_EVENT_CLICKED, (void *)this);
     lv_obj_t *pianoLabel = lv_label_create(pianoButton);
-    lv_label_set_text(pianoLabel, "ピアノ");
+    lv_label_set_text(pianoLabel, "Simple arpeggio");
     lv_obj_center(pianoLabel);
 
-    // AGuitarボタン
-    lv_obj_t *aGuitarButton = lv_btn_create(container);
-    lv_obj_set_size(aGuitarButton, 200, 40);
-    lv_obj_align(aGuitarButton, LV_ALIGN_BOTTOM_MID, 0, -88);
-    lv_obj_add_event_cb(aGuitarButton, [](lv_event_t *e) {
-        auto *self = (AppSequencer *)lv_event_get_user_data(e);
-        Output.Internal.loadAGuitar();
-        self->currentSequence = sequenceGuitar;
+    lv_obj_t *guitarButton = lv_btn_create(container);
+    lv_obj_set_size(guitarButton, 200, 40);
+    lv_obj_align(guitarButton, LV_ALIGN_BOTTOM_MID, 0, -44);
+    lv_obj_add_event_cb(guitarButton, [](lv_event_t *e) {
+        ((AppSequencer *)lv_event_get_user_data(e))->setGuitarPattern();
     }, LV_EVENT_CLICKED, (void *)this);
-    lv_obj_t *aGuitarLabel = lv_label_create(aGuitarButton);
-    lv_label_set_text(aGuitarLabel, "アコギ");
-    lv_obj_center(aGuitarLabel);
+    lv_obj_t *guitarLabel = lv_label_create(guitarButton);
+    lv_label_set_text(guitarLabel, "Guitar strokes");
+    lv_obj_center(guitarLabel);
 
-    // EPianoボタン
-    lv_obj_t *ePianoButton = lv_btn_create(container);
-    lv_obj_set_size(ePianoButton, 200, 40);
-    lv_obj_align(ePianoButton, LV_ALIGN_BOTTOM_MID, 0, -44);
-    lv_obj_add_event_cb(ePianoButton, [](lv_event_t *e) {
-        auto *self = (AppSequencer *)lv_event_get_user_data(e);
-        Output.Internal.loadEPiano();
-        self->currentSequence = sequenceSynth;
+    lv_obj_t *synthButton = lv_btn_create(container);
+    lv_obj_set_size(synthButton, 200, 40);
+    lv_obj_align(synthButton, LV_ALIGN_BOTTOM_MID, 0, 0);
+    lv_obj_add_event_cb(synthButton, [](lv_event_t *e) {
+        ((AppSequencer *)lv_event_get_user_data(e))->setSuperSawPattern();
     }, LV_EVENT_CLICKED, (void *)this);
-    lv_obj_t *ePianoLabel = lv_label_create(ePianoButton);
-    lv_label_set_text(ePianoLabel, "エレピ");
-    lv_obj_center(ePianoLabel);
-
-    // SuperSawボタン
-    lv_obj_t *superSawButton = lv_btn_create(container);
-    lv_obj_set_size(superSawButton, 200, 40);
-    lv_obj_align(superSawButton, LV_ALIGN_BOTTOM_MID, 0, 0);
-    lv_obj_add_event_cb(superSawButton, [](lv_event_t *e) {
-        auto *self = (AppSequencer *)lv_event_get_user_data(e);
-        Output.Internal.loadSuperSaw();
-        self->currentSequence = sequenceSynth;
-    }, LV_EVENT_CLICKED, (void *)this);
-    lv_obj_t *superSawLabel = lv_label_create(superSawButton);
-    lv_label_set_text(superSawLabel, "スパソ");
-    lv_obj_center(superSawLabel);
+    lv_obj_t *synthLabel = lv_label_create(synthButton);
+    lv_label_set_text(synthLabel, "Synth riff");
+    lv_obj_center(synthLabel);
 
     updateUi();
 }
@@ -466,26 +440,23 @@ void AppSequencer::TempoCallbacks::onTick(const TempoController::TickInfo &info)
 }
 
 // パターン設定用メソッドの実装
+// 音色は Settings.output.timbreId で別途管理されるため、ここではシーケンスのみ切り替える
 void AppSequencer::setGuitarPattern()
 {
-    Output.Internal.loadAGuitar();
     currentSequence = sequenceGuitar;
 }
 
 void AppSequencer::setPianoPattern()
 {
-    Output.Internal.loadPiano();
     currentSequence = sequencePiano;
 }
 
 void AppSequencer::setEPianoPattern()
 {
-    Output.Internal.loadEPiano();
     currentSequence = sequenceSynth;
 }
 
 void AppSequencer::setSuperSawPattern()
 {
-    Output.Internal.loadSuperSaw();
     currentSequence = sequenceSynth;
 }

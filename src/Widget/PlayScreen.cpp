@@ -1,6 +1,7 @@
 #include "PlayScreen.h"
 #include <M5Unified.h>
 #include "Scale.h"
+#include "SettingsStore.h"
 #include "Widget/lv_chordlabel.h"
 #include "Widget/lv_battery.h"
 #include "Widget/lv_tickframe.h"
@@ -106,6 +107,7 @@ void PlayScreen::create()
 
     // 出力先ラベルの初期表示を設定
     lv_label_set_text(output_label, Output.getCurrentOutput()->getName());
+    lastShownOutputType = Output.getCurrentOutputType();
 
     isCreated = true;
 }
@@ -214,23 +216,20 @@ void PlayScreen::update()
         updateTick(lastTickTiming & TempoController::TICK_TIMING_BAR);
         needsTickUpdate = false;
     }
-    // 出力先切り替えがリクエストされている場合、実際に切り替える
-    if (pendingOutputChange) {
-        Output.setCurrentOutput(pendingOutputType);
-        pendingOutputChange = false;
-        // ラベルを更新
-        if (isCreated && output_label) {
-            const char* name = Output.getCurrentOutput()->getName();
-            lv_label_set_text(output_label, name);
+    // 出力先が変わっていればラベルを更新（メニュー経由の変更にも追随）
+    if (isCreated && output_label) {
+        OutputType currentType = Output.getCurrentOutputType();
+        if (currentType != lastShownOutputType) {
+            lv_label_set_text(output_label, Output.getCurrentOutput()->getName());
+            lastShownOutputType = currentType;
         }
     }
 }
 
 void PlayScreen::cycleOutput()
 {
-    // 次の出力デバイスに切り替えをリクエスト（実際の切り替えはupdate()で行う）
     int currentType = static_cast<int>(Output.getCurrentOutputType());
     int nextType = (currentType + 1) % static_cast<int>(OutputType::Count);
-    pendingOutputType = static_cast<OutputType>(nextType);
-    pendingOutputChange = true;
+    Settings.output.outputTarget.set(static_cast<uint8_t>(nextType));
+    Output.requestOutputChange(static_cast<OutputType>(nextType));
 }
