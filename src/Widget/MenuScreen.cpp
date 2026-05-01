@@ -321,7 +321,10 @@ void MenuScreen::buildOutputCategory() {
             {"USB MIDI", 2}
         },
         []() { return Settings.output.outputTarget.get(); },
-        [](int v) { Settings.output.outputTarget.set(static_cast<uint8_t>(v)); }
+        [](int v) {
+            Settings.output.outputTarget.set(static_cast<uint8_t>(v));
+            Output.requestOutputChange(static_cast<OutputType>(v));
+        }
     ));
 
     // スピーカー音量

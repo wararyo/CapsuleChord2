@@ -56,6 +56,46 @@ public:
     // 現在の出力タイプを取得
     OutputType getCurrentOutputType() const { return currentOutputType; }
 
+    // 起動時に指定タイプの出力を初期化する。setCurrentOutput() の早期 return を回避するため別メソッド。
+    void initializeOutput(OutputType type) {
+        if (type < OutputType::Internal || type >= OutputType::Count) {
+            type = OutputType::Internal;
+        }
+        currentOutputType = type;
+        switch (type) {
+            case OutputType::Internal:
+                currentOutput = &Internal;
+                break;
+            case OutputType::BleMidi:
+                currentOutput = &BleMidi;
+                break;
+            case OutputType::UsbMidi:
+                currentOutput = &UsbMidi;
+                break;
+            default:
+                currentOutput = &Internal;
+                break;
+        }
+        currentOutput->begin();
+    }
+
+    // 出力先の遅延切替を予約する（LVGLイベントから呼ぶ用）
+    void requestOutputChange(OutputType type) {
+        if (type < OutputType::Internal || type >= OutputType::Count) {
+            type = OutputType::Internal;
+        }
+        pendingType = type;
+        hasPending = true;
+    }
+
+    // メインループから毎周回呼ぶ。予約されていれば実切替を実行する。
+    void applyPendingChange() {
+        if (!hasPending) return;
+        OutputType type = pendingType;
+        hasPending = false;
+        setCurrentOutput(type);
+    }
+
     // 指定したタイプの出力を取得
     IMidiOutput* getOutput(OutputType type) {
         switch (type) {
@@ -73,6 +113,8 @@ public:
 private:
     IMidiOutput* currentOutput;
     OutputType currentOutputType = OutputType::Internal;
+    OutputType pendingType = OutputType::Internal;
+    bool hasPending = false;
 };
 
 extern MidiOutput Output;

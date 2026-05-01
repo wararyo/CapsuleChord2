@@ -64,9 +64,8 @@ private:
     bool needsTickUpdate = false;
     TempoController::tick_timing_t lastTickTiming = 0;
 
-    // 出力先切り替えの遅延実行用フラグ
-    bool pendingOutputChange = false;
-    OutputType pendingOutputType = OutputType::Internal;
+    // 出力先ラベルの最終表示値（現在の出力タイプと比較してラベルを更新）
+    OutputType lastShownOutputType = OutputType::Internal;
 
     // UI要素
     lv_obj_t *tickframe;
