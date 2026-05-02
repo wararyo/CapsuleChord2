@@ -272,6 +272,14 @@ void CapsuleChordKeypad::setGlobalBrightness(uint8_t value) {
     }
 }
 
+void CapsuleChordKeypad::dimBrightness() {
+    setGlobalBrightness(16);
+}
+
+void CapsuleChordKeypad::restoreBrightness() {
+    setGlobalBrightness(brightnessLevelToValue(Settings.display.keypadBrightness.get()));
+}
+
 uint8_t CapsuleChordKeypad::brightnessLevelToValue(uint8_t level) {
     switch (level) {
         case 0: return 64;   // 明るい

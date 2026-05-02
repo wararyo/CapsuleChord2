@@ -18,6 +18,14 @@ void DisplayController::end() {
     }
 }
 
+void DisplayController::dim() {
+    M5.Lcd.setBrightness(32);
+}
+
+void DisplayController::restore() {
+    applyBrightnessLevel(Settings.display.brightness.get());
+}
+
 void DisplayController::applyBrightnessLevel(uint8_t level) {
     switch (level) {
         case 0: M5.Lcd.setBrightness(255); break;
