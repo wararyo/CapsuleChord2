@@ -1,4 +1,5 @@
 #include "Keypad.h"
+#include "InactivityWatcher.h"
 #include <M5Unified.h>
 #include <esp_log.h>
 
@@ -149,8 +150,9 @@ void CapsuleChordKeypad::update() {
 }
 
 bool CapsuleChordKeypad::processKeyEvent(const KeyEvent& event) {
+    Inactivity.notify();
     uint8_t keyCode = event.getKeyCode();
-    
+
     // Iterate through listeners from top of stack
     for (auto it = _listeners.rbegin(); it != _listeners.rend(); ++it) {
         auto listener = *it;
@@ -268,6 +270,14 @@ void CapsuleChordKeypad::setGlobalBrightness(uint8_t value) {
         M5.Ex_I2C.write(data, 2);
         M5.Ex_I2C.stop();
     }
+}
+
+void CapsuleChordKeypad::dimBrightness() {
+    setGlobalBrightness(16);
+}
+
+void CapsuleChordKeypad::restoreBrightness() {
+    setGlobalBrightness(brightnessLevelToValue(Settings.display.keypadBrightness.get()));
 }
 
 uint8_t CapsuleChordKeypad::brightnessLevelToValue(uint8_t level) {

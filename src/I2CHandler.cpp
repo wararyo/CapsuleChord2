@@ -1,5 +1,6 @@
 #include "I2CHandler.h"
 #include "Keypad.h"
+#include "InactivityWatcher.h"
 #include <M5Unified.h>
 #include <esp_log.h>
 #include <esp_timer.h>
@@ -132,8 +133,8 @@ void I2CHandler::i2cLoop() {
             ESP_LOGW(LOG_TAG, "I2C loop took %lu ms (warning threshold: 10ms)", elapsedTime);
         }
 
-        if (M5.BtnPWR.wasHold()) {
-            // 電源ボタンが長押しされた場合、シャットダウンを要求
+        if (M5.BtnPWR.wasHold() || shutdownRequested.load()) {
+            // 電源ボタン長押し、または無操作タイムアウト等で要求された場合
             // 電源OFF前にキーパッドの全LEDを消灯
             // (USB給電時は5V系のLEDが電源OFF後も点灯し続けるため)
             Keypad.turnOffAllLeds();
@@ -164,6 +165,7 @@ void I2CHandler::updateTouchData() {
             currentTouchData.isTouched = true;
             currentTouchData.x = touchX;
             currentTouchData.y = touchY;
+            Inactivity.notify();
         }
         xSemaphoreGive(touchDataMutex);
     } else {

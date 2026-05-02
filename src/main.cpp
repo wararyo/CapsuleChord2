@@ -49,6 +49,7 @@ static inline int esp_digitalRead(gpio_num_t pin) {
 #include "Widget/PlayScreen.h"
 #include "Widget/MenuScreen.h"
 #include "I2CHandler.h"
+#include "InactivityWatcher.h"
 #include "LittleFSManager.h"
 #include "Output/UsbComposite.h"
 #include "Display/DisplayController.h"
@@ -125,6 +126,8 @@ void setup() {
 
   I2C.begin();
 
+  Inactivity.begin();
+
   // Mount LittleFS (used for settings and timbre loading)
   if (!mountLittleFS()) {
     ESP_LOGW(LOG_TAG, "LittleFS mount failed. Settings will use defaults.");
@@ -188,6 +191,28 @@ void loop()
   BtnBack.setRawState(ms, esp_digitalRead(GPIO_NUM_BACK) == 0);
   BtnHome.setRawState(ms, esp_digitalRead(GPIO_NUM_HOME) == 0);
   BtnMenu.setRawState(ms, esp_digitalRead(GPIO_NUM_MENU) == 0);
+
+  // 物理ボタンが押されている間は無操作タイマをリセット
+  if (BtnBack.isPressed() || BtnHome.isPressed() || BtnMenu.isPressed()) {
+    Inactivity.notify();
+  }
+
+  // 無操作ステージに応じて画面 dim / シャットダウン要求
+  static auto prevInactivityStage = InactivityWatcher::Stage::Active;
+  auto inactivityStage = Inactivity.getStage();
+  if (inactivityStage != prevInactivityStage) {
+    if (inactivityStage == InactivityWatcher::Stage::Active) {
+      Display.restore();
+      Keypad.restoreBrightness();
+    } else if (inactivityStage == InactivityWatcher::Stage::Dimmed) {
+      Display.dim();
+      Keypad.dimBrightness();
+    }
+    prevInactivityStage = inactivityStage;
+  }
+  if (inactivityStage == InactivityWatcher::Stage::ShouldShutdown) {
+    I2C.requestShutdown();
+  }
 
   // BtnBack: メニュー画面が開いていれば閉じる、そうでなければスケールキー変更
   if (BtnBack.wasPressed())

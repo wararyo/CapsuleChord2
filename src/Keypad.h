@@ -274,6 +274,12 @@ public:
     // Legacy FWではno-op。
     void setGlobalBrightness(uint8_t value);
 
+    // 一時的に LED を暗くする（Settings には書き込まない）。
+    // 無操作タイムアウト時の dim 表示用。
+    void dimBrightness();
+    // Settings.display.keypadBrightness の値を再適用して dimBrightness() を解除する。
+    void restoreBrightness();
+
     // Settings.display.keypadBrightness を購読して全体輝度を制御する。
     // begin() とは分離し、Settings.loadAll() の後に呼ぶ必要がある
     // （初期化順序: Keypad.begin() → Settings.loadAll() → ここ）。
