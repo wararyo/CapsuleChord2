@@ -1,6 +1,7 @@
 #include "MenuScreen.h"
 #include "SettingsStore.h"
 #include "Output/MidiOutput.h"
+#include "SystemInfo.h"
 
 // 定数
 static const int SCREEN_WIDTH = 240;
@@ -168,6 +169,9 @@ void MenuScreen::del() {
 
     // 選択ダイアログを閉じる
     closeSelectionDialog();
+    if (infoScreen.getShown()) {
+        infoScreen.del();
+    }
 
     // タブボタンのイベントデータを解放
     for (lv_obj_t* tabBtn : tabButtons) {
@@ -466,10 +470,24 @@ void MenuScreen::buildSystemCategory() {
     // ファームウェア情報（ナビゲーション）
     category.items.push_back(std::make_unique<MenuItemNavigation>(
         "ファームウェア情報",
-        []() { /* TODO: ファームウェア情報画面へ遷移 */ }
+        [this]() { showFirmwareInfo(); }
+    ));
+
+    // 診断（ナビゲーション）
+    category.items.push_back(std::make_unique<MenuItemNavigation>(
+        "診断",
+        [this]() { showDiagnostics(); }
     ));
 
     categories.push_back(std::move(category));
+}
+
+void MenuScreen::showFirmwareInfo() {
+    infoScreen.create("ファームウェア情報", buildFirmwareInfoText());
+}
+
+void MenuScreen::showDiagnostics() {
+    infoScreen.create("診断", buildDiagnosticsText());
 }
 
 void MenuScreen::switchToCategory(int index) {
