@@ -5,6 +5,7 @@
 #include "Output/MidiOutput.h"
 #include "SettingsStore.h"
 
+#include <M5Unified.h>
 #include <esp_app_desc.h>
 #include <esp_chip_info.h>
 #include <esp_heap_caps.h>
@@ -74,7 +75,7 @@ FilesystemInfo getFilesystemInfo() {
     return info;
 }
 
-const char* formatBytes(size_t bytes) {
+static const char* formatBytes(size_t bytes) {
     static char buffers[4][24];
     static uint8_t index = 0;
     char* buf = buffers[index++ % 4];
@@ -106,6 +107,16 @@ static const char* keypadProtocolToString(KeypadProtocol protocol) {
     }
 }
 
+static const char* boardToString(m5::board_t board) {
+    switch (board) {
+        case m5::board_t::board_M5StackCore2: return "M5Stack Core2";
+        case m5::board_t::board_M5StackCoreS3: return "M5Stack CoreS3";
+        case m5::board_t::board_M5StackCoreS3SE: return "M5Stack CoreS3 SE";
+        case m5::board_t::board_M5Stack: return "M5Stack";
+        default: return "Unknown";
+    }
+}
+
 static std::string formatUptime(uint32_t seconds) {
     uint32_t hours = seconds / 3600;
     uint32_t minutes = (seconds / 60) % 60;
@@ -129,7 +140,7 @@ std::string buildFirmwareInfoText() {
     ss << "ESP-IDF: " << (fw.idfVersion.empty() ? esp_get_idf_version() : fw.idfVersion.c_str()) << "\n";
     ss << "\n";
     ss << "Device\n";
-    ss << "Board: M5Stack CoreS3\n";
+    ss << "Board: " << boardToString(M5.getBoard()) << "\n";
     ss << "Chip: " << chip.model << " rev " << static_cast<int>(chip.revision) << "\n";
     ss << "CPU cores: " << static_cast<int>(chip.cores) << "\n";
     ss << "\n";

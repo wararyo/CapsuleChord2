@@ -37,6 +37,5 @@ ChipInfoSummary getChipInfoSummary();
 RuntimeInfo getRuntimeInfo();
 FilesystemInfo getFilesystemInfo();
 
-const char* formatBytes(size_t bytes);
 std::string buildFirmwareInfoText();
 std::string buildDiagnosticsText();
