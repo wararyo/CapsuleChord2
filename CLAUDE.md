@@ -10,10 +10,23 @@ CapsuleChord2は、PlatformIOとArduinoフレームワークで構築されたM5
 
 ### 事前準備
 
+PlatformIO Core が未インストールの場合は、公式 installer script でユーザー権限のままインストールする:
+
+```bash
+mkdir -p platformio-install
+cd platformio-install
+curl -fsSL -o get-platformio.py https://raw.githubusercontent.com/platformio/platformio-core-installer/master/get-platformio.py
+python3 get-platformio.py
+```
+
+PlatformIO Core を installer script で入れた場合は、以降のコマンドで仮想環境を有効化する:
+
 ```bash
 # Linux/macOS
 source ~/.platformio/penv/bin/activate
+pio --version
 ```
+
 
 ### ビルド
 
@@ -45,9 +58,18 @@ pio run -t clean
 PLATFORMIO_CORE_DIR=.pio pio run -t upload
 ```
 
-`shell` ツール実行時は `with_escalated_permissions: true` と  `justification: "Firmware upload requires unrestricted USB device access beyond sandbox permissions."` を必ず指定する。
+CLI から実行する場合は、必要に応じて PlatformIO Core の仮想環境を有効化してから実行する:
 
-Linux環境では `Error: libusb_open() failed with LIBUSB_ERROR_ACCESS` というエラーが出ることがある。その際は 99-platformio-udev.rules を設定した後、デバイスを再度接続することをユーザーに求める。
+```bash
+source ~/.platformio/penv/bin/activate
+PLATFORMIO_CORE_DIR=.pio pio run -t upload
+```
+
+`upload_protocol = esp-builtin` は ESP USB-JTAG 経由の書き込みを行う。通常起動後に `CapsuleChord2 CDC` (`VID:PID=16C0:05E4`) として見えている時は、アプリ側のUSB MIDI/CDCコンポジットデバイスとして接続されており、JTAG書き込みはできない。この場合は `Error: esp_usb_jtag: could not find or open device!` で失敗する。
+
+書き込み時は、ユーザーに **ホームボタンを押しながらCapsuleChordの電源を入れる** よう依頼する。これによりUSB MIDI初期化がスキップされ、`USB JTAG/serial debug unit` (`VID:PID=303A:1001`) として認識される。この状態で `PLATFORMIO_CORE_DIR=.pio pio run -t upload` を実行すると書き込みできる。書き込み後は通常の `CapsuleChord2 CDC` として再認識される。
+
+Linux環境では `Error: libusb_open() failed with LIBUSB_ERROR_ACCESS` というエラーが出ることがある。その際は USB デバイスへのアクセス権を確認し、99-platformio-udev.rules を設定した後、デバイスを再度接続する。
 また、brlttyのアンインストールが必要な場合もある。
 
 ```bash
@@ -75,8 +97,32 @@ PLATFORMIO_CORE_DIR=.pio pio test -e native-test
 
 ### シリアルモニタ
 
-Espressif IDF Monitorを使用する。
-引数としてELFファイルのパスを指定する。
+CapsuleChord 2本体はUSB CDCではなく、基板上のUARTへログを出す。PicoProbe/DebugProbeを接続している場合は、CapsuleChord本体のUSB CDC/JTAGポートではなく **DebugProbe側のCDC-ACM UARTポート** をモニタする。
+
+接続例:
+
+```text
+PC <-- USB --> CapsuleChord 2 (ESP32-S3) <-- UART --> PicoProbe/DebugProbe <-- USB --> PC
+```
+
+Linuxではまずポートを確認する:
+
+```bash
+source ~/.platformio/penv/bin/activate
+pio device list
+ls -l /dev/serial/by-id/
+```
+
+例:
+
+```text
+/dev/ttyACM0: Debugprobe on QT2040 (CMSIS-DAP - CDC-ACM UART Interface)
+/dev/ttyACM1: USB JTAG/serial debug unit
+```
+
+この場合、ログを見るべきポートは DebugProbe 側の CDC-ACM UART Interface（例: `/dev/ttyACM0` または `/dev/serial/by-id/usb-Raspberry_Pi_Debugprobe_on_QT2040__CMSIS-DAP_...-if01`）。`USB JTAG/serial debug unit` 側や `CapsuleChord2 CDC` 側では通常のアプリログは見えない。
+
+Espressif IDF Monitorを使用する場合は、引数としてELFファイルのパスを指定する。
 
 #### Windows (PowerShell)
 
@@ -92,12 +138,29 @@ python -m esp_idf_monitor -- .pio\build\m5stack-cores3\firmware.elf
 
 #### Linux/macOS
 
+ESP-IDFを手動セットアップ済みの場合:
+
 ```bash
 # 仮想環境を有効化
 . $HOME/esp/esp-idf/export.sh
 
 # シリアルモニタを起動
 python -m esp_idf_monitor -- .pio/build/m5stack-cores3/firmware.elf
+```
+
+`$HOME/esp/esp-idf/export.sh` が無い場合は、PlatformIO が作成した ESP-IDF Python venv を使うこともできる。ポートはDebugProbe側を指定する:
+
+```bash
+source ~/.platformio/penv/bin/activate
+PLATFORMIO_CORE_DIR=.pio pio run  # firmware.elf が無い場合のみ
+PORT=/dev/serial/by-id/usb-Raspberry_Pi_Debugprobe_on_QT2040__CMSIS-DAP_...-if01
+.pio/penv/.espidf-*/bin/python -m esp_idf_monitor -p "$PORT" -b 115200 --no-reset -- .pio/build/m5stack-cores3/firmware.elf
+```
+
+モニタ実行環境によっては TTY が必要になるため、その場合はターミナル上で直接実行するか、疑似TTYを割り当てて実行する。DebugProbe側でUARTログが読めていれば、次のようなログが表示される:
+
+```text
+W (...) I2CHandler: I2C loop took 17 ms (warning threshold: 10ms)
 ```
 
 #### 代替手段
@@ -108,8 +171,8 @@ python -m esp_idf_monitor -- .pio/build/m5stack-cores3/firmware.elf
 # 仮想環境を有効化（Linux/macOS）
 source ~/.platformio/penv/bin/activate
 
-# シリアルモニタを起動
-pio device monitor
+# シリアルモニタを起動（ポートは環境に合わせて変更）
+PLATFORMIO_CORE_DIR=.pio pio device monitor -p /dev/ttyACM0 -b 115200
 ```
 
 ### LittleFSへの書き込み
@@ -300,10 +363,6 @@ python midi_to_capsule_chord.py --input song.mid --song_name MySong --output_dir
 
 - コード修正を行った場合は、上記手順に従いビルドを行い、その結果を報告する。
 - 書き込み後はユーザーへ書き込み操作と動作確認の案内を行う。
-
-# その他
-
-- `sudo` 実行はパスワード入力ができないため失敗する。必ず `with_escalated_permissions` を使うか、udev で一般ユーザーに権限を与える。
 
 ## Task Master AI Instructions
 **Import Task Master's development workflow commands and guidelines, treat as if import is in the main CLAUDE.md file.**
