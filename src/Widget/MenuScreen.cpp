@@ -1,4 +1,5 @@
 #include "MenuScreen.h"
+#include "BuildConfig.h"
 #include "SettingsStore.h"
 #include "Output/MidiOutput.h"
 
@@ -238,6 +239,7 @@ void MenuScreen::buildControlsCategory() {
     category.name = "操作";
     category.icon = nullptr;
 
+#if CAPSULECHORD_SHOW_DEV_SETTINGS
     // カスタムキー1（スタブ）
     category.items.push_back(std::make_unique<MenuItemSelection>(
         "カスタムキー1",
@@ -261,8 +263,11 @@ void MenuScreen::buildControlsCategory() {
         []() { return Settings.controls.customKey2.get(); },
         [](int v) { Settings.controls.customKey2.set(static_cast<uint8_t>(v)); }
     ));
+#endif
 
-    categories.push_back(std::move(category));
+    if (!category.items.empty()) {
+        categories.push_back(std::move(category));
+    }
 }
 
 void MenuScreen::buildPerformanceCategory() {
@@ -294,6 +299,7 @@ void MenuScreen::buildVoicingCategory() {
     category.name = "ボイシング";
     category.icon = nullptr;
 
+#if CAPSULECHORD_SHOW_DEV_SETTINGS
     // 目標音高
     category.items.push_back(std::make_unique<MenuItemSelection>(
         "目標音高",
@@ -303,8 +309,11 @@ void MenuScreen::buildVoicingCategory() {
         []() { return Settings.voicing.centerNoteNo.get(); },
         [](int v) { Settings.voicing.centerNoteNo.set(v); }
     ));
+#endif
 
-    categories.push_back(std::move(category));
+    if (!category.items.empty()) {
+        categories.push_back(std::move(category));
+    }
 }
 
 void MenuScreen::buildOutputCategory() {
@@ -426,6 +435,7 @@ void MenuScreen::buildSystemCategory() {
     category.name = "システム";
     category.icon = nullptr;
 
+#if CAPSULECHORD_SHOW_DEV_SETTINGS
     // 機内モード
     category.items.push_back(std::make_unique<MenuItemToggle>(
         "機内モード",
@@ -462,6 +472,7 @@ void MenuScreen::buildSystemCategory() {
         "ライセンス",
         []() { /* TODO: ライセンス情報画面へ遷移 */ }
     ));
+#endif
 
     // ファームウェア情報（ナビゲーション）
     category.items.push_back(std::make_unique<MenuItemNavigation>(
