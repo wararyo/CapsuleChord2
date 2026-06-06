@@ -28,6 +28,7 @@ static inline int esp_digitalRead(gpio_num_t pin) {
     return gpio_get_level(pin);
 }
 #include "BLEMidi.h"
+#include "BuildConfig.h"
 #include "Chord.h"
 #include "Scale.h"
 #include "Keypad.h"
@@ -44,7 +45,9 @@ static inline int esp_digitalRead(gpio_num_t pin) {
 #include "App/AppManager.h"
 #include "App/AppSequencer.h"
 #include "App/AppBass.h"
+#if CAPSULECHORD_INCLUDE_DEV_APPS
 #include "App/AppAutoPlay.h"
+#endif
 #include "Widget/AppLauncher.h"
 #include "Widget/PlayScreen.h"
 #include "Widget/MenuScreen.h"
@@ -284,6 +287,7 @@ void loop()
 
   // 仮でホームボタンを押したらバッテリー残量が更新されるようにする
   if (BtnHome.wasPressed()) update_battery();
+#if CAPSULECHORD_INCLUDE_DEV_APPS
   // ホームボタン長押しでシーケンサー&ベース有効化 + 自動演奏開始 (展示用機能)
   if (BtnHome.wasHold()) {
     // 1. シーケンサーアプリとベースアプリを有効にする
@@ -331,6 +335,7 @@ void loop()
       }
     }
   }
+#endif
 
   // ホームボタンを押したらアプリ一覧
   if (BtnHome.wasPressed()) {
