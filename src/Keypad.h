@@ -29,6 +29,13 @@ enum class KeypadProtocol : uint8_t {
     V3 = 3
 };
 
+struct KeypadFirmwareInfo {
+    KeypadProtocol protocol = KeypadProtocol::Legacy;
+    uint8_t major = 0;
+    uint8_t minor = 0;
+    bool versionAvailable = false;
+};
+
 // LED Brightness Levels
 #define LED_BRIGHT 0
 #define LED_NORMAL 1
@@ -236,6 +243,9 @@ private:
     bool _needsLedUpdate = true;
     bool _initialized = false;  // 初期化済みフラグ
     KeypadProtocol _protocol = KeypadProtocol::Legacy;
+    uint8_t _firmwareMajor = 0;
+    uint8_t _firmwareMinor = 0;
+    bool _firmwareVersionAvailable = false;
 
     // 設定値 (0:Bright, 1:Normal, 2:Dark) を REG_GLOBAL_BRIGHTNESS の生値に変換
     static uint8_t brightnessLevelToValue(uint8_t level);
@@ -244,6 +254,7 @@ private:
 public:
     void begin();
     void update();
+    KeypadFirmwareInfo getFirmwareInfo() const;
     
     // Add a key event listener to the top of the stack
     void addKeyEventListener(std::shared_ptr<KeyEventListener> listener);

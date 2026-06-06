@@ -72,8 +72,13 @@ KeypadProtocol CapsuleChordKeypad::detectProtocol() {
     M5.Ex_I2C.stop();
     if (!readOk) {
         ESP_LOGW(LOG_TAG, "Version probe read failed, falling back to legacy");
+        _firmwareVersionAvailable = false;
         return KeypadProtocol::Legacy;
     }
+
+    _firmwareMajor = version[0];
+    _firmwareMinor = version[1];
+    _firmwareVersionAvailable = true;
 
     if (version[0] >= 3) {
         ESP_LOGI(LOG_TAG, "Keypad firmware v%u.%u detected (new protocol)",
@@ -84,6 +89,15 @@ KeypadProtocol CapsuleChordKeypad::detectProtocol() {
     ESP_LOGI(LOG_TAG, "Legacy keypad firmware detected (version bytes: 0x%02X 0x%02X)",
              version[0], version[1]);
     return KeypadProtocol::Legacy;
+}
+
+KeypadFirmwareInfo CapsuleChordKeypad::getFirmwareInfo() const {
+    KeypadFirmwareInfo info;
+    info.protocol = _protocol;
+    info.major = _firmwareMajor;
+    info.minor = _firmwareMinor;
+    info.versionAvailable = _firmwareVersionAvailable;
+    return info;
 }
 
 uint8_t CapsuleChordKeypad::readKeyEventLegacy() {

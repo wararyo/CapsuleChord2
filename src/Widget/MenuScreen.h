@@ -5,6 +5,7 @@
 #include <memory>
 #include "MenuItem.h"
 #include "SelectionDialog.h"
+#include "InfoScreen.h"
 
 // メニューカテゴリ
 struct MenuCategory {
@@ -50,6 +51,9 @@ private:
     // 選択ダイアログ
     SelectionDialog selectionDialog;
 
+    // 情報表示画面
+    InfoScreen infoScreen;
+
     // カテゴリを初期化
     void initializeCategories();
 
@@ -69,6 +73,10 @@ private:
 
     // タブのハイライト更新
     void updateTabHighlight();
+
+    // 情報画面表示
+    void showFirmwareInfo();
+    void showDiagnostics();
 
     // イベントハンドラ
     static void onBackButtonClicked(lv_event_t* e);
