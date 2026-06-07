@@ -14,13 +14,13 @@
 #define PIN_I2S_BCK_HP GPIO_NUM_6
 #define PIN_I2S_LRCK_SPK GPIO_NUM_33
 #define PIN_I2S_LRCK_HP GPIO_NUM_0
-#define PIN_I2S_DATA GPIO_NUM_13
+#define PIN_I2S_DATA GPIO_NUM_13 // ここを変更する場合はpanic_handler.cも変更すること
 #define PIN_I2S_DATA_IN GPIO_NUM_14
 
 #define I2S_NUM_SPK I2S_NUM_1
 #define I2S_NUM_HP I2S_NUM_0
 
-#define PIN_EN_HP GPIO_NUM_9
+#define PIN_EN_HP GPIO_NUM_9 // ここを変更する場合はpanic_handler.cも変更すること
 #define PIN_HP_DETECT GPIO_NUM_18
 
 #define MODE_MIC 0
