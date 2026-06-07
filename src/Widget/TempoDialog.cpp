@@ -103,12 +103,11 @@ void TempoDialog::create()
     lv_label_set_text(label, "Play");
     lv_obj_center(label);
 
-    update();
-
     // テンポが変更された際に表示を更新する
     tempoControllerCallbacks.dialog = this;
     Tempo.addListener(&tempoControllerCallbacks);
     isShown = true;
+    update();
 }
 
 void TempoDialog::del()
