@@ -31,7 +31,8 @@ extern void __real_esp_panic_handler(void *info);
 void __wrap_esp_panic_handler(void *info)
 {
     // 1) I2Sデータラインをペリフェラルから切り離してGPIO出力(LOW)に固定する。
-    //    esp_rom_gpio_* はROM上の関数でロックを取らないため、パニック中でも安全に呼べる。
+    //    esp_rom_gpio_* はROM上の関数でロックを取らない。
+    //    gpio_set_level はIDF関数だが実装はレジスタへの直接書き込みのみでロックを取らないため安全。
     esp_rom_gpio_connect_out_signal(PANIC_PIN_I2S_DATA, SIG_GPIO_OUT_IDX, false, false);
     gpio_set_level((gpio_num_t)PANIC_PIN_I2S_DATA, 0);
 
