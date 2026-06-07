@@ -8,6 +8,7 @@
 #include <M5Unified.h>
 #include <esp_app_desc.h>
 #include <esp_chip_info.h>
+#include <esp_core_dump.h>
 #include <esp_heap_caps.h>
 #include <esp_idf_version.h>
 #include <esp_littlefs.h>
@@ -15,6 +16,8 @@
 #include <esp_timer.h>
 
 #include <cstdio>
+#include <cstdlib>
+#include <cstring>
 #include <sstream>
 
 FirmwareInfo getFirmwareInfo() {
@@ -72,6 +75,47 @@ FilesystemInfo getFilesystemInfo() {
 
     esp_err_t ret = esp_littlefs_info("littlefs", &info.totalBytes, &info.usedBytes);
     info.infoAvailable = (ret == ESP_OK);
+    return info;
+}
+
+CrashInfo getCrashInfo() {
+    CrashInfo info;
+
+#if CONFIG_ESP_COREDUMP_ENABLE_TO_FLASH && CONFIG_ESP_COREDUMP_DATA_FORMAT_ELF
+    // フラッシュ上にコアダンプが存在し、かつ整合性が取れている場合のみ要約を読み出す
+    if (esp_core_dump_image_check() != ESP_OK) {
+        return info;
+    }
+
+    // 数百バイトの構造体なのでスタックではなくヒープに確保する
+    esp_core_dump_summary_t* summary =
+        static_cast<esp_core_dump_summary_t*>(calloc(1, sizeof(esp_core_dump_summary_t)));
+    if (summary == nullptr) {
+        return info;
+    }
+
+    if (esp_core_dump_get_summary(summary) == ESP_OK) {
+        info.available = true;
+        info.taskName = summary->exc_task;
+        info.pc = summary->exc_pc;
+        info.elfSha256 = reinterpret_cast<const char*>(summary->app_elf_sha256);
+        info.excCause = summary->ex_info.exc_cause;
+        info.excVaddr = summary->ex_info.exc_vaddr;
+        info.backtraceDepth = summary->exc_bt_info.depth;
+        info.backtraceCorrupted = summary->exc_bt_info.corrupted;
+        for (uint32_t i = 0; i < summary->exc_bt_info.depth && i < 16; ++i) {
+            info.backtrace[i] = summary->exc_bt_info.bt[i];
+        }
+
+        char reason[200] = {0};
+        if (esp_core_dump_get_panic_reason(reason, sizeof(reason)) == ESP_OK) {
+            info.panicReason = reason;
+        }
+    }
+
+    free(summary);
+#endif
+
     return info;
 }
 
@@ -162,6 +206,42 @@ std::string buildDiagnosticsText() {
     KeypadFirmwareInfo keypad = Keypad.getFirmwareInfo();
 
     std::ostringstream ss;
+
+    ss << "Last crash\n";
+    CrashInfo crash = getCrashInfo();
+    if (!crash.available) {
+        ss << "None recorded\n";
+    } else {
+        char buf[32];
+        ss << "Task: " << (crash.taskName.empty() ? "Unknown" : crash.taskName) << "\n";
+        if (!crash.panicReason.empty()) {
+            ss << "Reason: " << crash.panicReason << "\n";
+        }
+        snprintf(buf, sizeof(buf), "0x%08x", crash.pc);
+        ss << "PC: " << buf << "\n";
+        snprintf(buf, sizeof(buf), "%u", static_cast<unsigned>(crash.excCause));
+        ss << "Exc cause: " << buf << "\n";
+        if (crash.excVaddr != 0) {
+            snprintf(buf, sizeof(buf), "0x%08x", crash.excVaddr);
+            ss << "Fault addr: " << buf << "\n";
+        }
+        ss << "Backtrace" << (crash.backtraceCorrupted ? " (corrupted)" : "") << ":\n";
+        if (crash.backtraceDepth == 0) {
+            ss << "(none)\n";
+        } else {
+            for (uint32_t i = 0; i < crash.backtraceDepth && i < 16; ++i) {
+                snprintf(buf, sizeof(buf), "0x%08x", crash.backtrace[i]);
+                ss << buf << (i + 1 < crash.backtraceDepth ? " " : "");
+            }
+            ss << "\n";
+        }
+        // addr2line でELFを照合するための識別子
+        if (!crash.elfSha256.empty()) {
+            ss << "ELF: " << crash.elfSha256 << "\n";
+        }
+    }
+    ss << "\n";
+
     ss << "Runtime\n";
     ss << "Uptime: " << formatUptime(runtime.uptimeSeconds) << "\n";
     ss << "Free heap: " << formatBytes(runtime.freeHeapBytes) << "\n";

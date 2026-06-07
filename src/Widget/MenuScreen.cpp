@@ -434,6 +434,20 @@ void MenuScreen::buildDisplayCategory() {
     categories.push_back(std::move(category));
 }
 
+#if CAPSULECHORD_SHOW_DEV_SETTINGS
+namespace {
+// Core Dump の動作確認用に意図的にクラッシュ（panic）を発生させる。
+// backtrace が意味を持つよう数段ネストさせ、最適化で消えないよう volatile で null 参照する。
+[[noreturn]] __attribute__((noinline)) void crashTestLevel3() {
+    volatile uint32_t* nullPtr = reinterpret_cast<volatile uint32_t*>(0);
+    *nullPtr = 0xDEAD;  // StoreProhibited を誘発
+    while (true) {}     // [[noreturn]] を満たすための保険
+}
+__attribute__((noinline)) void crashTestLevel2() { crashTestLevel3(); }
+__attribute__((noinline)) void crashTestLevel1() { crashTestLevel2(); }
+}  // namespace
+#endif
+
 void MenuScreen::buildSystemCategory() {
     MenuCategory category;
     category.name = "システム";
@@ -489,6 +503,14 @@ void MenuScreen::buildSystemCategory() {
         "診断",
         [this]() { showDiagnostics(); }
     ));
+
+#if CAPSULECHORD_SHOW_DEV_SETTINGS
+    // テストクラッシュ（Core Dump 動作確認用、開発ビルドのみ）
+    category.items.push_back(std::make_unique<MenuItemNavigation>(
+        "テストクラッシュを実行",
+        []() { crashTestLevel1(); }
+    ));
+#endif
 
     categories.push_back(std::move(category));
 }
