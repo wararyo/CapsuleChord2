@@ -98,7 +98,8 @@ CrashInfo getCrashInfo() {
         info.available = true;
         info.taskName = summary->exc_task;
         info.pc = summary->exc_pc;
-        info.elfSha256 = reinterpret_cast<const char*>(summary->app_elf_sha256);
+        const char* sha = reinterpret_cast<const char*>(summary->app_elf_sha256);
+        info.elfSha256 = std::string(sha, strnlen(sha, sizeof(summary->app_elf_sha256)));
         info.excCause = summary->ex_info.exc_cause;
         info.excVaddr = summary->ex_info.exc_vaddr;
         info.backtraceDepth = summary->exc_bt_info.depth;
@@ -221,10 +222,8 @@ std::string buildDiagnosticsText() {
         ss << "PC: " << buf << "\n";
         snprintf(buf, sizeof(buf), "%u", static_cast<unsigned>(crash.excCause));
         ss << "Exc cause: " << buf << "\n";
-        if (crash.excVaddr != 0) {
-            snprintf(buf, sizeof(buf), "0x%08x", crash.excVaddr);
-            ss << "Fault addr: " << buf << "\n";
-        }
+        snprintf(buf, sizeof(buf), "0x%08x", crash.excVaddr);
+        ss << "Fault addr: " << buf << "\n";
         ss << "Backtrace" << (crash.backtraceCorrupted ? " (corrupted)" : "") << ":\n";
         if (crash.backtraceDepth == 0) {
             ss << "(none)\n";
@@ -235,7 +234,6 @@ std::string buildDiagnosticsText() {
             }
             ss << "\n";
         }
-        // addr2line でELFを照合するための識別子
         if (!crash.elfSha256.empty()) {
             ss << "ELF: " << crash.elfSha256 << "\n";
         }
