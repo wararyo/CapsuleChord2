@@ -16,17 +16,21 @@ public:
                 int currentValue,
                 std::function<void(int)> onSelect);
     void del();
+    void requestClose();
+    void updateIfNeeded();
     bool getShown() const { return isShown; }
 
 private:
     bool isShown = false;
+    bool closeRequested = false;
+    bool selectionRequested = false;
     lv_obj_t* bg = nullptr;
     lv_obj_t* frame = nullptr;
     lv_obj_t* titleLabel = nullptr;
     lv_obj_t* optionContainer = nullptr;
 
     std::function<void(int)> selectionCallback;
-    int selectedValue;
+    int selectedValue = 0;
 
     static void onBackgroundClicked(lv_event_t* e);
     static void onOptionClicked(lv_event_t* e);

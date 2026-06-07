@@ -8,6 +8,7 @@ class TempoDialog
 public:
     void create();
     void del();
+    void requestClose();
     void update();
     void updateIfNeeded();
     bool getShown()
@@ -33,6 +34,7 @@ private:
     };
     bool isShown = false;
     bool needsUpdate = false;
+    bool closeRequested = false;
     TempoControllerCallbacks tempoControllerCallbacks;
     lv_obj_t *bg = nullptr;
     lv_obj_t *frame = nullptr;

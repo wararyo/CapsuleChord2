@@ -39,6 +39,12 @@ void TempoDialog::update()
 
 void TempoDialog::updateIfNeeded()
 {
+    if (closeRequested)
+    {
+        del();
+        return;
+    }
+
     if (needsUpdate)
     {
         update();
@@ -49,6 +55,7 @@ void TempoDialog::updateIfNeeded()
 void TempoDialog::create()
 {
     if (isShown) return;
+    closeRequested = false;
     // UI
     bg = lv_obj_create(lv_scr_act());
     lv_obj_set_size(bg, 240, 320);
@@ -58,7 +65,7 @@ void TempoDialog::create()
     lv_obj_set_style_bg_opa(bg, LV_OPA_50, LV_PART_MAIN);
     lv_obj_align(bg, LV_ALIGN_TOP_LEFT, 0, 0);
     lv_obj_add_event_cb(bg, [](lv_event_t *e)
-                        { ((TempoDialog *)lv_event_get_user_data(e))->del(); }, LV_EVENT_CLICKED, (void *)this);
+                        { ((TempoDialog *)lv_event_get_user_data(e))->requestClose(); }, LV_EVENT_CLICKED, (void *)this);
 
     frame = lv_obj_create(lv_scr_act());
     lv_obj_set_size(frame, 208, 180);
@@ -108,6 +115,7 @@ void TempoDialog::del()
 {
     if (!isShown) return;
     isShown = false;
+    closeRequested = false;
     lv_obj_del(bg);
     lv_obj_del(frame);
     bg = nullptr;
@@ -118,4 +126,11 @@ void TempoDialog::del()
     button_play = nullptr;
     needsUpdate = false;
     Tempo.removeListener(&tempoControllerCallbacks);
+}
+
+void TempoDialog::requestClose()
+{
+    if (isShown) {
+        closeRequested = true;
+    }
 }

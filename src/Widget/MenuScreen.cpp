@@ -38,7 +38,7 @@ MenuScreen::~MenuScreen() {
 void MenuScreen::onBackButtonClicked(lv_event_t* e) {
     MenuScreen* screen = static_cast<MenuScreen*>(lv_event_get_user_data(e));
     if (screen) {
-        screen->del();
+        screen->requestClose();
     }
 }
 
@@ -58,6 +58,7 @@ void MenuScreen::onItemClicked(lv_event_t* e) {
 
 void MenuScreen::create() {
     if (isShown) return;
+    closeRequested = false;
 
     // カテゴリを初期化
     initializeCategories();
@@ -165,6 +166,7 @@ void MenuScreen::create() {
 void MenuScreen::del() {
     if (!isShown) return;
     isShown = false;
+    closeRequested = false;
 
     // 選択ダイアログを閉じる
     closeSelectionDialog();
@@ -195,7 +197,17 @@ void MenuScreen::del() {
 }
 
 void MenuScreen::update() {
-    // 必要に応じて表示を更新
+    selectionDialog.updateIfNeeded();
+
+    if (closeRequested) {
+        del();
+    }
+}
+
+void MenuScreen::requestClose() {
+    if (isShown) {
+        closeRequested = true;
+    }
 }
 
 void MenuScreen::showSelectionDialog(MenuItemSelection* item) {
