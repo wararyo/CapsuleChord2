@@ -30,9 +30,20 @@ static void button_play_event_cb(lv_event_t *e)
 
 void TempoDialog::update()
 {
+    if (!isShown || !tempo_label) return;
+
     char tempoStr[16] = {0};
     snprintf(tempoStr, sizeof(tempoStr), "%d", Tempo.getTempo());
     lv_label_set_text(tempo_label, tempoStr);
+}
+
+void TempoDialog::updateIfNeeded()
+{
+    if (needsUpdate)
+    {
+        update();
+        needsUpdate = false;
+    }
 }
 
 void TempoDialog::create()
@@ -105,5 +116,6 @@ void TempoDialog::del()
     tempo_button_plus = nullptr;
     tempo_button_minus = nullptr;
     button_play = nullptr;
+    needsUpdate = false;
     Tempo.removeListener(&tempoControllerCallbacks);
 }

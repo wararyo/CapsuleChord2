@@ -8,15 +8,16 @@
 
 // ChordFilter実装
 void PlayScreen::ChordFilter::onChordOn(Chord chord) {
-    if (screen && screen->isShown()) {
-        screen->setChord(chord);
+    if (screen) {
+        screen->pendingChord = chord;
+        screen->needsChordUpdate = true;
     }
 }
 
 // TempoCallbackHandler実装
 void PlayScreen::TempoCallbackHandler::onTempoChanged(TempoController::tempo_t tempo) {
     if (screen) {
-        screen->updateTempo();
+        screen->needsTempoUpdate = true;
     }
 }
 
@@ -211,11 +212,26 @@ void PlayScreen::setChord(const Chord& chord)
 
 void PlayScreen::update()
 {
+    // コールバックから要求されたコード表示更新をメインループで反映する
+    if (needsChordUpdate && isCreated) {
+        setChord(pendingChord);
+        needsChordUpdate = false;
+    }
+
+    // コールバックから要求されたテンポ表示更新をメインループで反映する
+    if (needsTempoUpdate && isCreated) {
+        updateTempo();
+        needsTempoUpdate = false;
+    }
+
     // TickFrameの遅延更新（コールバックから直接UI操作しないため）
     if (needsTickUpdate && isCreated) {
         updateTick(lastTickTiming & TempoController::TICK_TIMING_BAR);
         needsTickUpdate = false;
     }
+
+    tempoDialog.updateIfNeeded();
+
     // 出力先が変わっていればラベルを更新（メニュー経由の変更にも追随）
     if (isCreated && output_label) {
         OutputType currentType = Output.getCurrentOutputType();

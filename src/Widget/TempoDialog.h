@@ -9,6 +9,7 @@ public:
     void create();
     void del();
     void update();
+    void updateIfNeeded();
     bool getShown()
     {
         return isShown;
@@ -24,13 +25,14 @@ private:
         }
         void onTempoChanged(TempoController::tempo_t tempo) override
         {
-            dialog->update();
+            if (dialog) dialog->needsUpdate = true;
         }
         void onTick(const TempoController::TickInfo &info) override
         {
         }
     };
     bool isShown = false;
+    bool needsUpdate = false;
     TempoControllerCallbacks tempoControllerCallbacks;
     lv_obj_t *bg = nullptr;
     lv_obj_t *frame = nullptr;

@@ -64,6 +64,11 @@ private:
     bool needsTickUpdate = false;
     TempoController::tick_timing_t lastTickTiming = 0;
 
+    // コールバックから直接LVGLを触らないための遅延更新フラグ
+    bool needsChordUpdate = false;
+    Chord pendingChord;
+    bool needsTempoUpdate = false;
+
     // 出力先ラベルの最終表示値（現在の出力タイプと比較してラベルを更新）
     OutputType lastShownOutputType = OutputType::Internal;
 

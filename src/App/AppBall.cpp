@@ -303,6 +303,12 @@ void AppBall::onUpdateGui()
 
         needsGuiUpdate = false;
     }
+
+    if (needsNotesDisplayUpdate && isActive)
+    {
+        updateNotesDisplay();
+        needsNotesDisplayUpdate = false;
+    }
 }
 
 // Play all currently active notes when a collision occurs
@@ -363,8 +369,8 @@ void AppBall::onNoteOn(uint8_t note, uint8_t vel, uint8_t channel)
     activeChannels.insert(channel);
     lastVelocity = vel;
     
-    // Update the display if visible
-    updateNotesDisplay();
+    // UI更新はメインループ側のonUpdateGuiで行う
+    needsNotesDisplayUpdate = true;
 }
 
 // Implementation of NoteFilter::onNoteOff
@@ -385,6 +391,6 @@ void AppBall::onNoteOff(uint8_t note, uint8_t vel, uint8_t channel)
         activeChannels.erase(channel);
     }
     
-    // Update the display if visible
-    updateNotesDisplay();
+    // UI更新はメインループ側のonUpdateGuiで行う
+    needsNotesDisplayUpdate = true;
 }

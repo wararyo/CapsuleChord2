@@ -23,6 +23,7 @@ public:
     void onShowGui(lv_obj_t *container) override;
     void onHideGui() override;
     void onDestroy() override;
+    void onUpdateGui() override;
 private:
     class MetronomeSoundTempoCallback : public TempoController::TempoCallbacks
     {
@@ -49,7 +50,7 @@ private:
         }
         void onTempoChanged(TempoController::tempo_t tempo) override
         {
-            app->update();
+            if (app) app->needsUiUpdate = true;
         }
         void onTick(const TempoController::TickInfo &info) override
         {
@@ -62,6 +63,8 @@ private:
     MetronomeSoundTempoCallback soundTempoCallbacks;
     MetronomeUiTempoCallback uiTempoCallbacks;
     bool isActive = false;
+    bool isShowingGui = false;
+    bool needsUiUpdate = false;
     lv_obj_t *titleLabel;
     lv_obj_t *switchButton;
     lv_obj_t *tempoContainer;
