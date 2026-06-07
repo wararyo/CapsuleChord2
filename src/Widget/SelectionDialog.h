@@ -3,11 +3,12 @@
 #include <lvgl.h>
 #include <vector>
 #include <functional>
+#include <string>
 
 class SelectionDialog {
 public:
     struct Option {
-        const char* label;
+        std::string label;
         int value;
     };
 

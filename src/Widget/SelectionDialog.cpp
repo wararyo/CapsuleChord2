@@ -94,7 +94,7 @@ void SelectionDialog::create(const char* title,
         lv_obj_set_style_radius(optBtn, 4, LV_PART_MAIN);
 
         lv_obj_t* optLabel = lv_label_create(optBtn);
-        lv_label_set_text(optLabel, opt.label);
+        lv_label_set_text(optLabel, opt.label.c_str());
         lv_obj_set_style_text_color(optLabel, lv_color_hex(0xFFFFFF), LV_PART_MAIN);
         lv_obj_center(optLabel);
 

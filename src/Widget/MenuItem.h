@@ -67,7 +67,7 @@ private:
 class MenuItemSelection : public MenuItemBase {
 public:
     struct Option {
-        const char* label;
+        std::string label;
         int value;
     };
 

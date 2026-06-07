@@ -387,9 +387,7 @@ void MenuScreen::buildOutputCategory() {
         std::vector<MenuItemSelection::Option> timbreOptions;
         timbreOptions.reserve(candidates.size());
         for (size_t i = 0; i < candidates.size(); ++i) {
-            // label は TimbreInfo::name の c_str(); availableTimbres は Output.Internal が
-            // プロセス全体で保持するため寿命は十分
-            timbreOptions.push_back({candidates[i]->name.c_str(), static_cast<int>(i)});
+            timbreOptions.push_back({candidates[i]->name, static_cast<int>(i)});
         }
         category.items.push_back(std::make_unique<MenuItemSelection>(
             "音色",
