@@ -1,6 +1,8 @@
 #include "MenuScreen.h"
+#include "BuildConfig.h"
 #include "SettingsStore.h"
 #include "Output/MidiOutput.h"
+#include "SystemInfo.h"
 
 // 定数
 static const int SCREEN_WIDTH = 240;
@@ -170,6 +172,9 @@ void MenuScreen::del() {
 
     // 選択ダイアログを閉じる
     closeSelectionDialog();
+    if (infoScreen.getShown()) {
+        infoScreen.del();
+    }
 
     // タブボタンのイベントデータを解放
     for (lv_obj_t* tabBtn : tabButtons) {
@@ -250,6 +255,7 @@ void MenuScreen::buildControlsCategory() {
     category.name = "操作";
     category.icon = nullptr;
 
+#if CAPSULECHORD_SHOW_DEV_SETTINGS
     // カスタムキー1（スタブ）
     category.items.push_back(std::make_unique<MenuItemSelection>(
         "カスタムキー1",
@@ -273,8 +279,11 @@ void MenuScreen::buildControlsCategory() {
         []() { return Settings.controls.customKey2.get(); },
         [](int v) { Settings.controls.customKey2.set(static_cast<uint8_t>(v)); }
     ));
+#endif
 
-    categories.push_back(std::move(category));
+    if (!category.items.empty()) {
+        categories.push_back(std::move(category));
+    }
 }
 
 void MenuScreen::buildPerformanceCategory() {
@@ -306,6 +315,7 @@ void MenuScreen::buildVoicingCategory() {
     category.name = "ボイシング";
     category.icon = nullptr;
 
+#if CAPSULECHORD_SHOW_DEV_SETTINGS
     // 目標音高
     category.items.push_back(std::make_unique<MenuItemSelection>(
         "目標音高",
@@ -315,8 +325,11 @@ void MenuScreen::buildVoicingCategory() {
         []() { return Settings.voicing.centerNoteNo.get(); },
         [](int v) { Settings.voicing.centerNoteNo.set(v); }
     ));
+#endif
 
-    categories.push_back(std::move(category));
+    if (!category.items.empty()) {
+        categories.push_back(std::move(category));
+    }
 }
 
 void MenuScreen::buildOutputCategory() {
@@ -433,11 +446,26 @@ void MenuScreen::buildDisplayCategory() {
     categories.push_back(std::move(category));
 }
 
+#if CAPSULECHORD_SHOW_DEV_SETTINGS
+namespace {
+// Core Dump の動作確認用に意図的にクラッシュ（panic）を発生させる。
+// backtrace が意味を持つよう数段ネストさせ、最適化で消えないよう volatile で null 参照する。
+[[noreturn]] __attribute__((noinline)) void crashTestLevel3() {
+    volatile uint32_t* nullPtr = reinterpret_cast<volatile uint32_t*>(0);
+    *nullPtr = 0xDEAD;  // StoreProhibited を誘発
+    while (true) {}     // [[noreturn]] を満たすための保険
+}
+__attribute__((noinline)) void crashTestLevel2() { crashTestLevel3(); }
+__attribute__((noinline)) void crashTestLevel1() { crashTestLevel2(); }
+}  // namespace
+#endif
+
 void MenuScreen::buildSystemCategory() {
     MenuCategory category;
     category.name = "システム";
     category.icon = nullptr;
 
+#if CAPSULECHORD_SHOW_DEV_SETTINGS
     // 機内モード
     category.items.push_back(std::make_unique<MenuItemToggle>(
         "機内モード",
@@ -474,14 +502,37 @@ void MenuScreen::buildSystemCategory() {
         "ライセンス",
         []() { /* TODO: ライセンス情報画面へ遷移 */ }
     ));
+#endif
 
     // ファームウェア情報（ナビゲーション）
     category.items.push_back(std::make_unique<MenuItemNavigation>(
         "ファームウェア情報",
-        []() { /* TODO: ファームウェア情報画面へ遷移 */ }
+        [this]() { showFirmwareInfo(); }
     ));
 
+    // 診断（ナビゲーション）
+    category.items.push_back(std::make_unique<MenuItemNavigation>(
+        "診断",
+        [this]() { showDiagnostics(); }
+    ));
+
+#if CAPSULECHORD_SHOW_DEV_SETTINGS
+    // テストクラッシュ（Core Dump 動作確認用、開発ビルドのみ）
+    category.items.push_back(std::make_unique<MenuItemNavigation>(
+        "テストクラッシュを実行",
+        []() { crashTestLevel1(); }
+    ));
+#endif
+
     categories.push_back(std::move(category));
+}
+
+void MenuScreen::showFirmwareInfo() {
+    infoScreen.create("ファームウェア情報", buildFirmwareInfoText());
+}
+
+void MenuScreen::showDiagnostics() {
+    infoScreen.create("診断", buildDiagnosticsText());
 }
 
 void MenuScreen::switchToCategory(int index) {
