@@ -22,6 +22,7 @@ public:
     void create();
     void del();
     void update();
+    void requestClose();
     bool getShown() const { return isShown; }
 
     // 選択ダイアログを表示
@@ -32,6 +33,7 @@ public:
 
 private:
     bool isShown = false;
+    bool closeRequested = false;
 
     // UI要素
     lv_obj_t* frame = nullptr;           // メインコンテナ

@@ -70,7 +70,7 @@ void MenuItemSelection::updateDisplay() {
         const char* displayText = "";
         for (const auto& opt : options) {
             if (opt.value == currentVal) {
-                displayText = opt.label;
+                displayText = opt.label.c_str();
                 break;
             }
         }

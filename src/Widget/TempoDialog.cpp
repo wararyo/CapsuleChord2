@@ -30,14 +30,32 @@ static void button_play_event_cb(lv_event_t *e)
 
 void TempoDialog::update()
 {
+    if (!isShown || !tempo_label) return;
+
     char tempoStr[16] = {0};
     snprintf(tempoStr, sizeof(tempoStr), "%d", Tempo.getTempo());
     lv_label_set_text(tempo_label, tempoStr);
 }
 
+void TempoDialog::updateIfNeeded()
+{
+    if (closeRequested)
+    {
+        del();
+        return;
+    }
+
+    if (needsUpdate)
+    {
+        update();
+        needsUpdate = false;
+    }
+}
+
 void TempoDialog::create()
 {
     if (isShown) return;
+    closeRequested = false;
     // UI
     bg = lv_obj_create(lv_scr_act());
     lv_obj_set_size(bg, 240, 320);
@@ -47,7 +65,7 @@ void TempoDialog::create()
     lv_obj_set_style_bg_opa(bg, LV_OPA_50, LV_PART_MAIN);
     lv_obj_align(bg, LV_ALIGN_TOP_LEFT, 0, 0);
     lv_obj_add_event_cb(bg, [](lv_event_t *e)
-                        { ((TempoDialog *)lv_event_get_user_data(e))->del(); }, LV_EVENT_CLICKED, (void *)this);
+                        { ((TempoDialog *)lv_event_get_user_data(e))->requestClose(); }, LV_EVENT_CLICKED, (void *)this);
 
     frame = lv_obj_create(lv_scr_act());
     lv_obj_set_size(frame, 208, 180);
@@ -71,7 +89,7 @@ void TempoDialog::create()
     tempo_button_minus = lv_btn_create(frame);
     lv_obj_align(tempo_button_minus, LV_ALIGN_TOP_MID, -64, 0);
     lv_obj_set_size(tempo_button_minus, 48, 48);
-    lv_obj_set_ext_click_area(tempo_button_plus, 16);
+    lv_obj_set_ext_click_area(tempo_button_minus, 16);
     lv_obj_add_event_cb(tempo_button_minus, tempo_button_minus_event_cb, LV_EVENT_ALL, NULL);
     label = lv_label_create(tempo_button_minus);
     lv_obj_center(label);
@@ -85,18 +103,18 @@ void TempoDialog::create()
     lv_label_set_text(label, "Play");
     lv_obj_center(label);
 
-    update();
-
     // テンポが変更された際に表示を更新する
     tempoControllerCallbacks.dialog = this;
     Tempo.addListener(&tempoControllerCallbacks);
     isShown = true;
+    update();
 }
 
 void TempoDialog::del()
 {
     if (!isShown) return;
     isShown = false;
+    closeRequested = false;
     lv_obj_del(bg);
     lv_obj_del(frame);
     bg = nullptr;
@@ -105,5 +123,13 @@ void TempoDialog::del()
     tempo_button_plus = nullptr;
     tempo_button_minus = nullptr;
     button_play = nullptr;
+    needsUpdate = false;
     Tempo.removeListener(&tempoControllerCallbacks);
+}
+
+void TempoDialog::requestClose()
+{
+    if (isShown) {
+        closeRequested = true;
+    }
 }

@@ -78,6 +78,8 @@ private:
 
     // Flag to indicate the IMU data has been updated and UI needs refresh
     bool needsGuiUpdate = false;
+    // onNoteOn/onNoteOff（パイプラインスレッド）から書き込み、メインループから読み出すため volatile を付与
+    volatile bool needsNotesDisplayUpdate = false;
     float accelX = 0.0f, accelY = 1.0f, accelZ = 0.0f;
     float gyroX = 0.0f, gyroY = 0.0f, gyroZ = 0.0f;
 

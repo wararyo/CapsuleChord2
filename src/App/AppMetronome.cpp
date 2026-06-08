@@ -39,9 +39,11 @@ static void button_play_event_cb(lv_event_t *e)
 
 void AppMetronome::update()
 {
+    if (!isShowingGui || switchButton == nullptr || tempo_label == nullptr) return;
+
     // 有効/無効スイッチ
     if (isActive) lv_obj_add_state(switchButton, LV_STATE_CHECKED);
-    else lv_obj_clear_flag(switchButton, LV_STATE_CHECKED);
+    else lv_obj_clear_state(switchButton, LV_STATE_CHECKED);
 
     // テンポ表示
     char tempoStr[16] = {0};
@@ -130,6 +132,7 @@ void AppMetronome::onShowGui(lv_obj_t *container)
     label = lv_label_create(button_play);
     lv_label_set_text(label, "Play");
 
+    isShowingGui = true;
     update();
 
     // テンポが変更された際に表示を更新する
@@ -139,11 +142,25 @@ void AppMetronome::onShowGui(lv_obj_t *container)
 
 void AppMetronome::onHideGui()
 {
+    isShowingGui = false;
     lv_obj_del(switchButton);
     lv_obj_del(tempoContainer);
+    switchButton = nullptr;
+    tempoContainer = nullptr;
+    tempo_label = nullptr;
+    needsUiUpdate = false;
     Tempo.removeListener(&uiTempoCallbacks);
 }
 
 void AppMetronome::onDestroy()
 {
+}
+
+void AppMetronome::onUpdateGui()
+{
+    if (needsUiUpdate)
+    {
+        update();
+        needsUiUpdate = false;
+    }
 }

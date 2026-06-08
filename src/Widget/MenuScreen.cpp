@@ -40,7 +40,7 @@ MenuScreen::~MenuScreen() {
 void MenuScreen::onBackButtonClicked(lv_event_t* e) {
     MenuScreen* screen = static_cast<MenuScreen*>(lv_event_get_user_data(e));
     if (screen) {
-        screen->del();
+        screen->requestClose();
     }
 }
 
@@ -60,6 +60,7 @@ void MenuScreen::onItemClicked(lv_event_t* e) {
 
 void MenuScreen::create() {
     if (isShown) return;
+    closeRequested = false;
 
     // カテゴリを初期化
     initializeCategories();
@@ -167,6 +168,7 @@ void MenuScreen::create() {
 void MenuScreen::del() {
     if (!isShown) return;
     isShown = false;
+    closeRequested = false;
 
     // 選択ダイアログを閉じる
     closeSelectionDialog();
@@ -200,7 +202,17 @@ void MenuScreen::del() {
 }
 
 void MenuScreen::update() {
-    // 必要に応じて表示を更新
+    selectionDialog.updateIfNeeded();
+
+    if (closeRequested) {
+        del();
+    }
+}
+
+void MenuScreen::requestClose() {
+    if (isShown) {
+        closeRequested = true;
+    }
 }
 
 void MenuScreen::showSelectionDialog(MenuItemSelection* item) {
@@ -375,9 +387,7 @@ void MenuScreen::buildOutputCategory() {
         std::vector<MenuItemSelection::Option> timbreOptions;
         timbreOptions.reserve(candidates.size());
         for (size_t i = 0; i < candidates.size(); ++i) {
-            // label は TimbreInfo::name の c_str(); availableTimbres は Output.Internal が
-            // プロセス全体で保持するため寿命は十分
-            timbreOptions.push_back({candidates[i]->name.c_str(), static_cast<int>(i)});
+            timbreOptions.push_back({candidates[i]->name, static_cast<int>(i)});
         }
         category.items.push_back(std::make_unique<MenuItemSelection>(
             "音色",

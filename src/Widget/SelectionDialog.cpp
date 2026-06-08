@@ -14,19 +14,16 @@ struct OptionEventData {
 void SelectionDialog::onBackgroundClicked(lv_event_t* e) {
     SelectionDialog* dialog = static_cast<SelectionDialog*>(lv_event_get_user_data(e));
     if (dialog) {
-        dialog->del();
+        dialog->requestClose();
     }
 }
 
 void SelectionDialog::onOptionClicked(lv_event_t* e) {
     OptionEventData* data = static_cast<OptionEventData*>(lv_event_get_user_data(e));
     if (data && data->dialog) {
-        int value = data->value;
-        auto callback = data->dialog->selectionCallback;
-        data->dialog->del();
-        if (callback) {
-            callback(value);
-        }
+        data->dialog->selectedValue = data->value;
+        data->dialog->selectionRequested = true;
+        data->dialog->requestClose();
     }
 }
 
@@ -38,6 +35,8 @@ void SelectionDialog::create(const char* title,
 
     selectionCallback = onSelect;
     selectedValue = currentValue;
+    closeRequested = false;
+    selectionRequested = false;
 
     // ダイアログの高さを計算
     int optionCount = options.size();
@@ -95,7 +94,7 @@ void SelectionDialog::create(const char* title,
         lv_obj_set_style_radius(optBtn, 4, LV_PART_MAIN);
 
         lv_obj_t* optLabel = lv_label_create(optBtn);
-        lv_label_set_text(optLabel, opt.label);
+        lv_label_set_text(optLabel, opt.label.c_str());
         lv_obj_set_style_text_color(optLabel, lv_color_hex(0xFFFFFF), LV_PART_MAIN);
         lv_obj_center(optLabel);
 
@@ -111,6 +110,7 @@ void SelectionDialog::create(const char* title,
 void SelectionDialog::del() {
     if (!isShown) return;
     isShown = false;
+    closeRequested = false;
 
     // オプションボタンのイベントデータを解放
     if (optionContainer) {
@@ -135,4 +135,22 @@ void SelectionDialog::del() {
     titleLabel = nullptr;
     optionContainer = nullptr;
     selectionCallback = nullptr;
+    selectionRequested = false;
+}
+
+void SelectionDialog::requestClose() {
+    if (isShown) {
+        closeRequested = true;
+    }
+}
+
+void SelectionDialog::updateIfNeeded() {
+    if (!closeRequested) return;
+
+    auto callback = selectionRequested ? selectionCallback : std::function<void(int)>();
+    int value = selectedValue;
+    del();
+    if (callback) {
+        callback(value);
+    }
 }

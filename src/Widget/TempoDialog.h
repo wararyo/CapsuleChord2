@@ -8,7 +8,9 @@ class TempoDialog
 public:
     void create();
     void del();
+    void requestClose();
     void update();
+    void updateIfNeeded();
     bool getShown()
     {
         return isShown;
@@ -24,13 +26,16 @@ private:
         }
         void onTempoChanged(TempoController::tempo_t tempo) override
         {
-            dialog->update();
+            if (dialog) dialog->needsUpdate = true;
         }
         void onTick(const TempoController::TickInfo &info) override
         {
         }
     };
     bool isShown = false;
+    // Tempoコールバック（FreeRTOSタイマー）から書き込み、メインループから読み出すため volatile を付与
+    volatile bool needsUpdate = false;
+    volatile bool closeRequested = false;
     TempoControllerCallbacks tempoControllerCallbacks;
     lv_obj_t *bg = nullptr;
     lv_obj_t *frame = nullptr;

@@ -365,6 +365,9 @@ void loop()
   if (appLauncher.getShown()) {
     appLauncher.update();
   }
+  if (menuScreen.getShown()) {
+    menuScreen.update();
+  }
   AppBase* currentApp = App.getCurrentApp();
   if (currentApp != nullptr) {
     currentApp->onUpdateGui();
