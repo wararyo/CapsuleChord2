@@ -150,7 +150,7 @@ static const char* resetReasonToString(esp_reset_reason_t reason) {
         case ESP_RST_EXT: return "External";
         case ESP_RST_SW: return "Software";
         case ESP_RST_PANIC: return "Panic";
-        case ESP_RST_INT_WDT: return "Interrupt WDT";
+        case ESP_RST_INT_WDT: return "Int WDT";
         case ESP_RST_TASK_WDT: return "Task WDT";
         case ESP_RST_WDT: return "Other WDT";
         case ESP_RST_DEEPSLEEP: return "Deep sleep";
@@ -232,8 +232,6 @@ std::string buildDiagnosticsText() {
     std::ostringstream ss;
 
     ss << "Last reset: " << resetReasonToString(esp_reset_reason()) << "\n";
-    ss << "\n";
-
     ss << "Last crash\n";
     CrashInfo crash = getCrashInfo();
     if (!crash.available) {
@@ -250,6 +248,9 @@ std::string buildDiagnosticsText() {
         ss << "Exc cause: " << buf << "\n";
         snprintf(buf, sizeof(buf), "0x%08x", crash.excVaddr);
         ss << "Fault addr: " << buf << "\n";
+        if (!crash.elfSha256.empty()) {
+            ss << "ELF: " << crash.elfSha256 << "\n";
+        }
         ss << "Backtrace" << (crash.backtraceCorrupted ? " (corrupted)" : "") << ":\n";
         if (crash.backtraceDepth == 0) {
             ss << "(none)\n";
@@ -259,9 +260,6 @@ std::string buildDiagnosticsText() {
                 ss << buf << (i + 1 < crash.backtraceDepth ? " " : "");
             }
             ss << "\n";
-        }
-        if (!crash.elfSha256.empty()) {
-            ss << "ELF: " << crash.elfSha256 << "\n";
         }
     }
     ss << "\n";
