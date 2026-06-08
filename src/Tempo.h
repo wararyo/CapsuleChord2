@@ -1,6 +1,8 @@
 #pragma once
 #include <freertos/FreeRTOS.h>
 #include <freertos/timers.h>
+#include <freertos/queue.h>
+#include <freertos/task.h>
 #include <list>
 #include <cstdint>
 #include "Foundation/MusicalTime.h"
@@ -71,6 +73,10 @@ public:
         return isPlaying;
     }
 
+    // Tick ディスパッチ用タスク／キューを初期化する (setup() から一度だけ呼ぶ)
+    // play() 内でも未初期化なら遅延初期化されるため、明示呼び出しは必須ではない
+    void begin();
+
     // テンポカウントを開始する
     void play();
 
@@ -109,6 +115,14 @@ private:
     std::list<TempoCallbacks *> listeners;
     TimerHandle_t timer = nullptr;
 
+    // Tick の重い処理 (発音など) を Tmr Svc タスクから切り離すための仕組み。
+    // timerWorkInner() は発火した TickInfo をキューへ積むだけにし、
+    // 十分なスタックを持つ専用タスク (dispatchLoop) がキューを受けて onTick を実行する。
+    QueueHandle_t tickQueue = nullptr;
+    TaskHandle_t dispatchTask = nullptr;
+    // 配送タスクが追従できずキューが溢れて破棄した tick の累計 (診断用)
+    volatile uint32_t droppedTicks = 0;
+
     // ウォールクロックアンカー
     int64_t realTimeBase = 0;           // 最後のアンカー時の esp_timer_get_time() (μs)
     musical_time_t musicalTimeBase = 0; // 最後のアンカー時点での累積 musical_time
@@ -145,6 +159,10 @@ private:
 
     void timerWorkInner();
     static void timerWork(TimerHandle_t t);
+
+    // 専用タスク: tickQueue から TickInfo を受け取りリスナーへ onTick を配送する
+    void dispatchLoop();
+    static void dispatchTaskEntry(void *arg);
 };
 
 extern TempoController Tempo;
