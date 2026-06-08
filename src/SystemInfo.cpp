@@ -144,6 +144,29 @@ static const char* outputTypeToString(OutputType type) {
     }
 }
 
+static const char* resetReasonToString(esp_reset_reason_t reason) {
+    switch (reason) {
+        case ESP_RST_POWERON: return "Power on";
+        case ESP_RST_EXT: return "External";
+        case ESP_RST_SW: return "Software";
+        case ESP_RST_PANIC: return "Panic";
+        case ESP_RST_INT_WDT: return "Interrupt WDT";
+        case ESP_RST_TASK_WDT: return "Task WDT";
+        case ESP_RST_WDT: return "Other WDT";
+        case ESP_RST_DEEPSLEEP: return "Deep sleep";
+        case ESP_RST_BROWNOUT: return "Brownout";
+        case ESP_RST_SDIO: return "SDIO";
+        case ESP_RST_USB: return "USB";
+        case ESP_RST_JTAG: return "JTAG";
+        case ESP_RST_EFUSE: return "EFUSE";
+        case ESP_RST_PWR_GLITCH: return "Power glitch";
+        case ESP_RST_CPU_LOCKUP: return "CPU lockup";
+        case ESP_RST_UNKNOWN:
+        default:
+            return "Unknown";
+    }
+}
+
 static const char* keypadProtocolToString(KeypadProtocol protocol) {
     switch (protocol) {
         case KeypadProtocol::Legacy: return "Legacy";
@@ -207,6 +230,9 @@ std::string buildDiagnosticsText() {
     KeypadFirmwareInfo keypad = Keypad.getFirmwareInfo();
 
     std::ostringstream ss;
+
+    ss << "Last reset: " << resetReasonToString(esp_reset_reason()) << "\n";
+    ss << "\n";
 
     ss << "Last crash\n";
     CrashInfo crash = getCrashInfo();
