@@ -64,7 +64,8 @@ private:
     MetronomeUiTempoCallback uiTempoCallbacks;
     bool isActive = false;
     bool isShowingGui = false;
-    bool needsUiUpdate = false;
+    // Tempoコールバック（FreeRTOSタイマー）から書き込み、メインループから読み出すため volatile を付与
+    volatile bool needsUiUpdate = false;
     lv_obj_t *titleLabel;
     lv_obj_t *switchButton;
     lv_obj_t *tempoContainer;

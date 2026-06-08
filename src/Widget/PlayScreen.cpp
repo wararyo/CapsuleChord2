@@ -117,6 +117,11 @@ void PlayScreen::del()
 {
     if (!isCreated) return;
 
+    // tempoDialog が表示中なら先に閉じる
+    // （bg/frame は lv_scr_act() の直接の子のため PlayScreen 削除では自動破棄されない。
+    //  併せて Tempo.removeListener() も確実に呼ばれるようにする）
+    if (tempoDialog.getShown()) tempoDialog.del();
+
     // コールバックを解除
     Pipeline.removeChordFilter(&chordFilter);
     Tempo.removeListener(&tempoCallback);

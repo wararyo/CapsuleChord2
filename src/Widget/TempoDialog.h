@@ -33,8 +33,9 @@ private:
         }
     };
     bool isShown = false;
-    bool needsUpdate = false;
-    bool closeRequested = false;
+    // Tempoコールバック（FreeRTOSタイマー）から書き込み、メインループから読み出すため volatile を付与
+    volatile bool needsUpdate = false;
+    volatile bool closeRequested = false;
     TempoControllerCallbacks tempoControllerCallbacks;
     lv_obj_t *bg = nullptr;
     lv_obj_t *frame = nullptr;

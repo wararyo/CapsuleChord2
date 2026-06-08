@@ -61,13 +61,15 @@ private:
     TempoCallbackHandler tempoCallback;
 
     // TickFrameの更新フラグ（コールバックからUI更新を遅延実行するため）
-    bool needsTickUpdate = false;
+    // コールバック（FreeRTOSタイマー/パイプラインスレッド）から書き込み、
+    // メインループから読み出すため volatile を付与
+    volatile bool needsTickUpdate = false;
     TempoController::tick_timing_t lastTickTiming = 0;
 
     // コールバックから直接LVGLを触らないための遅延更新フラグ
-    bool needsChordUpdate = false;
+    volatile bool needsChordUpdate = false;
     Chord pendingChord;
-    bool needsTempoUpdate = false;
+    volatile bool needsTempoUpdate = false;
 
     // 出力先ラベルの最終表示値（現在の出力タイプと比較してラベルを更新）
     OutputType lastShownOutputType = OutputType::Internal;

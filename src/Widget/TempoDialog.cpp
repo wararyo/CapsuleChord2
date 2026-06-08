@@ -89,7 +89,7 @@ void TempoDialog::create()
     tempo_button_minus = lv_btn_create(frame);
     lv_obj_align(tempo_button_minus, LV_ALIGN_TOP_MID, -64, 0);
     lv_obj_set_size(tempo_button_minus, 48, 48);
-    lv_obj_set_ext_click_area(tempo_button_plus, 16);
+    lv_obj_set_ext_click_area(tempo_button_minus, 16);
     lv_obj_add_event_cb(tempo_button_minus, tempo_button_minus_event_cb, LV_EVENT_ALL, NULL);
     label = lv_label_create(tempo_button_minus);
     lv_obj_center(label);
