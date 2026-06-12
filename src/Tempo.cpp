@@ -124,9 +124,83 @@ void TempoController::setTempo(tempo_t newTempo)
     }
 }
 
+void TempoController::begin()
+{
+    // 呼び出し元はシングルスレッド (setup() およびメインループ経由の play()) であることを前提とする。
+    // 複数スレッドから同時に呼ぶとキュー／タスクを二重生成する TOCTOU があるため、
+    // 並行呼び出しが必要になった場合はここをロックで保護すること。
+    // 既に初期化済みなら何もしない (多重呼び出し・遅延初期化の両方に対応)
+    if (tickQueue != nullptr && dispatchTask != nullptr) return;
+
+    if (tickQueue == nullptr)
+    {
+        // 1ms ごとに最大 MAX_FIRES(32) 個発火しうるが、配送タスクが追従できる前提で
+        // バースト耐性として余裕をもったキュー長を確保する
+        tickQueue = xQueueCreate(64, sizeof(TickInfo));
+        if (tickQueue == nullptr)
+        {
+            ESP_LOGE(TEMPO_LOG_TAG, "Failed to create tick queue");
+            return;
+        }
+    }
+
+    if (dispatchTask == nullptr)
+    {
+        // 発音処理 (Pipeline.sendNotes → サンプラー NoteOn) を安全に実行できるよう
+        // 十分なスタック (8192) を与える。Tmr Svc(2048) ではオーバーフローしていた。
+        BaseType_t ok = xTaskCreate(
+            dispatchTaskEntry,
+            "TempoTick",
+            8192,
+            this,
+            2, // 発音の遅延を抑えるため Arduino loopTask/audioLoop(prio1) より一段高く
+            &dispatchTask);
+        if (ok != pdPASS)
+        {
+            ESP_LOGE(TEMPO_LOG_TAG, "Failed to create dispatch task");
+            dispatchTask = nullptr;
+        }
+    }
+}
+
+void TempoController::dispatchTaskEntry(void *arg)
+{
+    static_cast<TempoController *>(arg)->dispatchLoop();
+}
+
+void TempoController::dispatchLoop()
+{
+    TickInfo info;
+    for (;;)
+    {
+        if (xQueueReceive(tickQueue, &info, portMAX_DELAY) != pdTRUE) continue;
+
+        // デキュー後・配送前に stop() が走った場合、stop() の xQueueReset では
+        // 既に取り出したこの info は止められない。再生中でなければ配送しない。
+        if (!isPlaying) continue;
+
+        std::list<TempoCallbacks *> listenersCopy;
+        portENTER_CRITICAL(&mutex);
+        listenersCopy = listeners;
+        portEXIT_CRITICAL(&mutex);
+
+        for (TempoCallbacks *listener : listenersCopy)
+        {
+            if (listener->getTimingMask() & info.timing)
+            {
+                listener->onTick(info);
+            }
+        }
+    }
+}
+
 void TempoController::play()
 {
     if (isPlaying) return;
+    // ディスパッチ機構が未初期化なら遅延初期化する
+    begin();
+    // 前回再生時の残り tick があれば破棄してクリーンな状態で開始する
+    if (tickQueue != nullptr) xQueueReset(tickQueue);
     std::list<TempoCallbacks *> listenersCopy;
     portENTER_CRITICAL(&mutex);
     isPlaying = true;
@@ -176,6 +250,10 @@ void TempoController::stop()
     listenersCopy = listeners;
     portEXIT_CRITICAL(&mutex);
 
+    // 停止後にキューへ残った古い tick が配送されないよう破棄する。
+    // (この時点で timerWorkInner は isPlaying=false により新規 enqueue しない)
+    if (tickQueue != nullptr) xQueueReset(tickQueue);
+
     for (TempoCallbacks *listener : listenersCopy)
     {
         listener->onPlayingStateChanged(false);
@@ -189,7 +267,6 @@ void TempoController::timerWorkInner()
     TickInfo fires[MAX_FIRES];
     size_t numFires = 0;
     bool overflow = false;
-    std::list<TempoCallbacks *> listenersCopy;
 
     portENTER_CRITICAL(&mutex);
     if (!isPlaying)
@@ -252,7 +329,6 @@ void TempoController::timerWorkInner()
         overflow = true;
     }
 
-    listenersCopy = listeners;
     portEXIT_CRITICAL(&mutex);
 
     if (overflow)
@@ -260,14 +336,18 @@ void TempoController::timerWorkInner()
         ESP_LOGW(TEMPO_LOG_TAG, "Tick poll overflow, forced resync to mt=%d", (int)now);
     }
 
-    for (size_t j = 0; j < numFires; j++)
+    // 発火した TickInfo をキューへ積むだけにする。
+    // 実際の onTick 配送 (発音などの重い処理) は専用タスク dispatchLoop が
+    // 十分なスタック上で行う。これにより Tmr Svc タスクのスタックを消費しない。
+    if (tickQueue != nullptr)
     {
-        const TickInfo &info = fires[j];
-        for (TempoCallbacks *listener : listenersCopy)
+        for (size_t j = 0; j < numFires; j++)
         {
-            if (listener->getTimingMask() & info.timing)
+            if (xQueueSend(tickQueue, &fires[j], 0) != pdTRUE)
             {
-                listener->onTick(info);
+                // 配送タスクが追従できずキューが溢れた場合は破棄する。
+                // (ここでブロックすると Tmr Svc を止めてしまうため待たない)
+                droppedTicks++;
             }
         }
     }

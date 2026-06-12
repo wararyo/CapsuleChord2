@@ -166,6 +166,10 @@ void setup() {
   // 保存された出力先を初期化（不正値は initializeOutput 内で Internal にフォールバック）
   Output.initializeOutput(static_cast<OutputType>(Settings.output.outputTarget.get()));
 
+  // Tempo の Tick 配送タスク／キューを初期化する。
+  // これ以降に登録される onTick リスナーは、Tmr Svc ではなく専用タスク上で実行される。
+  Tempo.begin();
+
   // PlayScreen UI の初期化（内部でコード/テンポのコールバックも登録される）
   playScreen.create();
 
