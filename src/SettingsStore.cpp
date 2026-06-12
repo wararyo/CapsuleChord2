@@ -146,7 +146,7 @@ void VoicingSettings::deserializeItems(InputArchive& archive) {
 OutputSettings::OutputSettings(SettingsStore* store)
     : SettingsCategoryBase("/settings/output.json"),
       outputTarget("outputTarget", 0, &isDirty, store),
-      speakerVolume("speakerVolume", 23, &isDirty, store),
+      speakerVolume("speakerVolume", 29, &isDirty, store),
       headphoneVolume("headphoneVolume", 23, &isDirty, store),
       timbreId("timbreId", std::string("piano"), &isDirty, store) {}
 
