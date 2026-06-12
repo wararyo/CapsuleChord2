@@ -126,6 +126,9 @@ void TempoController::setTempo(tempo_t newTempo)
 
 void TempoController::begin()
 {
+    // 呼び出し元はシングルスレッド (setup() およびメインループ経由の play()) であることを前提とする。
+    // 複数スレッドから同時に呼ぶとキュー／タスクを二重生成する TOCTOU があるため、
+    // 並行呼び出しが必要になった場合はここをロックで保護すること。
     // 既に初期化済みなら何もしない (多重呼び出し・遅延初期化の両方に対応)
     if (tickQueue != nullptr && dispatchTask != nullptr) return;
 
@@ -171,6 +174,10 @@ void TempoController::dispatchLoop()
     for (;;)
     {
         if (xQueueReceive(tickQueue, &info, portMAX_DELAY) != pdTRUE) continue;
+
+        // デキュー後・配送前に stop() が走った場合、stop() の xQueueReset では
+        // 既に取り出したこの info は止められない。再生中でなければ配送しない。
+        if (!isPlaying) continue;
 
         std::list<TempoCallbacks *> listenersCopy;
         portENTER_CRITICAL(&mutex);
