@@ -183,6 +183,16 @@ PLATFORMIO_CORE_DIR=.pio pio device monitor -p /dev/ttyACM0 -b 115200
 PLATFORMIO_CORE_DIR=.pio pio run --target uploadfs
 ```
 
+### クラッシュ調査
+
+クラッシュ時のバックトレースは `addr2line` でソース箇所に変換できる。`firmware_backup/` には過去にビルドした elf が `[SHA256上位16桁].elf` という名前で退避されており（`tools/save_elf.py` で生成）、このハッシュはクラッシュログ先頭の `ELF file SHA256: ...` と一致する。これを手がかりに、クラッシュを起こした当時の elf を特定して解析できる。
+
+```bash
+xtensa-esp32s3-elf-addr2line -e firmware_backup/xxxxxxxxxxxxxxxx.elf -fpiaC 0x420xxxxx 0x420yyyyy
+```
+
+詳細・elfの退避方法・elfから焼き戻す手順は `tools/README.md` を参照。
+
 ## アーキテクチャ
 
 ### コアシステム

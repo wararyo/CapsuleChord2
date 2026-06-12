@@ -80,3 +80,56 @@ python midi_to_capsule_chord.py --input sample.mid --song_name TestSong
 これにより以下のファイルが生成されます：
 - `../src/Assets/TestSong.h`
 - `../src/Assets/TestSong.cpp`
+
+---
+
+# ELF退避ツール (save_elf.py)
+
+ビルド済みの `firmware.elf` を addr2line でのクラッシュ解析用に `firmware_backup/` へ退避します。
+ファイル名は elf の SHA256 上位16桁になり、これはデバイス起動時/クラッシュ時にログへ出る
+`ELF file SHA256:` の値と一致します。後からクラッシュログのハッシュで対応するelfを特定できます。
+
+`firmware_backup/*.elf` は `.gitignore` 済みで、コミットされずローカルに保管されます。
+
+## 使用方法
+
+```bash
+# デフォルト環境 (m5stack-cores3-release) の elf を退避
+python tools/save_elf.py
+
+# 環境名を指定して退避 (.pio/build/<env>/firmware.elf)
+python tools/save_elf.py -e m5stack-cores3
+
+# elf パスを直接指定 (-e より優先)
+python tools/save_elf.py --elf path/to/firmware.elf
+```
+
+アップロード直後に実行してください。elf にはビルド日時が埋め込まれるため、
+ソースが同じでもビルドのたびにハッシュは変わります。
+
+## クラッシュ解析 (addr2line)
+
+クラッシュログの `ELF file SHA256: xxxxxxxxxxxxxxxx ...` の16桁で対応elfを特定し、
+バックトレースのアドレスをソース箇所に変換します。
+
+```bash
+xtensa-esp32s3-elf-addr2line -e firmware_backup/xxxxxxxxxxxxxxxx.elf -fpiaC 0x420xxxxx 0x420yyyyy
+```
+
+## 退避したelfから書き込む
+
+elf → bin の変換は決定的なので、退避したelfから当時のファームを再現して焼き直せます。
+
+```bash
+# 1. elf から bin を生成
+python ~/.platformio/packages/tool-esptoolpy/esptool.py --chip esp32s3 \
+  elf2image -o firmware.bin firmware_backup/xxxxxxxxxxxxxxxx.elf
+
+# 2. app パーティション (デフォルト 0x10000) へ書き込み
+python ~/.platformio/packages/tool-esptoolpy/esptool.py --chip esp32s3 \
+  -p <PORT> write_flash 0x10000 firmware.bin
+```
+
+書き込み時は **ホームボタンを押しながら電源ON** でJTAGモードにしてから実行してください。
+bootloader / partition table は端末に焼かれたままなので、appパーティションへの書き込みだけで戻せます。
+（appオフセットはパーティション構成依存です。デフォルトESP-IDFは `0x10000`）

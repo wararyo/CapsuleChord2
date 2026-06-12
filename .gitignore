@@ -5,6 +5,9 @@
 .vscode/ipch
 managed_components
 
+# addr2line 用に退避した elf (ローカル保管のみ。tools/save_elf.py で生成)
+firmware_backup/*.elf
+
 # Logs
 logs
 *.log
