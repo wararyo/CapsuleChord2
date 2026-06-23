@@ -97,8 +97,8 @@ bool SettingsCategoryBase::save() {
 // ControlsSettings
 ControlsSettings::ControlsSettings(SettingsStore* store)
     : SettingsCategoryBase("/settings/controls.json"),
-      customKey1("customKey1", 0, &isDirty, store),
-      customKey2("customKey2", 0, &isDirty, store),
+      customKey1("customKey1", CustomKeyAssignment(DegreeChord(DegreeChord::IISharp, 0), CustomKeyAssignment::SeventhPolicy::DominantSeventh), &isDirty, store),
+      customKey2("customKey2", CustomKeyAssignment(DegreeChord(DegreeChord::VISharp, 0), CustomKeyAssignment::SeventhPolicy::DominantSeventh), &isDirty, store),
       leftTrigger("leftTrigger", 0, &isDirty, store),
       rightTrigger("rightTrigger", 1, &isDirty, store) {}
 
