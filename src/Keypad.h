@@ -221,8 +221,22 @@ public:
     };
 
 private:
+    enum class ListenerCommandType : uint8_t {
+        Add,
+        Remove
+    };
+
+    struct ListenerCommand {
+        ListenerCommandType type;
+        std::shared_ptr<KeyEventListener> listener;
+    };
+
     std::map<int,Key> keys;
     std::vector<std::shared_ptr<KeyEventListener>> _listeners;
+    std::vector<ListenerCommand> pendingListenerCommands;
+    portMUX_TYPE listenerCommandMutex = portMUX_INITIALIZER_UNLOCKED;
+
+    void applyPendingListenerCommands();
 
     // Set LED brightness for a specific key
     void setLedBrightness(uint8_t keyCode, uint8_t brightness);
@@ -256,11 +270,20 @@ public:
     void update();
     KeypadFirmwareInfo getFirmwareInfo() const;
     
-    // Add a key event listener to the top of the stack
+    // Add a key event listener to the top of the stack.
+    // setup時またはI2Cスレッド内の安全地点からのみ直接呼ぶ。
+    // UI/main-loop側から動的に変更する場合は queueAddKeyEventListener() を使う。
     void addKeyEventListener(std::shared_ptr<KeyEventListener> listener);
     
-    // Remove a key event listener
+    // Remove a key event listener.
+    // setup時またはI2Cスレッド内の安全地点からのみ直接呼ぶ。
+    // UI/main-loop側から動的に変更する場合は queueRemoveKeyEventListener() を使う。
     void removeKeyEventListener(std::shared_ptr<KeyEventListener> listener);
+
+    // Queue listener changes from another thread. The actual _listeners mutation
+    // is applied by update() on the I2C handler thread before event dispatch.
+    void queueAddKeyEventListener(std::shared_ptr<KeyEventListener> listener);
+    void queueRemoveKeyEventListener(std::shared_ptr<KeyEventListener> listener);
     
     // Process a key event through the listener stack
     bool processKeyEvent(const KeyEvent& event);

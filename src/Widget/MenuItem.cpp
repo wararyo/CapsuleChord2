@@ -84,6 +84,27 @@ void MenuItemSelection::onClick(MenuScreen* menuScreen) {
     }
 }
 
+// === MenuItemChord ===
+
+lv_obj_t* MenuItemChord::createLvObj(lv_obj_t* parent) {
+    createBaseRow(parent);
+    updateDisplay();
+    return lvObj;
+}
+
+void MenuItemChord::updateDisplay() {
+    if (valueLabel) {
+        CustomKeyAssignment value = getValue();
+        lv_label_set_text(valueLabel, value.chord.toString().c_str());
+    }
+}
+
+void MenuItemChord::onClick(MenuScreen* menuScreen) {
+    if (menuScreen) {
+        menuScreen->showDegreeChordInputDialog(this);
+    }
+}
+
 // === MenuItemNavigation ===
 
 lv_obj_t* MenuItemNavigation::createLvObj(lv_obj_t* parent) {

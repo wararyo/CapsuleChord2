@@ -4,11 +4,12 @@
 #include "ChordPipeline.h"
 #include "Scale.h"
 #include "SettingsStore.h"
+#include "KeyMap/ChordKeyInput.h"
 
 const uint8_t KantanChordKeyMap::numberKeyMap[] = {
-    6, //Custom1
+    0xFF, //Custom1
     0, //VII
-    0, //Custom2
+    0xFF, //Custom2
     3, //IV
     4, //I
     5, //V
@@ -18,9 +19,19 @@ const uint8_t KantanChordKeyMap::numberKeyMap[] = {
 
 bool KantanChordKeyMap::onKeyPressed(uint8_t keyCode) {
   if ((keyCode & 0xF0) == 0x00) { // 左キーパッドが押された場合
+    if (ChordKeyInput::isCustomKey1(keyCode) || ChordKeyInput::isCustomKey2(keyCode)) {
+      CustomKeyAssignment assignment = ChordKeyInput::isCustomKey1(keyCode)
+        ? Settings.controls.customKey1.get()
+        : Settings.controls.customKey2.get();
+      Chord c = ChordKeyInput::buildPlayableChord(assignment, false);
+      currentPressingButton = keyCode;
+      Pipeline.playChord(c);
+      return true;
+    }
+
     uint8_t button = keyCode & 0x0F;
     uint8_t number = numberKeyMap[button - 1]; // Key number starts from 1
-    if(0 <= number && number <= 6) {
+    if(number <= 6) {
       Scale scale = Settings.performance.scale.get();  // コピーを取得（getDiatonicがnon-constのため）
       int centerNoteNo = Settings.voicing.centerNoteNo.get();
       Chord c = scale.getDiatonic(number,Keypad[KEY_RIGHT_5].isPressed());

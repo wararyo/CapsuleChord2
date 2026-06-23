@@ -172,6 +172,9 @@ void MenuScreen::del() {
 
     // 選択ダイアログを閉じる
     closeSelectionDialog();
+    if (degreeChordInputDialog.getShown()) {
+        degreeChordInputDialog.del();
+    }
     if (infoScreen.getShown()) {
         infoScreen.del();
     }
@@ -203,6 +206,7 @@ void MenuScreen::del() {
 
 void MenuScreen::update() {
     selectionDialog.updateIfNeeded();
+    degreeChordInputDialog.updateIfNeeded();
 
     if (closeRequested) {
         del();
@@ -233,6 +237,20 @@ void MenuScreen::showSelectionDialog(MenuItemSelection* item) {
     );
 }
 
+void MenuScreen::showDegreeChordInputDialog(MenuItemChord* item) {
+    if (!item) return;
+
+    CustomKeyAssignment currentValue = item->getCurrentValue();
+    degreeChordInputDialog.create(
+        item->getLabel(),
+        currentValue.chord,
+        [item, currentValue](DegreeChord chord) mutable {
+            currentValue.chord = chord;
+            item->setCurrentValue(currentValue);
+        }
+    );
+}
+
 void MenuScreen::closeSelectionDialog() {
     if (selectionDialog.getShown()) {
         selectionDialog.del();
@@ -255,31 +273,19 @@ void MenuScreen::buildControlsCategory() {
     category.name = "操作";
     category.icon = nullptr;
 
-#if CAPSULECHORD_SHOW_DEV_SETTINGS
-    // カスタムキー1（スタブ）
-    category.items.push_back(std::make_unique<MenuItemSelection>(
+    // カスタムキー1
+    category.items.push_back(std::make_unique<MenuItemChord>(
         "カスタムキー1",
-        std::vector<MenuItemSelection::Option>{
-            {"なし", 0},
-            {"機能1", 1},
-            {"機能2", 2}
-        },
         []() { return Settings.controls.customKey1.get(); },
-        [](int v) { Settings.controls.customKey1.set(static_cast<uint8_t>(v)); }
+        [](CustomKeyAssignment v) { Settings.controls.customKey1.set(v); }
     ));
 
-    // カスタムキー2（スタブ）
-    category.items.push_back(std::make_unique<MenuItemSelection>(
+    // カスタムキー2
+    category.items.push_back(std::make_unique<MenuItemChord>(
         "カスタムキー2",
-        std::vector<MenuItemSelection::Option>{
-            {"なし", 0},
-            {"機能1", 1},
-            {"機能2", 2}
-        },
         []() { return Settings.controls.customKey2.get(); },
-        [](int v) { Settings.controls.customKey2.set(static_cast<uint8_t>(v)); }
+        [](CustomKeyAssignment v) { Settings.controls.customKey2.set(v); }
     ));
-#endif
 
     if (!category.items.empty()) {
         categories.push_back(std::move(category));
