@@ -10,6 +10,7 @@ static inline unsigned long esp_millis() {
 
 // Constructor - Initialize and register as knock listener
 AppLauncher::AppLauncher() {
+    knockListMutex = xSemaphoreCreateMutex();
 }
 
 // Destructor - Clean up and unregister as knock listener
@@ -19,6 +20,11 @@ AppLauncher::~AppLauncher() {
         delete eventData;
     }
     eventDatas.clear();
+
+    if (knockListMutex) {
+        vSemaphoreDelete(knockListMutex);
+        knockListMutex = nullptr;
+    }
 }
 
 void AppLauncher::create()
@@ -139,7 +145,16 @@ void AppLauncher::del()
 {
     if (!isShown) return;
 
+    // 先にリスナー登録を解除し、以降のonKnock()を止める
     App.removeKnockListener(this);
+
+    // removeKnockListener後に万一in-flightのonKnock()が積んだ分も含めてクリアする
+    if (knockListMutex) {
+        xSemaphoreTake(knockListMutex, portMAX_DELAY);
+        appsToKnock.clear();
+        needsKnockAnimation = false;
+        xSemaphoreGive(knockListMutex);
+    }
 
     lv_obj_del(frame);
     frame = nullptr;
@@ -167,10 +182,15 @@ lv_obj_t* AppLauncher::findAppButton(AppBase* app) {
 }
 
 // Handle knock event from an app
+// 注意: この関数はTempoTickタスクなどメインループ以外のスレッドから呼ばれる。
+// appsToKnock/needsKnockAnimationはupdate()(メインループ)と共有するため、
+// knockListMutexで保護する。LVGL操作はここでは一切行わない。
 void AppLauncher::onKnock(AppBase* app) {
-    if (isShown && app) {
+    if (isShown && app && knockListMutex) {
+        xSemaphoreTake(knockListMutex, portMAX_DELAY);
         needsKnockAnimation = true;
         appsToKnock.insert(app);
+        xSemaphoreGive(knockListMutex);
     }
 }
 
@@ -186,14 +206,21 @@ void AppLauncher::update()
     }
 
     // ノック待機中のアプリがある場合、アニメーションを実行
-    if (needsKnockAnimation && !appsToKnock.empty()) {
-        for (AppBase* app : appsToKnock) {
-            lv_obj_t* button = findAppButton(app);
-            if (button) {
-                lv_appbutton_knock(button);
-            }
+    // appsToKnockはonKnock()(TempoTickタスク)と共有されるため、ロック下で
+    // スナップショットを取って即座にclearし、LVGL操作はロック外で行う。
+    std::set<AppBase*> pendingKnocks;
+    if (knockListMutex) {
+        xSemaphoreTake(knockListMutex, portMAX_DELAY);
+        if (needsKnockAnimation) {
+            pendingKnocks.swap(appsToKnock);
+            needsKnockAnimation = false;
         }
-        appsToKnock.clear();
-        needsKnockAnimation = false;
+        xSemaphoreGive(knockListMutex);
+    }
+    for (AppBase* app : pendingKnocks) {
+        lv_obj_t* button = findAppButton(app);
+        if (button) {
+            lv_appbutton_knock(button);
+        }
     }
 }
