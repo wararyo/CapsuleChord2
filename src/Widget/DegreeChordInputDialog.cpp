@@ -1,6 +1,6 @@
 #include "DegreeChordInputDialog.h"
 #include "KeyMap/ChordKeyInput.h"
-#include "KeyMap/KantanChordKeyMap.h"
+#include "KeyMap/KeyMap.h"
 
 static const int SCREEN_WIDTH = 240;
 static const int SCREEN_HEIGHT = 320;
@@ -126,7 +126,8 @@ bool DegreeChordInputDialog::InputListener::onKeyPressed(uint8_t keyCode) {
     if (!active || !dialog) return false;
     if ((keyCode & 0xF0) != 0x00) return false;  // 左キーパッド以外は関与しない
 
-    KeyInputResult result = ChordKeyInput::resolveKey(keyCode, KantanChordKeyMap::numberKeyMap);
+    // 使用中のキーマップと同じ配置で入力できるよう、現在のテーブルで解釈する
+    KeyInputResult result = ChordKeyInput::resolveKey(keyCode, KeyMap::getCurrentKeyMap()->getNumberKeyMap());
     consumedLeftKeys |= (1u << (keyCode & 0x0F));
 
     if (result.kind == KeyInputResult::Kind::Degree) {

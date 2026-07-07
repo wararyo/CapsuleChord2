@@ -1,12 +1,11 @@
-#include "KantanChordKeyMap.h"
+#include "ChordKeyMap.h"
 #include "Modifier.h"
-#include "BLEMidi.h"
 #include "ChordPipeline.h"
 #include "Scale.h"
 #include "SettingsStore.h"
 #include "KeyMap/ChordKeyInput.h"
 
-const uint8_t KantanChordKeyMap::numberKeyMap[] = {
+const uint8_t ChordKeyMap::kantanNumberKeyMap[] = {
     6,               //VII
     KEYNUM_CUSTOM1,  //Custom1
     KEYNUM_CUSTOM2,  //Custom2
@@ -17,7 +16,18 @@ const uint8_t KantanChordKeyMap::numberKeyMap[] = {
     1, //VI
     2};
 
-bool KantanChordKeyMap::onKeyPressed(uint8_t keyCode) {
+const uint8_t ChordKeyMap::capsuleChordNumberKeyMap[] = {
+    6,               //VII
+    KEYNUM_CUSTOM1,  //Custom1
+    KEYNUM_CUSTOM2,  //Custom2
+    3, //IV
+    0, //I
+    4, //V
+    1, //II
+    5, //VI
+    2};
+
+bool ChordKeyMap::onKeyPressed(uint8_t keyCode) {
   KeyInputResult result = ChordKeyInput::resolveKey(keyCode, numberKeyMap);
   if (result.kind == KeyInputResult::Kind::None) return false; // イベントを消費しない
 
@@ -47,7 +57,7 @@ bool KantanChordKeyMap::onKeyPressed(uint8_t keyCode) {
   return true; // イベントを消費
 }
 
-bool KantanChordKeyMap::onKeyReleased(uint8_t keyCode) {
+bool ChordKeyMap::onKeyReleased(uint8_t keyCode) {
   if ((keyCode & 0xF0) == 0x00) { // 左キーパッドが離された場合
     if (keyCode == currentPressingButton) {
       Pipeline.stopChord();
