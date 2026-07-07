@@ -103,14 +103,16 @@ public:
             : tempo(tempo), scaleKey(scaleKey), scale(scale),
               title(title), duration(0) {}
               
-        // DegreeChordをChordに変換するメソッド
-        Chord degreeToChord(const DegreeChord& degreeChord) const
+        // DegreeChordを鳴らせるChordに具現化するメソッド（degreeToChord + calcInversion）
+        Chord realizeChord(const DegreeChord& degreeChord, uint8_t centerNoteNo) const
         {
             if (scale) {
-                return scale->degreeToChord(scaleKey, degreeChord);
+                return scale->realizeChord(scaleKey, degreeChord, centerNoteNo);
             } else {
                 // スケールが設定されていない場合はそのまま変換
-                return Chord(degreeChord.root, degreeChord.option, degreeChord.inversion);
+                Chord c(degreeChord.root, degreeChord.option, degreeChord.inversion);
+                c.calcInversion(centerNoteNo);
+                return c;
             }
         }
     };

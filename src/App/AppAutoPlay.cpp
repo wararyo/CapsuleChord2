@@ -314,8 +314,8 @@ void AppAutoPlay::executeCommand(const AutoPlayCommand& command)
             // Serial.printf("CHORD_START\n");
             // DegreeChordをChordに変換してから演奏開始
             {
-                Chord chord = currentScore.degreeToChord(command.chordData.degreeChord);
-                chord.calcInversion((uint8_t)Settings.voicing.centerNoteNo.get());
+                Chord chord = currentScore.realizeChord(command.chordData.degreeChord,
+                                                        (uint8_t)Settings.voicing.centerNoteNo.get());
                 Pipeline.playChord(chord);
                 currentChord = chord;
                 needsChordUpdate = true;

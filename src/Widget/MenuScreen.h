@@ -5,6 +5,7 @@
 #include <memory>
 #include "MenuItem.h"
 #include "SelectionDialog.h"
+#include "DegreeChordInputDialog.h"
 #include "InfoScreen.h"
 
 // メニューカテゴリ
@@ -27,6 +28,9 @@ public:
 
     // 選択ダイアログを表示
     void showSelectionDialog(MenuItemSelection* item);
+
+    // DegreeChord入力ダイアログを表示
+    void showDegreeChordInputDialog(MenuItemChord* item);
 
     // 選択ダイアログを閉じる
     void closeSelectionDialog();
@@ -52,6 +56,9 @@ private:
 
     // 選択ダイアログ
     SelectionDialog selectionDialog;
+
+    // DegreeChord入力ダイアログ
+    DegreeChordInputDialog degreeChordInputDialog;
 
     // 情報表示画面
     InfoScreen infoScreen;

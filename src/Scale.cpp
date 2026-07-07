@@ -19,8 +19,16 @@ Chord Scale::degreeToChord(DegreeChord degree) {
     return currentScale->degreeToChord(key,degree);
 }
 
-Chord Scale::getDiatonic(uint8_t degree, bool seventh, Chord base) {
-    return currentScale->getDiatonic(key,degree,seventh,base);
+DegreeChord Scale::getDiatonicDegree(uint8_t number, bool seventh) {
+    return currentScale->getDiatonicDegree(number,seventh);
+}
+
+Chord Scale::getDiatonic(uint8_t degree, bool seventh) {
+    return currentScale->getDiatonic(key,degree,seventh);
+}
+
+Chord Scale::realizeChord(DegreeChord degree, uint8_t centerNoteNo) {
+    return currentScale->realizeChord(key,degree,centerNoteNo);
 }
 
 std::vector<std::shared_ptr<ScaleBase>> Scale::getAvailableScales() {
@@ -71,6 +79,17 @@ Chord ScaleBase::degreeToChord(uint8_t key, DegreeChord degree) {
     while(c.root < 0)  c.root += 12;
     while(c.root >= 12)  c.root -= 12;
 
+    // スラッシュコードのbassも調に合わせて持ち越す
+    if(degree.bass != DegreeChord::BASS_DEFAULT) {
+        c.setBass((key + degree.bass) % 12);
+    }
+
+    return c;
+}
+
+Chord ScaleBase::realizeChord(uint8_t key, DegreeChord degree, uint8_t centerNoteNo) {
+    Chord c = degreeToChord(key, degree);
+    c.calcInversion(centerNoteNo);
     return c;
 }
 
@@ -96,9 +115,8 @@ const uint16_t MajorScale::diatonicSeventhOptions[] = {
     Chord::Minor|Chord::Seventh,
     Chord::Minor|Chord::Seventh|Chord::FifthFlat};
 
-Chord MajorScale::getDiatonic(uint8_t key, uint8_t number, bool seventh, Chord base) {
-    // return degreeToChord(key,degree,0, Chord(0,seventh?diatonicSeventhOptions[degree]:diatonicOptions[degree]));
-    return degreeToChord(key,DegreeChord(pitch[number], base.option | seventh?diatonicSeventhOptions[number]:diatonicOptions[number],base.inversion));
+DegreeChord MajorScale::getDiatonicDegree(uint8_t number, bool seventh) {
+    return DegreeChord(pitch[number], seventh?diatonicSeventhOptions[number]:diatonicOptions[number]);
 }
 
 //****
@@ -123,6 +141,6 @@ const uint16_t MinorScale::diatonicSeventhOptions[] = {
     Chord::MajorSeventh,
     Chord::Seventh};
 
-Chord MinorScale::getDiatonic(uint8_t key, uint8_t number, bool seventh, Chord base) {
-    return degreeToChord(key,DegreeChord(pitch[number], base.option | seventh?diatonicSeventhOptions[number]:diatonicOptions[number]));
+DegreeChord MinorScale::getDiatonicDegree(uint8_t number, bool seventh) {
+    return DegreeChord(pitch[number], seventh?diatonicSeventhOptions[number]:diatonicOptions[number]);
 }

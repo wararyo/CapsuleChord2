@@ -11,6 +11,7 @@
 #include <esp_log.h>
 #include "Archive.h"
 #include "Scale.h"
+#include "CustomKeySettings.h"
 #include "LittleFSManager.h"
 
 static const char* LOG_TAG_SETTINGS_STORE = "SettingsStore";
@@ -123,10 +124,10 @@ public:
 // 操作設定
 class ControlsSettings : public SettingsCategoryBase {
 public:
-    SettingDescriptor<uint8_t> customKey1;    // カスタムキー1 (スタブ)
-    SettingDescriptor<uint8_t> customKey2;    // カスタムキー2 (スタブ)
-    SettingDescriptor<uint8_t> leftTrigger;   // Lトリガー (旧Function1, スタブ)
-    SettingDescriptor<uint8_t> rightTrigger;  // Rトリガー (旧Function2, スタブ)
+    SettingDescriptor<CustomKeyAssignment> customKey1;  // カスタムキー1
+    SettingDescriptor<CustomKeyAssignment> customKey2;  // カスタムキー2
+    SettingDescriptor<uint8_t> leftTrigger;             // Lトリガー (旧Function1, スタブ)
+    SettingDescriptor<uint8_t> rightTrigger;            // Rトリガー (旧Function2, スタブ)
 
     ControlsSettings(SettingsStore* store);
 

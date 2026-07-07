@@ -15,7 +15,11 @@ class ScaleBase {
 public:
     virtual std::string name() {return "BaseScale";};
     virtual Chord degreeToChord(uint8_t key, DegreeChord degree);
-    virtual Chord getDiatonic(uint8_t key, uint8_t number, bool seventh, Chord base = Chord()){return degreeToChord(key,DegreeChord(number,seventh?Chord::Seventh:0));}
+    // ダイアトニックコードを度数表現のまま返す
+    virtual DegreeChord getDiatonicDegree(uint8_t number, bool seventh){return DegreeChord(number,seventh?Chord::Seventh:0);}
+    Chord getDiatonic(uint8_t key, uint8_t number, bool seventh){return degreeToChord(key,getDiatonicDegree(number,seventh));}
+    // DegreeChordを実際に鳴らせるChordに具現化する（degreeToChord + calcInversion）
+    Chord realizeChord(uint8_t key, DegreeChord degree, uint8_t centerNoteNo);
 };
 
 class MajorScale : public ScaleBase {
@@ -24,8 +28,7 @@ public:
     static const uint16_t diatonicSeventhOptions[];
     std::string name() override {return "Major";};
     static const uint8_t pitch[];
-    // Chord degreeToChord(uint8_t key, DegreeChord degree, Chord base = Chord()) override;
-    Chord getDiatonic(uint8_t key, uint8_t number, bool seventh, Chord base = Chord()) override;
+    DegreeChord getDiatonicDegree(uint8_t number, bool seventh) override;
 };
 
 class MinorScale : public ScaleBase {
@@ -34,8 +37,7 @@ public:
     static const uint16_t diatonicSeventhOptions[];
     std::string name() override {return "Minor";};
     static const uint8_t pitch[];
-    // Chord degreeToChord(uint8_t key, DegreeChord degree, Chord base = Chord()) override;
-    Chord getDiatonic(uint8_t key, uint8_t number, bool seventh, Chord base = Chord()) override;
+    DegreeChord getDiatonicDegree(uint8_t number, bool seventh) override;
 };
 
 //Chordクラスと同様に現在使っているスケールを管理するためのクラス
@@ -49,7 +51,9 @@ public:
     ScaleBase *currentScale;
 
     Chord degreeToChord(DegreeChord degree);
-    Chord getDiatonic(uint8_t number, bool seventh, Chord base = Chord());
+    DegreeChord getDiatonicDegree(uint8_t number, bool seventh);
+    Chord getDiatonic(uint8_t number, bool seventh);
+    Chord realizeChord(DegreeChord degree, uint8_t centerNoteNo);
     std::string toString() const;
     static std::vector<std::shared_ptr<ScaleBase>> getAvailableScales();
 
