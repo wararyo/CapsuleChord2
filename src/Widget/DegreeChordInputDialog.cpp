@@ -1,5 +1,6 @@
 #include "DegreeChordInputDialog.h"
 #include "KeyMap/ChordKeyInput.h"
+#include "KeyMap/KantanChordKeyMap.h"
 
 static const int SCREEN_WIDTH = 240;
 static const int SCREEN_HEIGHT = 320;
@@ -123,16 +124,26 @@ void DegreeChordInputDialog::updateIfNeeded() {
 
 bool DegreeChordInputDialog::InputListener::onKeyPressed(uint8_t keyCode) {
     if (!active || !dialog) return false;
+    if ((keyCode & 0xF0) != 0x00) return false;  // 左キーパッド以外は関与しない
 
-    DegreeChordInputResult result = ChordKeyInput::buildDegreeChordFromKantanKey(keyCode);
-    if (!result.valid) return false;
+    KeyInputResult result = ChordKeyInput::resolveKey(keyCode, KantanChordKeyMap::numberKeyMap);
+    consumedLeftKeys |= (1u << (keyCode & 0x0F));
 
-    active = false;
-    dialog->requestComplete(result.degreeChord);
+    if (result.kind == KeyInputResult::Kind::Degree) {
+        active = false;
+        dialog->requestComplete(result.degree);
+    }
+    // ダイアログ表示中はカスタムキー等も含め左キーパッドの押下を下のKeyMapへ流さない
     return true;
 }
 
 bool DegreeChordInputDialog::InputListener::onKeyReleased(uint8_t keyCode) {
-    (void)keyCode;
-    return active;
+    if ((keyCode & 0xF0) != 0x00) return false;
+
+    uint16_t bit = 1u << (keyCode & 0x0F);
+    if (consumedLeftKeys & bit) {
+        consumedLeftKeys &= ~bit;
+        return true;  // 自分が消費したpressに対応するreleaseのみ消費
+    }
+    return false;
 }

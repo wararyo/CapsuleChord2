@@ -1,6 +1,7 @@
 #include <unity.h>
 #include "../src/Chord.h"
 #include "../src/Scale.h"
+#include "../src/Modifier.h"
 #include "../src/Foundation/MusicalTime.h"
 #include "helpers/TestUtilities.h"
 
@@ -511,6 +512,194 @@ void test_scale_getDiatonic_AMinor(void) {
 }
 
 // ====================
+// Scale: getDiatonicDegree() テスト
+// ====================
+
+void test_scale_getDiatonicDegree_major_V7(void) {
+    Scale s(0); // C Major
+    s.currentScale = s.getAvailableScales()[0].get();
+    DegreeChord d = s.getDiatonicDegree(4, true); // V7
+    TEST_ASSERT_EQUAL(DegreeChord::V, d.root);
+    TEST_ASSERT_EQUAL(Chord::Seventh, d.option);
+}
+
+void test_scale_getDiatonicDegree_minor_i(void) {
+    Scale s(0); // C Minor
+    s.currentScale = s.getAvailableScales()[1].get();
+    DegreeChord d = s.getDiatonicDegree(0, false); // i
+    TEST_ASSERT_EQUAL(DegreeChord::I, d.root);
+    TEST_ASSERT_EQUAL(Chord::Minor, d.option);
+}
+
+// getDiatonicDegree → degreeToChord の結果が getDiatonic と一致する
+void test_scale_getDiatonicDegree_matches_getDiatonic(void) {
+    for (int scaleIndex = 0; scaleIndex < 2; scaleIndex++) {
+        Scale s(2); // D
+        s.currentScale = s.getAvailableScales()[scaleIndex].get();
+        for (uint8_t number = 0; number <= 6; number++) {
+            for (int seventh = 0; seventh <= 1; seventh++) {
+                Chord expected = s.getDiatonic(number, seventh != 0);
+                Chord actual = s.degreeToChord(s.getDiatonicDegree(number, seventh != 0));
+                TEST_ASSERT_EQUAL(expected.root, actual.root);
+                TEST_ASSERT_EQUAL(expected.option, actual.option);
+                TEST_ASSERT_EQUAL(expected.inversion, actual.inversion);
+            }
+        }
+    }
+}
+
+// ====================
+// Scale: degreeToChord() の bass 持ち越しテスト
+// ====================
+
+void test_scale_degreeToChord_carriesBass(void) {
+    Scale s(2); // D Major
+    s.currentScale = s.getAvailableScales()[0].get();
+    DegreeChord d(DegreeChord::I, 0);
+    d.setBass(2); // 度数空間で全音上のbass
+    Chord c = s.degreeToChord(d);
+    TEST_ASSERT_EQUAL(Chord::D, c.root);
+    TEST_ASSERT_EQUAL(Chord::E, c.bass); // key(2) + bass(2)
+}
+
+void test_scale_degreeToChord_defaultBassStaysDefault(void) {
+    Scale s(2); // D Major
+    s.currentScale = s.getAvailableScales()[0].get();
+    Chord c = s.degreeToChord(DegreeChord(DegreeChord::I, 0));
+    TEST_ASSERT_EQUAL(Chord::BASS_DEFAULT, c.bass);
+}
+
+// ====================
+// Scale: realizeChord() テスト
+// ====================
+
+void test_scale_realizeChord_matches_degreeToChord_plus_calcInversion(void) {
+    Scale s(7); // G Major
+    s.currentScale = s.getAvailableScales()[0].get();
+    DegreeChord d = s.getDiatonicDegree(4, true);
+
+    Chord expected = s.degreeToChord(d);
+    expected.calcInversion(60);
+
+    Chord actual = s.realizeChord(d, 60);
+    TEST_ASSERT_EQUAL(expected.root, actual.root);
+    TEST_ASSERT_EQUAL(expected.option, actual.option);
+    TEST_ASSERT_EQUAL(expected.inversion, actual.inversion);
+    TEST_ASSERT_EQUAL(expected.octave, actual.octave);
+}
+
+// ====================
+// Modifier: 度数空間適用とChord空間適用の等価性テスト
+// ====================
+
+// 従来のKeyMap処理（Chord空間で修飾→calcInversion）と、
+// 新しい処理（DegreeChord空間で修飾→realizeChord）が同じ結果になることを確認する
+static void assertDegreeSpaceModifierEquivalence(Scale& s, uint8_t number, bool seventh,
+                                                 void (*chordMod)(Chord*),
+                                                 void (*degreeMod)(DegreeChord*),
+                                                 const char* label) {
+    // 旧パス: Chord空間で修飾
+    Chord expected = s.getDiatonic(number, seventh);
+    chordMod(&expected);
+    expected.calcInversion(60);
+
+    // 新パス: 度数空間で修飾してから具現化
+    DegreeChord d = s.getDiatonicDegree(number, seventh);
+    degreeMod(&d);
+    Chord actual = s.realizeChord(d, 60);
+
+    TEST_ASSERT_EQUAL_MESSAGE(expected.root, actual.root, label);
+    TEST_ASSERT_EQUAL_MESSAGE(expected.option, actual.option, label);
+    TEST_ASSERT_EQUAL_MESSAGE(expected.inversion, actual.inversion, label);
+    TEST_ASSERT_EQUAL_MESSAGE(expected.octave, actual.octave, label);
+    TEST_ASSERT_EQUAL_MESSAGE(expected.bass, actual.bass, label);
+}
+
+void test_modifier_degreeSpace_thirdInvert(void) {
+    Scale s(2); // D Major
+    s.currentScale = s.getAvailableScales()[0].get();
+    assertDegreeSpaceModifierEquivalence(s, 0, false, thirdInvert<Chord>, thirdInvert<DegreeChord>, "thirdInvert");
+}
+
+void test_modifier_degreeSpace_pitchUp_wrap(void) {
+    Scale s(2); // D Major
+    s.currentScale = s.getAvailableScales()[0].get();
+    // number 6 (VII, 度数root=11) でpitchUpのラップを跨ぐケース
+    assertDegreeSpaceModifierEquivalence(s, 6, false, pitchUp<Chord>, pitchUp<DegreeChord>, "pitchUp wrap");
+}
+
+void test_modifier_degreeSpace_pitchDown_wrap(void) {
+    Scale s(2); // D Major
+    s.currentScale = s.getAvailableScales()[0].get();
+    // number 0 (I, 度数root=0) でpitchDownのラップを跨ぐケース
+    assertDegreeSpaceModifierEquivalence(s, 0, false, pitchDown<Chord>, pitchDown<DegreeChord>, "pitchDown wrap");
+}
+
+void test_modifier_degreeSpace_blackAdder(void) {
+    Scale s(9); // A Major (bassの持ち越し込みで一致すること)
+    s.currentScale = s.getAvailableScales()[0].get();
+    assertDegreeSpaceModifierEquivalence(s, 4, false, blackAdder<Chord>, blackAdder<DegreeChord>, "blackAdder");
+}
+
+void test_modifier_degreeSpace_combined(void) {
+    Scale s(2); // D Major
+    s.currentScale = s.getAvailableScales()[0].get();
+
+    // 複合修飾: seventh + thirdInvert + ninth + pitchUp
+    Chord expected = s.getDiatonic(4, true);
+    thirdInvert(&expected);
+    ninth(&expected);
+    pitchUp(&expected);
+    expected.calcInversion(60);
+
+    DegreeChord d = s.getDiatonicDegree(4, true);
+    thirdInvert(&d);
+    ninth(&d);
+    pitchUp(&d);
+    Chord actual = s.realizeChord(d, 60);
+
+    TEST_ASSERT_EQUAL(expected.root, actual.root);
+    TEST_ASSERT_EQUAL(expected.option, actual.option);
+    TEST_ASSERT_EQUAL(expected.inversion, actual.inversion);
+    TEST_ASSERT_EQUAL(expected.octave, actual.octave);
+    TEST_ASSERT_EQUAL(expected.bass, actual.bass);
+}
+
+// ====================
+// DegreeChord: bassのシリアライズテスト
+// ====================
+
+void test_degreeChord_serialize_bass_roundtrip(void) {
+    DegreeChord original(DegreeChord::V, Chord::Aug);
+    original.setBass(9);
+
+    OutputArchive oa;
+    oa("chord", original);
+    std::string json = oa.toJSON();
+
+    InputArchive ia;
+    ia.fromJSON(json.c_str());
+    DegreeChord restored;
+    ia("chord", restored);
+
+    TEST_ASSERT_EQUAL(original.root, restored.root);
+    TEST_ASSERT_EQUAL(original.option, restored.option);
+    TEST_ASSERT_EQUAL(original.bass, restored.bass);
+}
+
+void test_degreeChord_deserialize_missingBass_staysDefault(void) {
+    // 旧形式（Bassキーなし）のJSONでもクラッシュせずデフォルト値になる
+    InputArchive ia;
+    ia.fromJSON("{\"chord\":{\"Root\":3,\"Option\":0}}");
+    DegreeChord restored;
+    ia("chord", restored);
+
+    TEST_ASSERT_EQUAL(3, restored.root);
+    TEST_ASSERT_EQUAL(0, restored.option);
+    TEST_ASSERT_EQUAL(DegreeChord::BASS_DEFAULT, restored.bass);
+}
+
+// ====================
 // テスト実行の共通化
 // ====================
 
@@ -612,6 +801,29 @@ void runAllTests() {
     RUN_TEST(test_scale_getDiatonic_DMajor);
     RUN_TEST(test_scale_getDiatonic_DMajor_V);
     RUN_TEST(test_scale_getDiatonic_AMinor);
+
+    // getDiatonicDegree() テスト
+    RUN_TEST(test_scale_getDiatonicDegree_major_V7);
+    RUN_TEST(test_scale_getDiatonicDegree_minor_i);
+    RUN_TEST(test_scale_getDiatonicDegree_matches_getDiatonic);
+
+    // degreeToChord() の bass 持ち越しテスト
+    RUN_TEST(test_scale_degreeToChord_carriesBass);
+    RUN_TEST(test_scale_degreeToChord_defaultBassStaysDefault);
+
+    // realizeChord() テスト
+    RUN_TEST(test_scale_realizeChord_matches_degreeToChord_plus_calcInversion);
+
+    // Modifier の度数空間適用テスト
+    RUN_TEST(test_modifier_degreeSpace_thirdInvert);
+    RUN_TEST(test_modifier_degreeSpace_pitchUp_wrap);
+    RUN_TEST(test_modifier_degreeSpace_pitchDown_wrap);
+    RUN_TEST(test_modifier_degreeSpace_blackAdder);
+    RUN_TEST(test_modifier_degreeSpace_combined);
+
+    // DegreeChord: bassのシリアライズテスト
+    RUN_TEST(test_degreeChord_serialize_bass_roundtrip);
+    RUN_TEST(test_degreeChord_deserialize_missingBass_staysDefault);
 }
 
 // ====================

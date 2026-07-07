@@ -128,12 +128,16 @@ public:
         archive.pushNest(key);
         archive("Root",root);
         archive("Option",option);
+        archive("Bass",static_cast<int>(bass));  // int8_t用のオーバーロードが無いためintを経由
         archive.popNest();
     }
     void deserialize(InputArchive &archive,const char *key) {
         archive.pushNest(key);
         archive("Root",root);
         archive("Option",option);
+        int rawBass = bass;
+        archive("Bass",rawBass);  // 無い場合はデフォルト値(BASS_DEFAULT)のまま
+        bass = static_cast<int8_t>(rawBass);
         archive.popNest();
     }
 };

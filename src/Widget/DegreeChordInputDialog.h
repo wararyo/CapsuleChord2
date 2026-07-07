@@ -31,6 +31,10 @@ private:
     private:
         DegreeChordInputDialog* dialog;
         volatile bool active = true;
+        // 自分が消費したpress中の左キー（button番号のビットマスク）。
+        // 対応するreleaseだけを消費し、ダイアログ表示前から押されていた
+        // キーのreleaseは下のKeyMapへ流す（stopChordを届かせるため）。
+        uint16_t consumedLeftKeys = 0;
     };
 
     bool isShown = false;
