@@ -2,6 +2,7 @@
 #include "../src/Chord.h"
 #include "../src/Scale.h"
 #include "../src/Modifier.h"
+#include "../src/CustomKeySettings.h"
 #include "../src/Foundation/MusicalTime.h"
 #include "helpers/TestUtilities.h"
 
@@ -666,6 +667,94 @@ void test_modifier_degreeSpace_combined(void) {
 }
 
 // ====================
+// Scale: getDiatonicNumber() テスト
+// ====================
+
+void test_scale_getDiatonicNumber_major(void) {
+    Scale s(0); // C Major
+    s.currentScale = s.getAvailableScales()[0].get();
+    // ダイアトニック音: pitch = {0,2,4,5,7,9,11}
+    TEST_ASSERT_EQUAL(0, s.getDiatonicNumber(0));
+    TEST_ASSERT_EQUAL(1, s.getDiatonicNumber(2));
+    TEST_ASSERT_EQUAL(4, s.getDiatonicNumber(7));
+    TEST_ASSERT_EQUAL(6, s.getDiatonicNumber(11));
+    // 非ダイアトニック音
+    TEST_ASSERT_EQUAL(-1, s.getDiatonicNumber(1));
+    TEST_ASSERT_EQUAL(-1, s.getDiatonicNumber(3));
+    TEST_ASSERT_EQUAL(-1, s.getDiatonicNumber(10));
+}
+
+void test_scale_getDiatonicNumber_minor(void) {
+    Scale s(0); // C Minor
+    s.currentScale = s.getAvailableScales()[1].get();
+    // ダイアトニック音: pitch = {0,2,3,5,7,8,10}
+    TEST_ASSERT_EQUAL(2, s.getDiatonicNumber(3));
+    TEST_ASSERT_EQUAL(6, s.getDiatonicNumber(10));
+    // 非ダイアトニック音
+    TEST_ASSERT_EQUAL(-1, s.getDiatonicNumber(4));
+    TEST_ASSERT_EQUAL(-1, s.getDiatonicNumber(11));
+}
+
+// ====================
+// CustomKeyAssignment: applySeventhType() テスト
+// ====================
+
+void test_applySeventhType_addToTriad(void) {
+    DegreeChord d(DegreeChord::IISharp, 0); // bIIIトライアド
+    applySeventhType(d, CustomKeyAssignment::SeventhType::Seventh);
+    TEST_ASSERT_EQUAL(Chord::Seventh, d.option);
+}
+
+void test_applySeventhType_minorTriadBecomesM7chord(void) {
+    // マイナートライアド + b7 = m7（3度の質は保存コード由来）
+    DegreeChord d(DegreeChord::II, Chord::Minor);
+    applySeventhType(d, CustomKeyAssignment::SeventhType::Seventh);
+    TEST_ASSERT_EQUAL(Chord::Minor | Chord::Seventh, d.option);
+}
+
+void test_applySeventhType_replacesExistingSeventh(void) {
+    DegreeChord d(DegreeChord::I, Chord::MajorSeventh);
+    applySeventhType(d, CustomKeyAssignment::SeventhType::Seventh);
+    TEST_ASSERT_EQUAL(Chord::Seventh, d.option);
+
+    applySeventhType(d, CustomKeyAssignment::SeventhType::MajorSeventh);
+    TEST_ASSERT_EQUAL(Chord::MajorSeventh, d.option);
+}
+
+// ====================
+// CustomKeyAssignment: シリアライズテスト
+// ====================
+
+void test_customKeyAssignment_serialize_roundtrip(void) {
+    CustomKeyAssignment original(
+        DegreeChord(DegreeChord::VISharp, Chord::MajorSeventh),
+        CustomKeyAssignment::SeventhType::MajorSeventh);
+
+    OutputArchive oa;
+    oa("customKey", original);
+    std::string json = oa.toJSON();
+
+    InputArchive ia;
+    ia.fromJSON(json.c_str());
+    CustomKeyAssignment restored;
+    ia("customKey", restored);
+
+    TEST_ASSERT_TRUE(original == restored);
+}
+
+void test_customKeyAssignment_deserialize_invalidSeventhType_fallsBack(void) {
+    // 範囲外の値（旧DiatonicSeventh=2など）はデフォルトにフォールバック
+    InputArchive ia;
+    ia.fromJSON("{\"customKey\":{\"chord\":{\"Root\":3,\"Option\":0},\"seventhType\":2}}");
+    CustomKeyAssignment restored;
+    ia("customKey", restored);
+
+    TEST_ASSERT_EQUAL(3, restored.chord.root);
+    TEST_ASSERT_EQUAL(static_cast<uint8_t>(CustomKeyAssignment::SeventhType::Seventh),
+                      static_cast<uint8_t>(restored.seventhType));
+}
+
+// ====================
 // DegreeChord: bassのシリアライズテスト
 // ====================
 
@@ -820,6 +909,19 @@ void runAllTests() {
     RUN_TEST(test_modifier_degreeSpace_pitchDown_wrap);
     RUN_TEST(test_modifier_degreeSpace_blackAdder);
     RUN_TEST(test_modifier_degreeSpace_combined);
+
+    // getDiatonicNumber() テスト
+    RUN_TEST(test_scale_getDiatonicNumber_major);
+    RUN_TEST(test_scale_getDiatonicNumber_minor);
+
+    // applySeventhType() テスト
+    RUN_TEST(test_applySeventhType_addToTriad);
+    RUN_TEST(test_applySeventhType_minorTriadBecomesM7chord);
+    RUN_TEST(test_applySeventhType_replacesExistingSeventh);
+
+    // CustomKeyAssignment シリアライズテスト
+    RUN_TEST(test_customKeyAssignment_serialize_roundtrip);
+    RUN_TEST(test_customKeyAssignment_deserialize_invalidSeventhType_fallsBack);
 
     // DegreeChord: bassのシリアライズテスト
     RUN_TEST(test_degreeChord_serialize_bass_roundtrip);

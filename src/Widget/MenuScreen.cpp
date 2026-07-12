@@ -240,13 +240,11 @@ void MenuScreen::showSelectionDialog(MenuItemSelection* item) {
 void MenuScreen::showDegreeChordInputDialog(MenuItemChord* item) {
     if (!item) return;
 
-    CustomKeyAssignment currentValue = item->getCurrentValue();
     degreeChordInputDialog.create(
         item->getLabel(),
-        currentValue.chord,
-        [item, currentValue](DegreeChord chord) mutable {
-            currentValue.chord = chord;
-            item->setCurrentValue(currentValue);
+        item->getCurrentValue(),
+        [item](CustomKeyAssignment value) {
+            item->setCurrentValue(value);
         }
     );
 }

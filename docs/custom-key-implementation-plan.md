@@ -307,6 +307,8 @@ public:
 
 ## SeventhPolicy の意味
 
+> **訂正 (2026-07-08):** 本節の設計は変更された。`SeventhPolicy` は `SeventhType { Seventh(b7), MajorSeventh(M7) }` の2値に縮小し、`DiatonicSeventh` は廃止。3度/5度の質は保存された `DegreeChord` 自身が持つため、m7/m7-5/mM7 は「トライアドの質 × 7度の種類」の組み合わせで表現できる。ダイアトニックな7度の推論は演奏時ではなく入力ダイアログでの入力時に行い、7/M7 スイッチの初期値として提案する方式に変更（WYSIWYG）。リアルタイム修飾も実装済みで、カスタムキーにも通常の修飾キー・RT/LT 転回が効く。
+
 `CustomKeyAssignment::seventhPolicy` は、将来的に `applyRealtimeModifiers == true` のとき、右手のセブンスキーを押した場合に何を足すかを決める。
 
 候補:

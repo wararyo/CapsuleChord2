@@ -5,27 +5,29 @@
 #include "Chord.h"
 
 struct CustomKeyAssignment {
-    enum class SeventhPolicy : uint8_t {
-        DominantSeventh = 0,
-        MajorSeventh = 1,
-        DiatonicSeventh = 2
+    // セブンスキー押下時に付与する7度の種類。
+    // 3度/5度の質は保存されたchord自身が持つため、m7/m7-5/mM7などは
+    // トライアドの質とこの2値の組み合わせで自動的に表現される。
+    enum class SeventhType : uint8_t {
+        Seventh = 0,      // 短7度 (b7)
+        MajorSeventh = 1  // 長7度 (M7)
     };
 
     DegreeChord chord;
-    SeventhPolicy seventhPolicy;
+    SeventhType seventhType;
 
     CustomKeyAssignment()
-        : chord(DegreeChord::IISharp, 0), seventhPolicy(SeventhPolicy::DominantSeventh) {}
+        : chord(DegreeChord::IISharp, 0), seventhType(SeventhType::Seventh) {}
 
-    CustomKeyAssignment(DegreeChord chord, SeventhPolicy seventhPolicy)
-        : chord(chord), seventhPolicy(seventhPolicy) {}
+    CustomKeyAssignment(DegreeChord chord, SeventhType seventhType)
+        : chord(chord), seventhType(seventhType) {}
 
     bool operator==(const CustomKeyAssignment& other) const {
         return chord.root == other.chord.root &&
                chord.option == other.chord.option &&
                chord.inversion == other.chord.inversion &&
                chord.bass == other.chord.bass &&
-               seventhPolicy == other.seventhPolicy;
+               seventhType == other.seventhType;
     }
 
     bool operator!=(const CustomKeyAssignment& other) const {
@@ -36,7 +38,7 @@ struct CustomKeyAssignment {
         archive.pushNest(key);
         DegreeChord chordCopy = chord;  // DegreeChord::serialize is non-const
         archive("chord", chordCopy);
-        archive("seventhPolicy", static_cast<uint8_t>(seventhPolicy));
+        archive("seventhType", static_cast<uint8_t>(seventhType));
         archive.popNest();
     }
 
@@ -45,12 +47,19 @@ struct CustomKeyAssignment {
 
         archive("chord", chord);
 
-        uint8_t rawPolicy = static_cast<uint8_t>(seventhPolicy);
-        archive("seventhPolicy", rawPolicy);
-        if (rawPolicy <= static_cast<uint8_t>(SeventhPolicy::DiatonicSeventh)) {
-            seventhPolicy = static_cast<SeventhPolicy>(rawPolicy);
+        uint8_t rawType = static_cast<uint8_t>(seventhType);
+        archive("seventhType", rawType);
+        if (rawType <= static_cast<uint8_t>(SeventhType::MajorSeventh)) {
+            seventhType = static_cast<SeventhType>(rawType);
         }
 
         archive.popNest();
     }
 };
+
+// chordの7度を指定された種類に設定する（既存の7度ビットは置換）
+inline void applySeventhType(DegreeChord& chord, CustomKeyAssignment::SeventhType type) {
+    chord.option &= ~(Chord::Seventh | Chord::MajorSeventh);
+    chord.option |= (type == CustomKeyAssignment::SeventhType::MajorSeventh)
+        ? Chord::MajorSeventh : Chord::Seventh;
+}

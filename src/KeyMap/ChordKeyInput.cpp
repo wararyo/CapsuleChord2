@@ -1,4 +1,5 @@
 #include "ChordKeyInput.h"
+#include "CustomKeySettings.h"
 #include "Keypad.h"
 #include "Modifier.h"
 #include "Scale.h"
@@ -27,12 +28,19 @@ KeyInputResult ChordKeyInput::resolveKey(uint8_t keyCode, const uint8_t* numberK
     if (button < 1 || button > 9) return result;
 
     uint8_t number = numberKeyMap[button - 1];  // Key number starts from 1
-    if (number == KEYNUM_CUSTOM1) {
-        result.kind = KeyInputResult::Kind::Custom1;
-        return result;
-    }
-    if (number == KEYNUM_CUSTOM2) {
-        result.kind = KeyInputResult::Kind::Custom2;
+    if (number == KEYNUM_CUSTOM1 || number == KEYNUM_CUSTOM2) {
+        CustomKeyAssignment assignment = (number == KEYNUM_CUSTOM1)
+            ? Settings.controls.customKey1.get()
+            : Settings.controls.customKey2.get();
+        DegreeChord degree = assignment.chord;
+        // セブンスキー押下中は設定された種類の7度を付与（既存の7度ビットは置換）
+        if (Keypad[KEY_RIGHT_5].isPressed()) applySeventhType(degree, assignment.seventhType);
+        applyCurrentModifiers(degree);
+
+        result.kind = (number == KEYNUM_CUSTOM1)
+            ? KeyInputResult::Kind::Custom1
+            : KeyInputResult::Kind::Custom2;
+        result.degree = degree;
         return result;
     }
     if (number > 6) return result;  // KEYNUM_NONEなど

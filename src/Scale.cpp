@@ -23,6 +23,10 @@ DegreeChord Scale::getDiatonicDegree(uint8_t number, bool seventh) {
     return currentScale->getDiatonicDegree(number,seventh);
 }
 
+int Scale::getDiatonicNumber(uint8_t degreeRoot) {
+    return currentScale->getDiatonicNumber(degreeRoot);
+}
+
 Chord Scale::getDiatonic(uint8_t degree, bool seventh) {
     return currentScale->getDiatonic(key,degree,seventh);
 }
@@ -119,6 +123,13 @@ DegreeChord MajorScale::getDiatonicDegree(uint8_t number, bool seventh) {
     return DegreeChord(pitch[number], seventh?diatonicSeventhOptions[number]:diatonicOptions[number]);
 }
 
+int MajorScale::getDiatonicNumber(uint8_t degreeRoot) {
+    for (int i = 0; i < 7; i++) {
+        if (pitch[i] == degreeRoot) return i;
+    }
+    return -1;
+}
+
 //****
 // MinorScale
 //****
@@ -143,4 +154,11 @@ const uint16_t MinorScale::diatonicSeventhOptions[] = {
 
 DegreeChord MinorScale::getDiatonicDegree(uint8_t number, bool seventh) {
     return DegreeChord(pitch[number], seventh?diatonicSeventhOptions[number]:diatonicOptions[number]);
+}
+
+int MinorScale::getDiatonicNumber(uint8_t degreeRoot) {
+    for (int i = 0; i < 7; i++) {
+        if (pitch[i] == degreeRoot) return i;
+    }
+    return -1;
 }

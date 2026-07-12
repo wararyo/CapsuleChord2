@@ -31,27 +31,11 @@ bool ChordKeyMap::onKeyPressed(uint8_t keyCode) {
   KeyInputResult result = ChordKeyInput::resolveKey(keyCode, numberKeyMap);
   if (result.kind == KeyInputResult::Kind::None) return false; // イベントを消費しない
 
-  DegreeChord degree;
-  switch (result.kind) {
-    case KeyInputResult::Kind::Custom1:
-      degree = Settings.controls.customKey1.get().chord;
-      break;
-    case KeyInputResult::Kind::Custom2:
-      degree = Settings.controls.customKey2.get().chord;
-      break;
-    default:
-      degree = result.degree;
-      break;
-  }
-
   Scale scale = Settings.performance.scale.get();  // コピーを取得
   int centerNoteNo = Settings.voicing.centerNoteNo.get();
-  Chord c = scale.realizeChord(degree, (uint8_t)centerNoteNo);
-  if (result.kind == KeyInputResult::Kind::Degree) {
-    // 転回修飾はカスタムキーには適用しない（保存されたコードをそのまま鳴らす）
-    if(Keypad[KEY_RT].isPressed()) inversionUp(&c);
-    if(Keypad[KEY_LT].isPressed()) inversionDown(&c);
-  }
+  Chord c = scale.realizeChord(result.degree, (uint8_t)centerNoteNo);
+  if(Keypad[KEY_RT].isPressed()) inversionUp(&c);
+  if(Keypad[KEY_LT].isPressed()) inversionDown(&c);
   currentPressingButton = keyCode;
   Pipeline.playChord(c);
   return true; // イベントを消費
