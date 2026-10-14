@@ -22,10 +22,13 @@ struct CustomKeyAssignment {
     CustomKeyAssignment(DegreeChord chord, SeventhType seventhType)
         : chord(chord), seventhType(seventhType) {}
 
+    // chord.inversionは比較しない
+    // 演奏時にScale::realizeChord()内のcalcInversion()が転回を再計算して上書きするため
+    // inversionは音に影響せず、シリアライズもされない値となる。
+    // (DegreeChord::equals()はbassを見ないので代用しないこと)
     bool operator==(const CustomKeyAssignment& other) const {
         return chord.root == other.chord.root &&
                chord.option == other.chord.option &&
-               chord.inversion == other.chord.inversion &&
                chord.bass == other.chord.bass &&
                seventhType == other.seventhType;
     }
