@@ -233,7 +233,12 @@ private:
 
     std::map<int,Key> keys;
     std::vector<std::shared_ptr<KeyEventListener>> _listeners;
+    // 二重バッファ
+    // pendingに積み、update()でprocessingと交換して処理する。
+    // 両方を交互に再利用することで容量が保持され、クリティカルセクション内の
+    // push_backで容量超過時以外ではヒープ確保が発生しなくなる。
     std::vector<ListenerCommand> pendingListenerCommands;
+    std::vector<ListenerCommand> processingListenerCommands;
     portMUX_TYPE listenerCommandMutex = portMUX_INITIALIZER_UNLOCKED;
 
     void applyPendingListenerCommands();

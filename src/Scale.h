@@ -80,8 +80,12 @@ public:
         archive.popNest();
     }
     void deserialize(InputArchive &archive,const char *keyName) {
-        archive.pushNest(keyName);
-        archive("Key", key);
+        // ネストが無い・空の場合はpopNestと対にならないため何もせず戻る（現在値を保持）
+        if (!archive.pushNest(keyName)) return;
+        // toString()がChord::rootStrings[key]を参照するため範囲外の値は採用しない
+        int rawKey = key;
+        archive("Key", rawKey);
+        if (rawKey >= 0 && rawKey < 12) key = static_cast<uint8_t>(rawKey);
         // Find scale which has its name
         std::string scaleStr = "";
         archive("Scale", scaleStr);

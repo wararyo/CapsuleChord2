@@ -15,6 +15,7 @@ void CapsuleChordKeypad::begin() {
 
     M5.Ex_I2C.begin(EXT_I2C_PORT, PORTA_SDA, PORTA_SCL);
     pendingListenerCommands.reserve(8);
+    processingListenerCommands.reserve(8);
 
     // Step 1: 旧FW互換のbareリードでイベントキューをドレインする。
     // 新FWでpointer未設定のbareリードが非ゼロを返し続ける場合に備え、
@@ -259,12 +260,12 @@ void CapsuleChordKeypad::queueRemoveKeyEventListener(std::shared_ptr<KeyEventLis
 }
 
 void CapsuleChordKeypad::applyPendingListenerCommands() {
-    std::vector<ListenerCommand> commands;
+    // pendingに積み、update()でprocessingと交換して処理する
     portENTER_CRITICAL(&listenerCommandMutex);
-    commands.swap(pendingListenerCommands);
+    processingListenerCommands.swap(pendingListenerCommands);
     portEXIT_CRITICAL(&listenerCommandMutex);
 
-    for (const auto& command : commands) {
+    for (const auto& command : processingListenerCommands) {
         if (!command.listener) continue;
         if (command.type == ListenerCommandType::Add) {
             addKeyEventListener(command.listener);
@@ -272,6 +273,8 @@ void CapsuleChordKeypad::applyPendingListenerCommands() {
             removeKeyEventListener(command.listener);
         }
     }
+    // shared_ptrの参照解放はクリティカルセクション外で行う
+    processingListenerCommands.clear();
 }
 
 // LED Layer Management

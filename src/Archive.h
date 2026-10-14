@@ -164,7 +164,9 @@ public:
         return false;
     }
     void popNest() {
-        if(!nestStack.empty()) nestStack.pop_back();
+        // ルートは外さない
+        // (pushNest失敗時のpopNestで空になり、以降のgetDocument()が範囲外アクセスになるのを防ぐため)
+        if(nestStack.size() > 1) nestStack.pop_back();
     }
     JsonObject getDocument(){
         return nestStack[nestStack.size()-1];

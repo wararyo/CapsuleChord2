@@ -755,6 +755,109 @@ void test_customKeyAssignment_deserialize_invalidSeventhType_fallsBack(void) {
 }
 
 // ====================
+// 不正・不完全な保存データへの耐性テスト
+// ====================
+
+// chordが欠けていてもネストスタックが壊れず、後続の設定を正しく読める
+void test_customKeyAssignment_deserialize_missingChord_keepsNestStack(void) {
+    InputArchive ia;
+    ia.fromJSON("{\"customKey1\":{\"seventhType\":1},\"after\":5}");
+    CustomKeyAssignment restored;
+    ia("customKey1", restored);
+
+    // chordはデフォルト値のまま、seventhTypeは正しい階層から読まれる
+    TEST_ASSERT_EQUAL(DegreeChord::IISharp, restored.chord.root);
+    TEST_ASSERT_EQUAL(static_cast<uint8_t>(CustomKeyAssignment::SeventhType::MajorSeventh),
+                      static_cast<uint8_t>(restored.seventhType));
+
+    // 後続の項目がルート階層から読める（スタックが壊れていない）
+    int after = 0;
+    ia("after", after);
+    TEST_ASSERT_EQUAL(5, after);
+}
+
+void test_customKeyAssignment_deserialize_emptyChord_keepsNestStack(void) {
+    InputArchive ia;
+    ia.fromJSON("{\"customKey1\":{\"chord\":{},\"seventhType\":1},\"after\":5}");
+    CustomKeyAssignment restored;
+    ia("customKey1", restored);
+
+    TEST_ASSERT_EQUAL(static_cast<uint8_t>(CustomKeyAssignment::SeventhType::MajorSeventh),
+                      static_cast<uint8_t>(restored.seventhType));
+    int after = 0;
+    ia("after", after);
+    TEST_ASSERT_EQUAL(5, after);
+}
+
+void test_scale_deserialize_missingNest_keepsNestStack(void) {
+    InputArchive ia;
+    ia.fromJSON("{\"after\":5}");
+    Scale s(2);
+    ia("scale", s);
+    TEST_ASSERT_EQUAL(2, s.key);  // 現在値を保持
+
+    int after = 0;
+    ia("after", after);
+    TEST_ASSERT_EQUAL(5, after);
+}
+
+void test_inputArchive_popNest_neverPopsRoot(void) {
+    InputArchive ia;
+    ia.fromJSON("{\"after\":5}");
+    ia.popNest();  // 対応するpushNestなし
+    int after = 0;
+    ia("after", after);
+    TEST_ASSERT_EQUAL(5, after);
+}
+
+// 範囲外のBass/Rootは採用せずデフォルト値（現在値）を保持する
+void test_degreeChord_deserialize_invalidBass_fallsBack(void) {
+    const char* jsons[] = {
+        "{\"chord\":{\"Root\":3,\"Option\":0,\"Bass\":12}}",
+        "{\"chord\":{\"Root\":3,\"Option\":0,\"Bass\":-2}}",
+    };
+    for (const char* json : jsons) {
+        InputArchive ia;
+        ia.fromJSON(json);
+        DegreeChord restored;
+        ia("chord", restored);
+        TEST_ASSERT_EQUAL_MESSAGE(3, restored.root, json);
+        TEST_ASSERT_EQUAL_MESSAGE(DegreeChord::BASS_DEFAULT, restored.bass, json);
+    }
+}
+
+void test_degreeChord_deserialize_invalidRoot_fallsBack(void) {
+    const char* jsons[] = {
+        "{\"chord\":{\"Root\":12,\"Option\":0}}",
+        "{\"chord\":{\"Root\":-1,\"Option\":0}}",
+    };
+    for (const char* json : jsons) {
+        InputArchive ia;
+        ia.fromJSON(json);
+        DegreeChord restored(DegreeChord::V, 0);
+        ia("chord", restored);
+        TEST_ASSERT_EQUAL_MESSAGE(DegreeChord::V, restored.root, json);
+    }
+}
+
+void test_chord_deserialize_invalidRoot_fallsBack(void) {
+    InputArchive ia;
+    ia.fromJSON("{\"chord\":{\"Root\":200,\"Option\":0}}");
+    Chord restored(Chord::G, 0);
+    ia("chord", restored);
+    TEST_ASSERT_EQUAL(Chord::G, restored.root);
+}
+
+void test_scale_deserialize_invalidKey_fallsBack(void) {
+    InputArchive ia;
+    ia.fromJSON("{\"scale\":{\"Key\":12,\"Scale\":\"Minor\"}}");
+    Scale s(2);
+    ia("scale", s);
+    TEST_ASSERT_EQUAL(2, s.key);
+    TEST_ASSERT_EQUAL_STRING("Minor", s.currentScale->name().c_str());
+}
+
+// ====================
 // DegreeChord: bassのシリアライズテスト
 // ====================
 
@@ -922,6 +1025,16 @@ void runAllTests() {
     // CustomKeyAssignment シリアライズテスト
     RUN_TEST(test_customKeyAssignment_serialize_roundtrip);
     RUN_TEST(test_customKeyAssignment_deserialize_invalidSeventhType_fallsBack);
+
+    // 不正・不完全な保存データへの耐性テスト
+    RUN_TEST(test_customKeyAssignment_deserialize_missingChord_keepsNestStack);
+    RUN_TEST(test_customKeyAssignment_deserialize_emptyChord_keepsNestStack);
+    RUN_TEST(test_scale_deserialize_missingNest_keepsNestStack);
+    RUN_TEST(test_inputArchive_popNest_neverPopsRoot);
+    RUN_TEST(test_degreeChord_deserialize_invalidBass_fallsBack);
+    RUN_TEST(test_degreeChord_deserialize_invalidRoot_fallsBack);
+    RUN_TEST(test_chord_deserialize_invalidRoot_fallsBack);
+    RUN_TEST(test_scale_deserialize_invalidKey_fallsBack);
 
     // DegreeChord: bassのシリアライズテスト
     RUN_TEST(test_degreeChord_serialize_bass_roundtrip);
