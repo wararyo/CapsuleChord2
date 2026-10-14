@@ -15,7 +15,13 @@ class ScaleBase {
 public:
     virtual std::string name() {return "BaseScale";};
     virtual Chord degreeToChord(uint8_t key, DegreeChord degree);
-    virtual Chord getDiatonic(uint8_t key, uint8_t number, bool seventh, Chord base = Chord()){return degreeToChord(key,DegreeChord(number,seventh?Chord::Seventh:0));}
+    // ダイアトニックコードを度数表現のまま返す
+    virtual DegreeChord getDiatonicDegree(uint8_t number, bool seventh){return DegreeChord(number,seventh?Chord::Seventh:0);}
+    // 度数root（半音表現 0-11）がスケール構成音ならダイアトニック番号(0-6)を、そうでなければ-1を返す
+    virtual int getDiatonicNumber(uint8_t degreeRoot){(void)degreeRoot; return -1;}
+    Chord getDiatonic(uint8_t key, uint8_t number, bool seventh){return degreeToChord(key,getDiatonicDegree(number,seventh));}
+    // DegreeChordを実際に鳴らせるChordに具現化する（degreeToChord + calcInversion）
+    Chord realizeChord(uint8_t key, DegreeChord degree, uint8_t centerNoteNo);
 };
 
 class MajorScale : public ScaleBase {
@@ -24,8 +30,8 @@ public:
     static const uint16_t diatonicSeventhOptions[];
     std::string name() override {return "Major";};
     static const uint8_t pitch[];
-    // Chord degreeToChord(uint8_t key, DegreeChord degree, Chord base = Chord()) override;
-    Chord getDiatonic(uint8_t key, uint8_t number, bool seventh, Chord base = Chord()) override;
+    DegreeChord getDiatonicDegree(uint8_t number, bool seventh) override;
+    int getDiatonicNumber(uint8_t degreeRoot) override;
 };
 
 class MinorScale : public ScaleBase {
@@ -34,8 +40,8 @@ public:
     static const uint16_t diatonicSeventhOptions[];
     std::string name() override {return "Minor";};
     static const uint8_t pitch[];
-    // Chord degreeToChord(uint8_t key, DegreeChord degree, Chord base = Chord()) override;
-    Chord getDiatonic(uint8_t key, uint8_t number, bool seventh, Chord base = Chord()) override;
+    DegreeChord getDiatonicDegree(uint8_t number, bool seventh) override;
+    int getDiatonicNumber(uint8_t degreeRoot) override;
 };
 
 //Chordクラスと同様に現在使っているスケールを管理するためのクラス
@@ -49,7 +55,10 @@ public:
     ScaleBase *currentScale;
 
     Chord degreeToChord(DegreeChord degree);
-    Chord getDiatonic(uint8_t number, bool seventh, Chord base = Chord());
+    DegreeChord getDiatonicDegree(uint8_t number, bool seventh);
+    int getDiatonicNumber(uint8_t degreeRoot);
+    Chord getDiatonic(uint8_t number, bool seventh);
+    Chord realizeChord(DegreeChord degree, uint8_t centerNoteNo);
     std::string toString() const;
     static std::vector<std::shared_ptr<ScaleBase>> getAvailableScales();
 
@@ -71,8 +80,12 @@ public:
         archive.popNest();
     }
     void deserialize(InputArchive &archive,const char *keyName) {
-        archive.pushNest(keyName);
-        archive("Key", key);
+        // ネストが無い・空の場合はpopNestと対にならないため何もせず戻る（現在値を保持）
+        if (!archive.pushNest(keyName)) return;
+        // toString()がChord::rootStrings[key]を参照するため範囲外の値は採用しない
+        int rawKey = key;
+        archive("Key", rawKey);
+        if (rawKey >= 0 && rawKey < 12) key = static_cast<uint8_t>(rawKey);
         // Find scale which has its name
         std::string scaleStr = "";
         archive("Scale", scaleStr);

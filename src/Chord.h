@@ -75,8 +75,12 @@ public:
         archive.popNest();
     }
     void deserialize(InputArchive &archive,const char *key) {
-        archive.pushNest(key);
-        archive("Root",root);
+        // ネストが無い・空の場合はpopNestと対にならないため何もせず戻る（現在値を保持）
+        if (!archive.pushNest(key)) return;
+        // toString()がrootStrings[root]を参照するため範囲外の値は採用しない
+        int rawRoot = root;
+        archive("Root",rawRoot);
+        if (rawRoot >= 0 && rawRoot < 12) root = static_cast<uint8_t>(rawRoot);
         archive("Option",option);
         archive.popNest();
     }
@@ -128,12 +132,22 @@ public:
         archive.pushNest(key);
         archive("Root",root);
         archive("Option",option);
+        archive("Bass",static_cast<int>(bass));  // int8_t用のオーバーロードが無いためintを経由
         archive.popNest();
     }
     void deserialize(InputArchive &archive,const char *key) {
-        archive.pushNest(key);
-        archive("Root",root);
+        // ネストが無い・空の場合はpopNestと対にならないため何もせず戻る（現在値を保持）
+        if (!archive.pushNest(key)) return;
+        // toString()がrootStrings[root]/[bass]を参照するため範囲外の値は採用しない
+        int rawRoot = root;
+        archive("Root",rawRoot);
+        if (rawRoot >= 0 && rawRoot < 12) root = static_cast<uint8_t>(rawRoot);
         archive("Option",option);
+        int rawBass = bass;
+        archive("Bass",rawBass);  // 無い場合はデフォルト値(BASS_DEFAULT)のまま
+        if (rawBass == BASS_DEFAULT || (rawBass >= 0 && rawBass < 12)) {
+            bass = static_cast<int8_t>(rawBass);
+        }
         archive.popNest();
     }
 };

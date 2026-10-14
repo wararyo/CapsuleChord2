@@ -258,8 +258,10 @@ LVGL 8.3.4上に構築され、`LvglWrapper.h/cpp`でラップ。
 
 **KeyMap**システム (`src/KeyMap/`)
 - キー押下を音楽イベントに変換
-- `KeyMapBase`：基底インターフェース
-- 実装：`CapsuleChordKeyMap`、`KantanChordKeyMap`
+- `ChordKeyMap`：唯一の実装（`CapsuleChordKeypad::KeyEventListener` を直接実装）。物理キー→度数番号のテーブル（`kantanNumberKeyMap` / `capsuleChordNumberKeyMap` のプリセットあり）を差し替えることで配列を切り替える
+- `ChordKeyInput`：キー+修飾キー状態→`DegreeChord`への変換層（`resolveKey()`）。具現化は`Scale::realizeChord()`が担う
+- 現在使用中のKeyMapは`KeyMap::getCurrentKeyMap()`で取得できる
+- 将来の発展方針は `docs/keymap-action-architecture-plan.md` を参照
 
 ### 音楽的概念
 

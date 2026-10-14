@@ -4,6 +4,7 @@
 #include <functional>
 #include <vector>
 #include <string>
+#include "CustomKeySettings.h"
 
 // 前方宣言
 class MenuScreen;
@@ -12,6 +13,7 @@ class MenuScreen;
 enum class MenuItemType {
     Toggle,      // ON/OFF トグル
     Selection,   // 複数選択肢
+    Chord,       // DegreeChord入力
     Navigation   // サブメニュー/情報画面へ遷移
 };
 
@@ -90,6 +92,27 @@ private:
     std::vector<Option> options;
     std::function<int()> getValue;
     std::function<void(int)> setValue;
+};
+
+// コード入力型メニュー項目（DegreeChord）
+class MenuItemChord : public MenuItemBase {
+public:
+    MenuItemChord(const char* label,
+                  std::function<CustomKeyAssignment()> getter,
+                  std::function<void(CustomKeyAssignment)> setter)
+        : MenuItemBase(label), getValue(getter), setValue(setter) {}
+
+    MenuItemType getType() const override { return MenuItemType::Chord; }
+    lv_obj_t* createLvObj(lv_obj_t* parent) override;
+    void updateDisplay() override;
+    void onClick(MenuScreen* menuScreen) override;
+
+    CustomKeyAssignment getCurrentValue() const { return getValue(); }
+    void setCurrentValue(const CustomKeyAssignment& value) { setValue(value); updateDisplay(); }
+
+private:
+    std::function<CustomKeyAssignment()> getValue;
+    std::function<void(CustomKeyAssignment)> setValue;
 };
 
 // ナビゲーション型メニュー項目（別画面へ遷移）

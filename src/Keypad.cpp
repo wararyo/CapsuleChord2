@@ -14,6 +14,8 @@ void CapsuleChordKeypad::begin() {
     if (_initialized) return;  // 多重初期化を防止
 
     M5.Ex_I2C.begin(EXT_I2C_PORT, PORTA_SDA, PORTA_SCL);
+    pendingListenerCommands.reserve(8);
+    processingListenerCommands.reserve(8);
 
     // Step 1: 旧FW互換のbareリードでイベントキューをドレインする。
     // 新FWでpointer未設定のbareリードが非ゼロを返し続ける場合に備え、
@@ -129,6 +131,8 @@ uint8_t CapsuleChordKeypad::readKeyEventV3() {
 }
 
 void CapsuleChordKeypad::update() {
+    applyPendingListenerCommands();
+
     auto dispatch = [this](uint8_t val) {
         KeyEvent event(static_cast<char>(val));
 
@@ -226,6 +230,7 @@ void CapsuleChordKeypad::writeLedBrightnessV3(uint8_t keyCode, uint8_t brightnes
 }
 
 void CapsuleChordKeypad::addKeyEventListener(std::shared_ptr<KeyEventListener> listener) {
+    if (!listener) return;
     _listeners.push_back(listener);
 }
 
@@ -238,6 +243,38 @@ void CapsuleChordKeypad::removeKeyEventListener(std::shared_ptr<KeyEventListener
             ++it;
         }
     }
+}
+
+void CapsuleChordKeypad::queueAddKeyEventListener(std::shared_ptr<KeyEventListener> listener) {
+    if (!listener) return;
+    portENTER_CRITICAL(&listenerCommandMutex);
+    pendingListenerCommands.push_back({ListenerCommandType::Add, listener});
+    portEXIT_CRITICAL(&listenerCommandMutex);
+}
+
+void CapsuleChordKeypad::queueRemoveKeyEventListener(std::shared_ptr<KeyEventListener> listener) {
+    if (!listener) return;
+    portENTER_CRITICAL(&listenerCommandMutex);
+    pendingListenerCommands.push_back({ListenerCommandType::Remove, listener});
+    portEXIT_CRITICAL(&listenerCommandMutex);
+}
+
+void CapsuleChordKeypad::applyPendingListenerCommands() {
+    // pendingに積み、update()でprocessingと交換して処理する
+    portENTER_CRITICAL(&listenerCommandMutex);
+    processingListenerCommands.swap(pendingListenerCommands);
+    portEXIT_CRITICAL(&listenerCommandMutex);
+
+    for (const auto& command : processingListenerCommands) {
+        if (!command.listener) continue;
+        if (command.type == ListenerCommandType::Add) {
+            addKeyEventListener(command.listener);
+        } else {
+            removeKeyEventListener(command.listener);
+        }
+    }
+    // shared_ptrの参照解放はクリティカルセクション外で行う
+    processingListenerCommands.clear();
 }
 
 // LED Layer Management

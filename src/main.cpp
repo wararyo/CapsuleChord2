@@ -77,9 +77,6 @@ static bool btnMenuPressedForScaleChange = false;
 // PlayScreen表示状態の管理用
 bool shouldShowPlayScreen = true;
 
-// Initialize at setup()
-KeyMapBase *currentKeyMap;
-
 void update_battery() {
   if (playScreen.isShown()) {
     playScreen.updateBattery();
@@ -150,13 +147,10 @@ void setup() {
   Keypad.subscribeBrightnessSetting();
 
   // Keymap initialization
-  currentKeyMap = KeyMap::getAvailableKeyMaps()[0].get();
-  
+  KeyMap::setCurrentKeyMap(KeyMap::getAvailableKeyMaps()[0]);
+
   // Register keymap as the bottom-level event listener
-  std::shared_ptr<CapsuleChordKeypad::KeyEventListener> keyMapPtr(
-      currentKeyMap, [](CapsuleChordKeypad::KeyEventListener*){} // 所有権を持たないカスタムデリータ
-  );
-  Keypad.addKeyEventListener(keyMapPtr);
+  Keypad.addKeyEventListener(KeyMap::getCurrentKeyMap());
 
   // 3ボタン
   esp_pinMode(GPIO_NUM_BACK, GPIO_MODE_INPUT);
