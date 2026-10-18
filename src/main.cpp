@@ -53,6 +53,7 @@ static inline int esp_digitalRead(gpio_num_t pin) {
 #include "Widget/MenuScreen.h"
 #include "I2CHandler.h"
 #include "InactivityWatcher.h"
+#include "LoopStats.h"
 #include "LittleFSManager.h"
 #include "Output/UsbComposite.h"
 #include "Display/DisplayController.h"
@@ -382,7 +383,9 @@ void loop()
     currentApp->onUpdateGui();
   }
   playScreen.update();
+  MainLoopStats.beginLvgl();
   lv_task_handler();
+  MainLoopStats.endLvgl();
 
   // 設定の遅延保存（dirty flagがtrueのカテゴリのみ保存）
   static unsigned long lastSaveCheck = 0;
@@ -392,10 +395,12 @@ void loop()
   }
 
   // 5ms間隔でループ（vTaskDelayでIDLEタスクに実行機会を与える）
-  unsigned long elapsed = esp_millis() - lastLoopMillis;
-  if (elapsed < 5) {
-    vTaskDelay(pdMS_TO_TICKS(5 - elapsed));
-  }
+  // 処理が 5ms 以上かかった場合も最低 1 tick 待つ。待たないと優先度の低い IDLE1 が
+  // 実行されず、描画が重い状態が 5 秒続くと Task WDT が発生する。
+  unsigned long now = esp_millis();
+  unsigned long elapsed = now - lastLoopMillis;
+  MainLoopStats.recordLoop(now, elapsed);
+  vTaskDelay(elapsed < 5 ? pdMS_TO_TICKS(5 - elapsed) : 1);
   lastLoopMillis = esp_millis();
 }
 
