@@ -9,6 +9,7 @@
 void ChordPipeline::sendNote(bool isNoteOn, uint8_t note, uint8_t vel, uint8_t channel, NoteFilter *filter)
 {
   Lock lock(*this);
+  if (isUnregisteredFilter(filter, __func__)) return;
 
   // 次のフィルターのonNoteOnを呼び出す
   // ただし次のフィルターがコードを変更しないものである場合はさらに次も呼び出す
@@ -30,6 +31,7 @@ void ChordPipeline::sendNote(bool isNoteOn, uint8_t note, uint8_t vel, uint8_t c
 void ChordPipeline::sendNotes(bool isNoteOn, std::vector<uint8_t> notes, uint8_t vel, uint8_t channel, NoteFilter *filter)
 {
   Lock lock(*this);
+  if (isUnregisteredFilter(filter, __func__)) return;
 
   // 次のフィルターのonNoteOnを呼び出す
   // ただし次のフィルターがコードを変更しないものである場合はさらに次も呼び出す
@@ -85,6 +87,7 @@ void ChordPipeline::sendNoteOffRaw(uint8_t note, uint8_t vel, uint8_t channel)
 void ChordPipeline::playChord(Chord chord, ChordFilter *filter)
 {
   Lock lock(*this);
+  if (isUnregisteredFilter(filter, __func__)) return;
 
   // 次のフィルターのonChordOnを呼び出す
   // ただし次のフィルターがコードを変更しないものである場合はさらに次も呼び出す
@@ -108,6 +111,7 @@ void ChordPipeline::playChord(Chord chord, ChordFilter *filter)
 void ChordPipeline::stopChord(ChordFilter *filter)
 {
   Lock lock(*this);
+  if (isUnregisteredFilter(filter, __func__)) return;
 
   // 次のフィルターのonChordOffを呼び出す
   // ただし次のフィルターがコードを変更しないものである場合はさらに次も呼び出す

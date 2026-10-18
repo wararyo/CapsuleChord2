@@ -88,7 +88,9 @@ public:
         virtual void onChordOn(Chord chord) = 0;
         virtual void onChordOff() = 0;
     private:
+        friend class ChordPipeline;
         std::list<ChordFilter *>::iterator handler;
+        bool registered = false; // ChordPipelineのロック下でのみ読み書きする
     };
 
     // 鳴っているノートの変更を受け取ったり変更するためのフィルター
@@ -112,32 +114,44 @@ public:
         virtual void onNoteOn(uint8_t note, uint8_t vel, uint8_t channel) = 0;
         virtual void onNoteOff(uint8_t note, uint8_t vel, uint8_t channel) = 0;
     private:
+        friend class ChordPipeline;
         std::list<NoteFilter *>::iterator handler;
+        bool registered = false; // ChordPipelineのロック下でのみ読み書きする
     };
 
     void sendNote(bool isNoteOn, uint8_t note, uint8_t vel, uint8_t channel = 0, NoteFilter *filter = nullptr);
     void sendNotes(bool isNoteOn, std::vector<uint8_t> notes, uint8_t vel, uint8_t channel = 0, NoteFilter *filter = nullptr);
     void playChord(Chord chord, ChordFilter *filter = nullptr);
     void stopChord(ChordFilter *filter = nullptr);
+    // 登録済みのフィルターを再度登録しても何もしない
     void addChordFilter(ChordFilter *filter)
     {
         Lock lock(*this);
+        if (filter->registered) return;
         filter->setHandler(chordFilters.insert(chordFilters.end(), filter));
+        filter->registered = true;
     }
     void removeChordFilter(ChordFilter *filter)
     {
         Lock lock(*this);
-        chordFilters.remove(filter);
+        if (!filter->registered) return;
+        chordFilters.erase(filter->getHandler());
+        filter->registered = false;
     }
+    // 登録済みのフィルターを再度登録しても何もしない
     void addNoteFilter(NoteFilter *filter)
     {
         Lock lock(*this);
+        if (filter->registered) return;
         filter->setHandler(noteFilters.insert(noteFilters.end(), filter));
+        filter->registered = true;
     }
     void removeNoteFilter(NoteFilter *filter)
     {
         Lock lock(*this);
-        noteFilters.remove(filter);
+        if (!filter->registered) return;
+        noteFilters.erase(filter->getHandler());
+        filter->registered = false;
     }
 
 private:
@@ -149,6 +163,17 @@ private:
 
     void sendNoteOnRaw(uint8_t note, uint8_t vel, uint8_t channel);
     void sendNoteOffRaw(uint8_t note, uint8_t vel, uint8_t channel);
+
+    // 呼び出し元として指定されたフィルターが登録解除済みかどうか
+    // 登録解除済みのフィルターからは次のフィルターを辿れないため、呼び出しを破棄させる
+    // (例: removeListener後も走り切るonTickが、removeNoteFilter済みのフィルターを指定してsendNoteする)
+    template <typename Filter>
+    static bool isUnregisteredFilter(Filter *filter, const char *caller)
+    {
+        if (filter == nullptr || filter->registered) return false;
+        ESP_LOGW(LOG_TAG_CHORD_PIPELINE, "%s: called with an unregistered filter, dropped", caller);
+        return true;
+    }
 };
 
 extern ChordPipeline Pipeline;
