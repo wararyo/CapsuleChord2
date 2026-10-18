@@ -193,6 +193,8 @@ void setup() {
 void loop()
 {
   // M5.update()とKeypad.update()はI2Cスレッドで処理される
+  // Knock の配送はメインループに集約する。非表示時も無操作判定より先に処理する。
+  App.processPendingKnocks();
   
   unsigned long ms = esp_millis();
   BtnBack.setRawState(ms, esp_digitalRead(GPIO_NUM_BACK) == 0);

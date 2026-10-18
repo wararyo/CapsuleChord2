@@ -3,8 +3,9 @@
 #include <list>
 #include <vector>
 #include <memory>
+#include <algorithm>
+#include <atomic>
 #include <freertos/FreeRTOS.h>
-#include <freertos/semphr.h>
 #include <esp_log.h>
 #include "AppBase.h"
 #include "BuildConfig.h"
@@ -35,11 +36,6 @@ public:
     };
 
     AppManager() {
-        knockMutex = xSemaphoreCreateMutex();
-        if (!knockMutex) {
-            ESP_LOGE(LOG_TAG_APP_MANAGER, "FATAL: Failed to create knockMutex");
-        }
-
         // Initialize apps list with unique_ptr
         apps.push_back(std::make_unique<AppMetronome>());
         apps.push_back(std::make_unique<AppDrumPattern>());
@@ -55,16 +51,19 @@ public:
         apps.push_back(std::make_unique<AppAutoPlay>());
 #endif
 
+        // Knock 通知はアプリごとに 1 ビットで表すため、アプリ数は 32 個まで
+        if (apps.size() > kMaxKnockApps) {
+            ESP_LOGE(LOG_TAG_APP_MANAGER, "FATAL: Too many apps for knock mask");
+        }
+        configASSERT(apps.size() <= kMaxKnockApps);
+        for (const auto& app : apps)
+        {
+            if (knockAppCount < kMaxKnockApps) knockApps[knockAppCount++] = app.get();
+        }
+
         for (const auto& app : apps)
         {
             app->onCreate();
-        }
-    }
-
-    ~AppManager() {
-        if (knockMutex) {
-            vSemaphoreDelete(knockMutex);
-            knockMutex = nullptr;
         }
     }
 
@@ -85,44 +84,43 @@ public:
         return currentApp;
     }
 
-    // Knock system - アプリ間通信
+    // Knock のタスク境界:
+    // knock() だけが他タスクから呼べる。登録・解除・配送はメインループ専用。
+    // 今後リスナーを追加する際も、通知元タスクから onKnock() を直接呼ばないこと。
     void addKnockListener(KnockListener* listener) {
-        if (listener && knockMutex) {
-            xSemaphoreTake(knockMutex, portMAX_DELAY);
+        if (listener && std::find(knockListeners.begin(), knockListeners.end(), listener) == knockListeners.end()) {
             knockListeners.push_back(listener);
-            xSemaphoreGive(knockMutex);
         }
     }
 
     void removeKnockListener(KnockListener* listener) {
-        if (!knockMutex) return;
-        xSemaphoreTake(knockMutex, portMAX_DELAY);
-        for (auto it = knockListeners.begin(); it != knockListeners.end(); ++it) {
-            if (*it == listener) {
-                knockListeners.erase(it);
-                break;
+        knockListeners.erase(std::remove(knockListeners.begin(), knockListeners.end(), listener),
+            knockListeners.end());
+    }
+
+    // 演奏タスクを待たせないよう、アプリに対応するビットを立てるだけにする。
+    // 同じアプリの連続した通知は、次の配送までに 1 回へまとめられる。
+    void knock(AppBase* app) {
+        for (uint32_t i = 0; i < knockAppCount; ++i) {
+            if (knockApps[i] == app) {
+                pendingKnockMask.fetch_or(1u << i, std::memory_order_relaxed);
+                return;
             }
         }
-        xSemaphoreGive(knockMutex);
     }
 
-    void knock(AppBase* app) {
-        if (!app || !knockMutex) return;
-
-        xSemaphoreTake(knockMutex, portMAX_DELAY);
-        auto listenersCopy = knockListeners;
-        xSemaphoreGive(knockMutex);
-
-        for (auto listener : listenersCopy) {
-            listener->onKnock(app);
-        }
-    }
+    // メインループから呼び、溜まった Knock をリスナーへ配送する
+    void processPendingKnocks();
 
 private:
+    static constexpr uint32_t kMaxKnockApps = 32;
     AppBase *currentApp = nullptr;
     lv_obj_t *container = nullptr;
     std::vector<KnockListener*> knockListeners;
-    SemaphoreHandle_t knockMutex = nullptr;
+    // apps は起動時に生成され以後変化しないため、他タスクからも参照できる
+    AppBase* knockApps[kMaxKnockApps] = {};
+    uint32_t knockAppCount = 0;
+    std::atomic<uint32_t> pendingKnockMask{0};
 };
 
 extern AppManager App;

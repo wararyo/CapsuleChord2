@@ -3,8 +3,6 @@
 #include <lvgl.h>
 #include <vector>
 #include <set>
-#include <freertos/FreeRTOS.h>
-#include <freertos/semphr.h>
 #include "App/AppBase.h"
 #include "App/AppManager.h"
 
@@ -44,12 +42,8 @@ private:
     // メモリリークを防ぐためにdeleteする必要がある
     std::vector<AppIconClickEventData *> eventDatas;
     
-    // Use a set instead of a vector to automatically handle duplicates
-    // onKnock()はTempoTickタスクから、update()はメインループから呼ばれるため、
-    // これらの共有状態へのアクセスはknockListMutexで保護する
-    bool needsKnockAnimation = false;
+    // メインループ専用。同一フレーム内の Knock をアプリごとに集約する。
     std::set<AppBase*> appsToKnock;
-    SemaphoreHandle_t knockListMutex = nullptr;
 
     // アプリ起動の遅延実行用フラグ
     bool pendingAppLaunch = false;
