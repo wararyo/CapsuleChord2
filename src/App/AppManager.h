@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <atomic>
 #include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
 #include <esp_log.h>
 #include "AppBase.h"
 #include "BuildConfig.h"
@@ -87,13 +88,22 @@ public:
     // Knock のタスク境界:
     // knock() だけが他タスクから呼べる。登録・解除・配送はメインループ専用。
     // 今後リスナーを追加する際も、通知元タスクから onKnock() を直接呼ばないこと。
+
+    // 登録・解除・配送を許可するタスク（メインループ）を記録する。
+    // グローバル初期化時はスケジューラ起動前なので、setup() の先頭で呼ぶ。
+    void bindKnockOwnerTask() {
+        knockOwnerTask = xTaskGetCurrentTaskHandle();
+    }
+
     void addKnockListener(KnockListener* listener) {
+        assertKnockOwnerTask();
         if (listener && std::find(knockListeners.begin(), knockListeners.end(), listener) == knockListeners.end()) {
             knockListeners.push_back(listener);
         }
     }
 
     void removeKnockListener(KnockListener* listener) {
+        assertKnockOwnerTask();
         knockListeners.erase(std::remove(knockListeners.begin(), knockListeners.end(), listener),
             knockListeners.end());
     }
@@ -113,10 +123,16 @@ public:
     void processPendingKnocks();
 
 private:
+    // メインループ以外から登録・解除・配送を呼んだ場合に停止させる
+    void assertKnockOwnerTask() const {
+        configASSERT(knockOwnerTask != nullptr && knockOwnerTask == xTaskGetCurrentTaskHandle());
+    }
+
     static constexpr uint32_t kMaxKnockApps = 32;
     AppBase *currentApp = nullptr;
     lv_obj_t *container = nullptr;
     std::vector<KnockListener*> knockListeners;
+    TaskHandle_t knockOwnerTask = nullptr;
     // apps は起動時に生成され以後変化しないため、他タスクからも参照できる
     AppBase* knockApps[kMaxKnockApps] = {};
     uint32_t knockAppCount = 0;

@@ -116,6 +116,9 @@ void updatePlayScreenVisibility() {
 }
 
 void setup() {
+  // Knock の登録・解除・配送はこのタスク（setup/loop を実行するメインタスク）に限定する
+  App.bindKnockOwnerTask();
+
   M5.begin();
   
   M5.Display.setRotation(M5.Display.getRotation() ^ 1);

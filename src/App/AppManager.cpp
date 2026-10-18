@@ -3,6 +3,7 @@
 
 void AppManager::processPendingKnocks()
 {
+    assertKnockOwnerTask();
     uint32_t mask = pendingKnockMask.exchange(0, std::memory_order_relaxed);
     if (mask == 0) return;
     const auto listeners = knockListeners;
