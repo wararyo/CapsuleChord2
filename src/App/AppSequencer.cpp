@@ -1,5 +1,6 @@
 #include <App/AppSequencer.h>
 #include <App/AppManager.h>
+#include <algorithm>
 #include <M5Unified.h>
 #include <Output/MidiOutput.h>
 #include "ChordPipeline.h"
@@ -215,17 +216,17 @@ void AppSequencer::onDeactivate()
     // 入力で発音中かつ出力で発音中でないノートを発音する
     for (uint8_t n : input)
     {
-        if (std::find(output.begin(), output.end(), n) == output.end())
+        if (std::none_of(output.begin(), output.end(), [n](const OutputNote &o) { return o.channel == 0 && o.noteNo == n; }))
         {
             Pipeline.sendNote(true, n, 120, 0x0, &noteFilter);
         }
     }
-    // 入力で発音中でなく出力で発音中のノートをオフにする
-    for (uint8_t n : output)
+    // 入力で発音中でなく出力で発音中のノートをオフにする (入力はチャンネル0のみ)
+    for (const OutputNote &o : output)
     {
-        if (std::find(input.begin(), input.end(), n) == input.end())
+        if (o.channel != 0 || std::find(input.begin(), input.end(), o.noteNo) == input.end())
         {
-            Pipeline.sendNote(false, n, 0, 0x0, &noteFilter);
+            Pipeline.sendNote(false, o.noteNo, 0, o.channel, &noteFilter);
         }
     }
     Pipeline.removeNoteFilter(&noteFilter);
@@ -360,22 +361,51 @@ bool AppSequencer::isTransitionPoint(musical_time_t previousTime, musical_time_t
 
 void AppSequencer::processItem(const AppSequencer::SequenceItem &item)
 {
-    uint_fast8_t data1 = item.data1;
-    uint_fast8_t index = data1 % 12;
-    int_fast8_t octave = data1 / 12 - 5;
-    uint8_t noteNo = inputProcessed[index] + octave * 12;
+    const uint8_t channel = item.status & 0x0F;
+    // このシーケンス上のノートで発音中のもの
+    auto playing = std::find_if(output.begin(), output.end(), [&](const OutputNote &o) {
+        return o.channel == channel && o.sequenceNote == item.data1;
+    });
 
     if ((item.status & 0xF0) == 0x90)
     {
-        Pipeline.sendNote(true, noteNo, item.data2, item.status & 0x0F, &noteFilter);
-        output.push_back(noteNo);
+        uint_fast8_t data1 = item.data1;
+        uint_fast8_t index = data1 % 12;
+        int_fast8_t octave = data1 / 12 - 5;
+        uint8_t noteNo = inputProcessed[index] + octave * 12;
+
+        if (playing == output.end())
+        {
+            output.push_back({channel, item.data1, noteNo});
+        }
+        else if (playing->noteNo != noteNo)
+        {
+            // ノートオフを挟まずに再発音するまでの間にコードが切り替わっていた場合は、前のノートを止める
+            const uint8_t previousNoteNo = playing->noteNo;
+            playing->noteNo = noteNo;
+            sendOutputNoteOff(channel, previousNoteNo, 0);
+        }
+        Pipeline.sendNote(true, noteNo, item.data2, channel, &noteFilter);
         tempoCallbacks.shouldKnock = true;
     }
     else if ((item.status & 0xF0) == 0x80)
     {
-        Pipeline.sendNote(false, noteNo, item.data2, item.status & 0x0F, &noteFilter);
-        output.remove(noteNo);
+        // ノートオン以降にコードが切り替わっている場合があるため、inputProcessedから計算し直さずに実際に発音したノートを止める
+        if (playing == output.end()) return;
+        const uint8_t noteNo = playing->noteNo;
+        output.erase(playing);
+        sendOutputNoteOff(channel, noteNo, item.data2);
     }
+}
+
+// 出力中のノートをオフにする
+// 別のシーケンス上のノートが同じノート番号を発音中の場合は、そちらが途切れないようにオフにしない
+void AppSequencer::sendOutputNoteOff(uint8_t channel, uint8_t noteNo, uint8_t vel)
+{
+    const bool stillPlaying = std::any_of(output.begin(), output.end(), [&](const OutputNote &o) {
+        return o.channel == channel && o.noteNo == noteNo;
+    });
+    if (!stillPlaying) Pipeline.sendNote(false, noteNo, vel, channel, &noteFilter);
 }
 
 void AppSequencer::TempoCallbacks::onTick(const TempoController::TickInfo &info)
@@ -395,9 +425,9 @@ void AppSequencer::TempoCallbacks::onTick(const TempoController::TickInfo &info)
         // 入力から発音中のノートがなくなったら全ての出力中のノートをオフにする
         if (app->input.empty() && !app->output.empty())
         {
-            for (uint8_t n : app->output)
+            for (const OutputNote &o : app->output)
             {
-                Pipeline.sendNote(false, n, 0, 0x0, &app->noteFilter);
+                Pipeline.sendNote(false, o.noteNo, 0, o.channel, &app->noteFilter);
             }
             app->output.clear();
         }
