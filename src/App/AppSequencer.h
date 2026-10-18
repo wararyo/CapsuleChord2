@@ -89,7 +89,6 @@ private:
     std::list<uint8_t> input; // 入力に来た発音中のノート (直前のTICK_TIMING_FULLなtick時)
     uint8_t inputProcessed[12] = {60};
     std::list<uint8_t> output; // 出力した発音中のノート
-    portMUX_TYPE mutex = portMUX_INITIALIZER_UNLOCKED;
     std::shared_ptr<Sequence> currentSequence;
 
     void updateUi();

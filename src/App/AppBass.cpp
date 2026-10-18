@@ -219,6 +219,9 @@ void AppBass::processItem(const AppBass::SequenceItem &item)
 
 void AppBass::TempoCallbacks::onTick(const TempoController::TickInfo &info)
 {
+    // input/inputProcessed/output はコードフィルターのコールバック(I2Cタスク)からも触るため、
+    // パイプラインのロック下で扱う
+    ChordPipeline::Lock lock(Pipeline);
     const musical_time_t timeInBar = info.timeInBar;
     const musical_time_t bl = Tempo.barLength();
     if (!app->isPlayingNotes())

@@ -208,6 +208,8 @@ void AppSequencer::onActivate()
 
 void AppSequencer::onDeactivate()
 {
+    // inputBuffer/input/output はフィルターのコールバックやonTickからも触るため、パイプラインのロック下で扱う
+    ChordPipeline::Lock lock(Pipeline);
     isActive = false;
     Tempo.removeListener(&tempoCallbacks);
     // 入力で発音中かつ出力で発音中でないノートを発音する
@@ -378,6 +380,9 @@ void AppSequencer::processItem(const AppSequencer::SequenceItem &item)
 
 void AppSequencer::TempoCallbacks::onTick(const TempoController::TickInfo &info)
 {
+    // inputBuffer はフィルターのコールバック(I2Cタスク)から、input/output はonDeactivate(メインループ)からも触るため、
+    // パイプラインのロック下で扱う
+    ChordPipeline::Lock lock(Pipeline);
     const musical_time_t timeInBar = info.timeInBar;
     const musical_time_t bl = Tempo.barLength();
     // コードを切り替えるときに音が途切れないようにするために、Transition Pointsで入力を更新する
@@ -441,22 +446,27 @@ void AppSequencer::TempoCallbacks::onTick(const TempoController::TickInfo &info)
 
 // パターン設定用メソッドの実装
 // 音色は Settings.output.timbreId で別途管理されるため、ここではシーケンスのみ切り替える
+// currentSequence はonTick(TempoTickタスク)から参照されるため、パイプラインのロック下で差し替える
 void AppSequencer::setGuitarPattern()
 {
+    ChordPipeline::Lock lock(Pipeline);
     currentSequence = sequenceGuitar;
 }
 
 void AppSequencer::setPianoPattern()
 {
+    ChordPipeline::Lock lock(Pipeline);
     currentSequence = sequencePiano;
 }
 
 void AppSequencer::setEPianoPattern()
 {
+    ChordPipeline::Lock lock(Pipeline);
     currentSequence = sequenceSynth;
 }
 
 void AppSequencer::setSuperSawPattern()
 {
+    ChordPipeline::Lock lock(Pipeline);
     currentSequence = sequenceSynth;
 }
