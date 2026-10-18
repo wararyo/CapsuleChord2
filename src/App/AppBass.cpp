@@ -1,5 +1,6 @@
 #include <App/AppBass.h>
 #include <App/AppManager.h>
+#include <algorithm>
 #include <M5Unified.h>
 #include "ChordPipeline.h"
 
@@ -27,9 +28,14 @@ void AppBass::onActivate()
 
 void AppBass::onDeactivate()
 {
+    // input/output はコードフィルターのコールバックやonTickからも触るため、パイプラインのロック下で扱う
+    ChordPipeline::Lock lock(Pipeline);
     isActive = false;
     Tempo.removeListener(&tempoCallbacks);
     Pipeline.removeChordFilter(&chordFilter);
+    // 発音中のノートはこの後ノートオフされる機会がないため、ここで止める
+    stopAllOutputNotes();
+    input.clear();
 }
 
 void AppBass::onShowGui(lv_obj_t *container)
@@ -45,20 +51,12 @@ void AppBass::onShowGui(lv_obj_t *container)
     lv_obj_center(switchButton);
     lv_obj_add_event_cb(switchButton, [](lv_event_t *e) {
         auto *self = (AppBass *)lv_event_get_user_data(e);
-        // ここでisActiveを反転させる
-        self->isActive = !self->isActive;
-        // 以降のisActiveの値は変更後の値
-        if (self->isActive)
-        {
-            self->previousTime = Tempo.timeInBar();
-            Tempo.addListener(&self->tempoCallbacks);
-            Pipeline.addChordFilter(&self->chordFilter);
-        }
-        else
-        {
-            Tempo.removeListener(&self->tempoCallbacks);
-            Pipeline.removeChordFilter(&self->chordFilter);
-        }
+
+        // 変更後のisActiveに応じた処理
+        bool isActive = !self->isActive;
+        if (isActive) self->onActivate();
+        else self->onDeactivate();
+
         self->updateUi();
     }, LV_EVENT_CLICKED, (void *)this);
 
@@ -79,7 +77,11 @@ void AppBass::ChordFilter::onChordOn(Chord chord)
 {
     chord.octave = 3;
     chord.inversion = 0;
-    
+
+    // onChordOff is not called when the next chord is pressed without releasing the previous one,
+    // so discard the previous chord's notes here
+    app->input.clear();
+
     // Handle slash chord if bass note is specified
     if (chord.bass != Chord::BASS_DEFAULT) {
         // Get the chord notes before making any changes
@@ -98,7 +100,14 @@ void AppBass::ChordFilter::onChordOn(Chord chord)
                 break;
             }
         }
-        
+
+        // If bass note is part of the chord, use the inverted chord notes as they are
+        if (bassNoteInChord) {
+            for (uint8_t note : chord.toMidiNoteNumbers()) {
+                app->input.push_back(note);
+            }
+        }
+
         // If bass note is not part of the chord, ensure all chord notes are higher than the bass note
         if (!bassNoteInChord) {
             // Reset chord settings to calculate properly
@@ -150,10 +159,7 @@ void AppBass::ChordFilter::onChordOn(Chord chord)
 void AppBass::ChordFilter::onChordOff()
 {
     app->input.clear();
-    for (uint8_t note : app->output)
-    {
-        Pipeline.sendNote(false, note, 0, 0x01);
-    }
+    app->stopAllOutputNotes();
 }
 
 const struct AppBass::SequenceItem sequence[] = {
@@ -199,22 +205,61 @@ void AppBass::updatePlayingNotes()
 
 void AppBass::processItem(const AppBass::SequenceItem &item)
 {
-    uint_fast8_t data1 = item.data1;
-    uint_fast8_t index = data1 % 12;
-    int_fast8_t octave = data1 / 12 - 5;
-    uint8_t noteNo = inputProcessed[index] + octave * 12;
+    const uint8_t channel = item.status & 0x0F;
+    // このシーケンス上のノートで発音中のもの
+    auto playing = std::find_if(output.begin(), output.end(), [&](const OutputNote &o) {
+        return o.channel == channel && o.sequenceNote == item.data1;
+    });
 
     if ((item.status & 0xF0) == 0x90)
     {
-        Pipeline.sendNote(true, noteNo, item.data2, item.status & 0x0F);
-        output.push_back(noteNo);
+        uint_fast8_t data1 = item.data1;
+        uint_fast8_t index = data1 % 12;
+        int_fast8_t octave = data1 / 12 - 5;
+        uint8_t noteNo = inputProcessed[index] + octave * 12;
+
+        if (playing == output.end())
+        {
+            output.push_back({channel, item.data1, noteNo});
+        }
+        else if (playing->noteNo != noteNo)
+        {
+            // ノートオフを挟まずに再発音するまでの間にコードが切り替わっていた場合は、前のノートを止める
+            const uint8_t previousNoteNo = playing->noteNo;
+            playing->noteNo = noteNo;
+            sendOutputNoteOff(channel, previousNoteNo, 0);
+        }
+        Pipeline.sendNote(true, noteNo, item.data2, channel);
         tempoCallbacks.shouldKnock = true;
     }
     else if ((item.status & 0xF0) == 0x80)
     {
-        Pipeline.sendNote(false, noteNo, item.data2, item.status & 0x0F);
-        output.remove(noteNo);
+        // ノートオン以降にコードが切り替わっている場合があるため、inputProcessedから計算し直さずに実際に発音したノートを止める
+        if (playing == output.end()) return;
+        const uint8_t noteNo = playing->noteNo;
+        output.erase(playing);
+        sendOutputNoteOff(channel, noteNo, item.data2);
     }
+}
+
+// 出力中のノートをオフにする
+// 別のシーケンス上のノートが同じノート番号を発音中の場合は、そちらが途切れないようにオフにしない
+void AppBass::sendOutputNoteOff(uint8_t channel, uint8_t noteNo, uint8_t vel)
+{
+    const bool stillPlaying = std::any_of(output.begin(), output.end(), [&](const OutputNote &o) {
+        return o.channel == channel && o.noteNo == noteNo;
+    });
+    if (!stillPlaying) Pipeline.sendNote(false, noteNo, vel, channel);
+}
+
+// 出力中のノートをすべてオフにする
+void AppBass::stopAllOutputNotes()
+{
+    for (const OutputNote &o : output)
+    {
+        Pipeline.sendNote(false, o.noteNo, 0, o.channel);
+    }
+    output.clear();
 }
 
 void AppBass::TempoCallbacks::onTick(const TempoController::TickInfo &info)
