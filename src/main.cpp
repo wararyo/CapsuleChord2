@@ -53,6 +53,7 @@ static inline int esp_digitalRead(gpio_num_t pin) {
 #include "Widget/MenuScreen.h"
 #include "I2CHandler.h"
 #include "InactivityWatcher.h"
+#include "LoopStats.h"
 #include "LittleFSManager.h"
 #include "Output/UsbComposite.h"
 #include "Display/DisplayController.h"
@@ -113,6 +114,9 @@ void updatePlayScreenVisibility() {
 }
 
 void setup() {
+  // Knock の登録・解除・配送はこのタスク（setup/loop を実行するメインタスク）に限定する
+  App.bindKnockOwnerTask();
+
   M5.begin();
   
   M5.Display.setRotation(M5.Display.getRotation() ^ 1);
@@ -187,6 +191,8 @@ void setup() {
 void loop()
 {
   // M5.update()とKeypad.update()はI2Cスレッドで処理される
+  // Knock の配送はメインループに集約する。非表示時も無操作判定より先に処理する。
+  App.processPendingKnocks();
   
   unsigned long ms = esp_millis();
   BtnBack.setRawState(ms, esp_digitalRead(GPIO_NUM_BACK) == 0);
@@ -371,7 +377,9 @@ void loop()
     currentApp->onUpdateGui();
   }
   playScreen.update();
+  MainLoopStats.beginLvgl();
   lv_task_handler();
+  MainLoopStats.endLvgl();
 
   // 設定の遅延保存（dirty flagがtrueのカテゴリのみ保存）
   static unsigned long lastSaveCheck = 0;
@@ -381,10 +389,12 @@ void loop()
   }
 
   // 5ms間隔でループ（vTaskDelayでIDLEタスクに実行機会を与える）
-  unsigned long elapsed = esp_millis() - lastLoopMillis;
-  if (elapsed < 5) {
-    vTaskDelay(pdMS_TO_TICKS(5 - elapsed));
-  }
+  // 処理が 5ms 以上かかった場合も最低 1 tick 待つ。待たないと優先度の低い IDLE1 が
+  // 実行されず、描画が重い状態が 5 秒続くと Task WDT が発生する。
+  unsigned long now = esp_millis();
+  unsigned long elapsed = now - lastLoopMillis;
+  MainLoopStats.recordLoop(now, elapsed);
+  vTaskDelay(elapsed < 5 ? pdMS_TO_TICKS(5 - elapsed) : 1);
   lastLoopMillis = esp_millis();
 }
 

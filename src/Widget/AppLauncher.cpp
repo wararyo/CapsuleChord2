@@ -8,11 +8,11 @@ static inline unsigned long esp_millis() {
     return (unsigned long)(esp_timer_get_time() / 1000ULL);
 }
 
-// Constructor - Initialize and register as knock listener
+// リスナー登録は画面表示時に行う。
 AppLauncher::AppLauncher() {
 }
 
-// Destructor - Clean up and unregister as knock listener
+// グローバルインスタンスとして使用。画面を閉じる処理とリスナー解除は del() が行う。
 AppLauncher::~AppLauncher() {
     // Clean up any existing event data
     for (AppIconClickEventData *eventData : eventDatas) {
@@ -139,7 +139,9 @@ void AppLauncher::del()
 {
     if (!isShown) return;
 
+    // 配送も解除もメインループで実行するため、解除後の in-flight 通知はない。
     App.removeKnockListener(this);
+    appsToKnock.clear();
 
     lv_obj_del(frame);
     frame = nullptr;
@@ -166,10 +168,10 @@ lv_obj_t* AppLauncher::findAppButton(AppBase* app) {
     return nullptr;
 }
 
-// Handle knock event from an app
+// onKnock() は AppManager::processPendingKnocks() がメインループからのみ呼ぶ。
+// isShown と appsToKnock も同じタスクで扱うため、個別の mutex は不要。
 void AppLauncher::onKnock(AppBase* app) {
     if (isShown && app) {
-        needsKnockAnimation = true;
         appsToKnock.insert(app);
     }
 }
@@ -185,15 +187,12 @@ void AppLauncher::update()
         return;  // del()でUIが削除されたので、これ以降の処理は不要
     }
 
-    // ノック待機中のアプリがある場合、アニメーションを実行
-    if (needsKnockAnimation && !appsToKnock.empty()) {
-        for (AppBase* app : appsToKnock) {
-            lv_obj_t* button = findAppButton(app);
-            if (button) {
-                lv_appbutton_knock(button);
-            }
+    // 同一フレーム内の重複通知をまとめてアニメーションする。
+    for (AppBase* app : appsToKnock) {
+        lv_obj_t* button = findAppButton(app);
+        if (button) {
+            lv_appbutton_knock(button);
         }
-        appsToKnock.clear();
-        needsKnockAnimation = false;
     }
+    appsToKnock.clear();
 }

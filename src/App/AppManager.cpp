@@ -1,6 +1,23 @@
 #include "AppManager.h"
 #include "LvglWrapper.h"
 
+void AppManager::processPendingKnocks()
+{
+    assertKnockOwnerTask();
+    uint32_t mask = pendingKnockMask.exchange(0, std::memory_order_relaxed);
+    if (mask == 0) return;
+    const auto listeners = knockListeners;
+    for (; mask != 0; mask &= mask - 1) {
+        AppBase* app = knockApps[__builtin_ctz(mask)];
+        for (KnockListener* listener : listeners) {
+            // コールバック内で解除されたリスナーには配送しない
+            if (std::find(knockListeners.begin(), knockListeners.end(), listener) != knockListeners.end()) {
+                listener->onKnock(app);
+            }
+        }
+    }
+}
+
 void AppManager::launchApp(AppBase *app)
 {
     if (container == nullptr)

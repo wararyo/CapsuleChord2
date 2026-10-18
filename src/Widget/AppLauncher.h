@@ -42,8 +42,7 @@ private:
     // メモリリークを防ぐためにdeleteする必要がある
     std::vector<AppIconClickEventData *> eventDatas;
     
-    // Use a set instead of a vector to automatically handle duplicates
-    bool needsKnockAnimation = false;
+    // メインループ専用。同一フレーム内の Knock をアプリごとに集約する。
     std::set<AppBase*> appsToKnock;
 
     // アプリ起動の遅延実行用フラグ
