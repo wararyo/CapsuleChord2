@@ -8,6 +8,9 @@
 // 次のフィルターが存在しない場合は、出力に送る
 void ChordPipeline::sendNote(bool isNoteOn, uint8_t note, uint8_t vel, uint8_t channel, NoteFilter *filter)
 {
+  Lock lock(*this);
+  if (isUnregisteredFilter(filter, __func__)) return;
+
   // 次のフィルターのonNoteOnを呼び出す
   // ただし次のフィルターがコードを変更しないものである場合はさらに次も呼び出す
   for (auto itr = filter == nullptr ? noteFilters.begin() : std::next(filter->getHandler()), e = noteFilters.end(); itr != e; ++itr) {
@@ -27,6 +30,9 @@ void ChordPipeline::sendNote(bool isNoteOn, uint8_t note, uint8_t vel, uint8_t c
 // 次のフィルターが存在しない場合は、出力に送る
 void ChordPipeline::sendNotes(bool isNoteOn, std::vector<uint8_t> notes, uint8_t vel, uint8_t channel, NoteFilter *filter)
 {
+  Lock lock(*this);
+  if (isUnregisteredFilter(filter, __func__)) return;
+
   // 次のフィルターのonNoteOnを呼び出す
   // ただし次のフィルターがコードを変更しないものである場合はさらに次も呼び出す
   for (auto itr = filter == nullptr ? noteFilters.begin() : std::next(filter->getHandler()), e = noteFilters.end(); itr != e; ++itr)
@@ -80,6 +86,9 @@ void ChordPipeline::sendNoteOffRaw(uint8_t note, uint8_t vel, uint8_t channel)
 // 次のフィルターが存在しない場合は、ノートに変換する
 void ChordPipeline::playChord(Chord chord, ChordFilter *filter)
 {
+  Lock lock(*this);
+  if (isUnregisteredFilter(filter, __func__)) return;
+
   // 次のフィルターのonChordOnを呼び出す
   // ただし次のフィルターがコードを変更しないものである場合はさらに次も呼び出す
   for (auto itr = filter == nullptr ? chordFilters.begin() : std::next(filter->getHandler()), e = chordFilters.end(); itr != e; ++itr) {
@@ -101,6 +110,9 @@ void ChordPipeline::playChord(Chord chord, ChordFilter *filter)
 // 次のフィルターが存在しない場合はコードを停止する
 void ChordPipeline::stopChord(ChordFilter *filter)
 {
+  Lock lock(*this);
+  if (isUnregisteredFilter(filter, __func__)) return;
+
   // 次のフィルターのonChordOffを呼び出す
   // ただし次のフィルターがコードを変更しないものである場合はさらに次も呼び出す
   for (auto itr = filter == nullptr ? chordFilters.begin() : std::next(filter->getHandler()), e = chordFilters.end(); itr != e; ++itr) {

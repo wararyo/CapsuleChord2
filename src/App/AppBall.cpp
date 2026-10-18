@@ -314,18 +314,27 @@ void AppBall::onUpdateGui()
 // Play all currently active notes when a collision occurs
 void AppBall::playActiveNotes()
 {
-    // Skip if there are no active notes
-    if (activeNotes.empty()) {
-        return;
+    // activeNotes 等はノートフィルターのコールバック(I2Cタスク等)から変更されるため、
+    // パイプラインのロック下でコピーしてから使う
+    std::set<uint8_t> notes;
+    uint8_t channel;
+    uint8_t velocity;
+    {
+        ChordPipeline::Lock lock(Pipeline);
+        // Skip if there are no active notes
+        if (activeNotes.empty()) {
+            return;
+        }
+        notes = activeNotes;
+        // Get the first channel, or default to channel 0
+        channel = activeChannels.empty() ? 0 : *activeChannels.begin();
+        velocity = lastVelocity;
     }
 
-    // Get the first channel, or default to channel 0
-    uint8_t channel = activeChannels.empty() ? 0 : *activeChannels.begin();
-
     // Play each active note
-    for (uint8_t note : activeNotes) {
+    for (uint8_t note : notes) {
         // Send note on with the stored velocity
-        Pipeline.sendNote(true, note, lastVelocity, channel);
+        Pipeline.sendNote(true, note, velocity, channel);
     }
 }
 
@@ -336,12 +345,20 @@ void AppBall::updateNotesDisplay()
         return;
     }
     
+    // activeNotes はノートフィルターのコールバックから変更されるため、ロック下でコピーしてから表示する
+    // (LVGL操作はロックの外で行う)
+    std::set<uint8_t> notes;
+    {
+        ChordPipeline::Lock lock(Pipeline);
+        notes = activeNotes;
+    }
+
     char notesStr[64] = "Notes: ";
     size_t offset = 7;  // Start after "Notes: "
     const size_t bufSize = sizeof(notesStr);
 
     int count = 0;
-    for (uint8_t note : activeNotes) {
+    for (uint8_t note : notes) {
         if (count < 5 && offset < bufSize - 1) {  // Limit to showing 5 notes to avoid overflow
             int written = snprintf(notesStr + offset, bufSize - offset, "%d ", note);
             if (written > 0) {
@@ -354,7 +371,7 @@ void AppBall::updateNotesDisplay()
         }
     }
 
-    if (activeNotes.empty() && offset < bufSize - 5) {
+    if (notes.empty() && offset < bufSize - 5) {
         snprintf(notesStr + offset, bufSize - offset, "None");
     }
     
