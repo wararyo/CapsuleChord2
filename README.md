@@ -109,14 +109,14 @@ PC 上で動くユニットテストが用意されています。
 | [ArduinoJson](https://arduinojson.org/) `^6.21.0` | 設定ファイルの JSON 解析 |
 | [CapsuleSampler](https://github.com/wararyo/CapsuleSampler) | オーディオ合成エンジン |
 
-ESP-IDF 側のコンポーネント設定は `sdkconfig.defaults` および `sdkconfig.m5stack-cores3` にまとまっています。
+ESP-IDF 側のコンポーネント設定は `sdkconfig.defaults` にまとまっています。env ごとの `sdkconfig.<env>`（`sdkconfig.m5stack-cores3` など）はビルド時に生成されるため、Git では管理していません。`sdkconfig.defaults` を変更した場合は、生成済みの `sdkconfig.<env>` を削除してから再ビルドしてください。
 
 ## プロジェクト構成
 
 ```
 CapsuleChord2/
 ├── platformio.ini          # ビルド環境定義
-├── sdkconfig.*             # ESP-IDF の設定
+├── sdkconfig.defaults      # ESP-IDF の設定
 ├── data/                   # LittleFS に書き込む音色データ
 │   ├── piano/  aguitar/  ebass/  epiano/  supersaw/  popdrumkit/
 ├── include/                # ヘッダ用ディレクトリ

@@ -5,6 +5,11 @@
 .vscode/ipch
 managed_components
 
+# ESP-IDF の設定は sdkconfig.defaults で管理し、sdkconfig.<env> はビルド時に生成する
+sdkconfig
+sdkconfig.*
+!sdkconfig.defaults
+
 # addr2line 用に退避した elf (ローカル保管のみ。tools/save_elf.py で生成)
 firmware_backup/*.elf
 
