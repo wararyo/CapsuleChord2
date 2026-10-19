@@ -1,6 +1,7 @@
 #include "AppBall.h"
 #include "AppManager.h"
 #include "ChordPipeline.h"
+#include "I2CHandler.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
@@ -35,7 +36,7 @@ void AppBall::onDeactivate()
 void AppBall::updateImuData()
 {
     // Check if IMU is available and updated
-    if (M5.Imu.update())
+    if (I2C.isImuReady() && M5.Imu.update())
     {
         // Get IMU data
         auto data = M5.Imu.getImuData();
@@ -203,6 +204,9 @@ void AppBall::onPhysicsTimer(lv_timer_t *timer)
 void AppBall::onShowGui(lv_obj_t *container)
 {
     isActive = true;
+
+    // IMU は起動時に初期化していないので、I2C スレッドで初期化してもらう
+    I2C.requestImuBegin();
     
     // Register as a note filter to monitor MIDI input
     Pipeline.addNoteFilter(this);

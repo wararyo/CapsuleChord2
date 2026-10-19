@@ -123,6 +123,13 @@ void I2CHandler::i2cLoop() {
         // タッチデータを更新
         updateTouchData();
 
+        // IMU の遅延初期化（BMI270 は設定ファイルの転送があり数百 ms かかる）
+        if (imuBeginRequested.exchange(false) && !imuReady.load()) {
+            M5.Imu.begin(&M5.In_I2C, M5.getBoard());
+            imuReady.store(M5.Imu.isEnabled());
+            if (!imuReady.load()) ESP_LOGW(LOG_TAG, "IMU initialization failed");
+        }
+
         unsigned long endTime = esp_millis();
         unsigned long elapsedTime = endTime - startTime;
 

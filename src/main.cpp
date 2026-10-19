@@ -124,7 +124,13 @@ void setup() {
 
   BootProf.begin();
 
-  M5.begin();
+  auto m5cfg = M5.config();
+  m5cfg.internal_imu = false;  // IMU は AppBall だけが使うので、表示時に I2C タスクで初期化する
+  m5cfg.internal_rtc = false;  // 時刻は使わない
+  m5cfg.internal_mic = false;
+  m5cfg.internal_spk = false;  // I2S とアンプは OutputInternal が自前で初期化する
+  m5cfg.external_display_value = 0;  // Port A はキーパッドが使うので外部ディスプレイを探しに行かない
+  M5.begin(m5cfg);
   BootProf.mark("M5.begin");
   
   M5.Display.setRotation(M5.Display.getRotation() ^ 1);

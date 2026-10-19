@@ -42,6 +42,17 @@ public:
      */
     void requestShutdown() { shutdownRequested.store(true); }
 
+    /**
+     * IMU の初期化を I2C スレッドに要求する（M5.begin() では IMU を初期化しない）。
+     * 初期化済みなら何もしない。完了は isImuReady() で確認する。
+     */
+    void requestImuBegin() { imuBeginRequested.store(true); }
+
+    /**
+     * IMU が初期化済みで M5.Imu を使えるか
+     */
+    bool isImuReady() const { return imuReady.load(); }
+
 private:
     static void i2cTaskLoop(void* parameter);
     void i2cLoop();
@@ -53,6 +64,8 @@ private:
     bool resetTouchDataRequested = false;
     volatile bool taskRunning = false;  // タスク停止フラグ
     std::atomic<bool> shutdownRequested{false};
+    std::atomic<bool> imuBeginRequested{false};
+    std::atomic<bool> imuReady{false};
 };
 
 extern I2CHandler I2C;
