@@ -115,6 +115,10 @@ void updatePlayScreenVisibility() {
 }
 
 void setup() {
+#if CAPSULECHORD_ENABLE_INFO_LOG
+  esp_log_level_set("*", ESP_LOG_INFO);
+#endif
+
   // Knock の登録・解除・配送はこのタスク（setup/loop を実行するメインタスク）に限定する
   App.bindKnockOwnerTask();
 

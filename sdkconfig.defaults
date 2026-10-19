@@ -100,3 +100,14 @@ CONFIG_ESP_COREDUMP_ENABLE_TO_FLASH=y
 CONFIG_ESP_COREDUMP_DATA_FORMAT_ELF=y
 CONFIG_ESP_COREDUMP_CHECKSUM_CRC32=y
 CONFIG_ESP_COREDUMP_CHECK_BOOT=y
+
+# Boot time optimization (docs/boot-time-optimization-plan.md, phase 1)
+# Skip the PSRAM memory test (about 1.7s for 8MB)
+CONFIG_SPIRAM_MEMTEST=n
+# Skip app image validation only on power-on (validation still runs after a reset)
+CONFIG_BOOTLOADER_SKIP_VALIDATE_ON_POWER_ON=y
+# UART log output blocks, so keep boot logs quiet.
+# The maximum level stays INFO so that debug builds can raise it with esp_log_level_set().
+CONFIG_BOOTLOADER_LOG_LEVEL_WARN=y
+CONFIG_LOG_DEFAULT_LEVEL_WARN=y
+CONFIG_LOG_MAXIMUM_LEVEL_INFO=y
