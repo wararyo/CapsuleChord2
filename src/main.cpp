@@ -54,6 +54,7 @@ static inline int esp_digitalRead(gpio_num_t pin) {
 #include "I2CHandler.h"
 #include "InactivityWatcher.h"
 #include "LoopStats.h"
+#include "BootProfile.h"
 #include "LittleFSManager.h"
 #include "Output/UsbComposite.h"
 #include "Display/DisplayController.h"
@@ -114,34 +115,52 @@ void updatePlayScreenVisibility() {
 }
 
 void setup() {
+#if CAPSULECHORD_ENABLE_INFO_LOG
+  esp_log_level_set("*", ESP_LOG_INFO);
+#endif
+
   // Knock の登録・解除・配送はこのタスク（setup/loop を実行するメインタスク）に限定する
   App.bindKnockOwnerTask();
 
-  M5.begin();
+  BootProf.begin();
+
+  auto m5cfg = M5.config();
+  m5cfg.internal_imu = false;  // IMU は AppBall だけが使うので、表示時に I2C タスクで初期化する
+  m5cfg.internal_rtc = false;  // 時刻は使わない
+  m5cfg.internal_mic = false;
+  m5cfg.internal_spk = false;  // I2S とアンプは OutputInternal が自前で初期化する
+  m5cfg.external_display_value = 0;  // Port A はキーパッドが使うので外部ディスプレイを探しに行かない
+  M5.begin(m5cfg);
+  BootProf.mark("M5.begin");
   
   M5.Display.setRotation(M5.Display.getRotation() ^ 1);
   Lvgl.begin();
+  BootProf.mark("Lvgl.begin");
 
   BtnHome.setHoldThresh(2500);
   BtnMenu.setHoldThresh(500);  // 500msでメニュー画面を開く
   Keypad.begin();
+  BootProf.mark("Keypad.begin");
 
   ESP_LOGI(LOG_TAG, "Hello.");
 
   I2C.begin();
 
   Inactivity.begin();
+  BootProf.mark("I2C/Inactivity.begin");
 
   // Mount LittleFS (used for settings and timbre loading)
   if (!mountLittleFS()) {
     ESP_LOGW(LOG_TAG, "LittleFS mount failed. Settings will use defaults.");
   }
+  BootProf.mark("mountLittleFS");
 
   // Migrate from legacy settings.json if exists
   Settings.migrateFromLegacy();
 
   // Load settings from LittleFS (each category)
   Settings.loadAll();
+  BootProf.mark("Settings load");
 
   // 画面まわりの初期化（明るさ反映と設定変更購読）
   Display.begin();
@@ -160,13 +179,16 @@ void setup() {
   esp_pinMode(GPIO_NUM_BACK, GPIO_MODE_INPUT);
   esp_pinMode(GPIO_NUM_HOME, GPIO_MODE_INPUT);
   esp_pinMode(GPIO_NUM_MENU, GPIO_MODE_INPUT);
+  BootProf.mark("Display/KeyMap/GPIO");
 
   // 保存された出力先を初期化（不正値は initializeOutput 内で Internal にフォールバック）
   Output.initializeOutput(static_cast<OutputType>(Settings.output.outputTarget.get()));
+  BootProf.mark("Output (rest)");
 
   // Tempo の Tick 配送タスク／キューを初期化する。
   // これ以降に登録される onTick リスナーは、Tmr Svc ではなく専用タスク上で実行される。
   Tempo.begin();
+  BootProf.mark("Tempo.begin");
 
   // PlayScreen UI の初期化（内部でコード/テンポのコールバックも登録される）
   playScreen.create();
@@ -175,6 +197,7 @@ void setup() {
   update_battery();
   update_scale();
   update_tempo();
+  BootProf.mark("playScreen.create");
 
   // USB開始(HOMEボタンが押されてたら開始しない)
   if (esp_digitalRead(GPIO_NUM_HOME) == 0) {
@@ -186,6 +209,7 @@ void setup() {
     UsbComposite::initConsole();  // Redirect ESP_LOG to USB CDC
     UsbComposite::startMidiDrainTask();  // Start background task to drain MIDI input
   }
+  BootProf.mark("UsbComposite");
 }
 
 void loop()
@@ -380,6 +404,16 @@ void loop()
   MainLoopStats.beginLvgl();
   lv_task_handler();
   MainLoopStats.endLvgl();
+
+#if CAPSULECHORD_ENABLE_BOOT_PROFILE
+  // 起動計測: 最初の描画が終わった時点で一度だけ結果を出す
+  static bool bootProfileReported = false;
+  if (!bootProfileReported) {
+    BootProf.mark("first lv_task_handler");
+    BootProf.report();
+    bootProfileReported = true;
+  }
+#endif
 
   // 設定の遅延保存（dirty flagがtrueのカテゴリのみ保存）
   static unsigned long lastSaveCheck = 0;

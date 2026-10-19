@@ -1,5 +1,6 @@
 #include "OutputInternal.h"
 #include "TimbreLoader.h"
+#include "BootProfile.h"
 #include <esp_log.h>
 #include <driver/gpio.h>
 #include <freertos/FreeRTOS.h>
@@ -105,6 +106,8 @@ void OutputInternal::AudioLoop()
     int16_t mono[SAMPLE_BUFFER_SIZE] = {0};
     int16_t stereo[4][SAMPLE_BUFFER_SIZE * 2] = {0};
     uint8_t buf_idx = 0;
+    // I2S・アンプ初期化直後の安定待ち。呼び出し元（setup() 等）を止めないようにこのタスク側で待つ
+    esp_delay(100);
     while (true)
     {
         unsigned long startTime = capsule::sampler::micros();
@@ -279,7 +282,6 @@ void OutputInternal::initAudioOutput(AudioOutput output)
     }
 
     i2s_zero_dma_buffer(output == AudioOutput::headphone ? I2S_NUM_HP : I2S_NUM_SPK);
-    esp_delay(100);
 
     // Core0でタスク起動
     xTaskCreatePinnedToCore(
@@ -302,6 +304,7 @@ void OutputInternal::begin()
 
     // LittleFSをスキャンして利用可能な音色のメタデータを集める
     availableTimbres = Loader.scanTimbres();
+    BootProf.mark("Output: timbre scan");
 
     // bass / drum は常時ロード（別チャンネル用途）
     for (const auto& info : availableTimbres) {
@@ -316,6 +319,7 @@ void OutputInternal::begin()
     if (bass) sampler->SetTimbre(0x1, bass);
     if (drumset) sampler->SetTimbre(0x9, drumset);
     sampler->SetTimbre(0xF, system);
+    BootProf.mark("Output: bass/drum load");
 
     // メイン音色を設定値に従って1つだけロード
     std::string id = Settings.output.timbreId.get();
@@ -330,6 +334,7 @@ void OutputInternal::begin()
             }
         }
     }
+    BootProf.mark("Output: main timbre load");
 
     // 音量設定の変更を購読
     speakerVolumeToken = Settings.output.speakerVolume.subscribe(
@@ -356,6 +361,7 @@ void OutputInternal::begin()
     // 現在のヘッドフォン接続状態を取得してI2S初期化
     isHeadphonePreviously = esp_digitalRead(PIN_HP_DETECT);
     initAudioOutput(isHeadphonePreviously ? AudioOutput::headphone : AudioOutput::speaker);
+    BootProf.mark("Output: initAudioOutput");
     ESP_LOGI(LOG_TAG, "[begin] returning");
 }
 

@@ -21,8 +21,15 @@ CONFIG_BT_NIMBLE_HOST_TASK_STACK_SIZE=4096
 CONFIG_BT_NIMBLE_SM_LEGACY=y
 CONFIG_BT_NIMBLE_SM_SC=y
 
+# Persist bonding keys to NVS
+CONFIG_BT_NIMBLE_NVS_PERSIST=y
+
 # GAP device name
+CONFIG_BT_NIMBLE_SVC_GAP_DEVICE_NAME="CapsuleChord"
 CONFIG_BT_NIMBLE_GAP_DEVICE_NAME_MAX_LEN=31
+
+# Reduce NimBLE log verbosity
+CONFIG_BT_NIMBLE_LOG_LEVEL_WARNING=y
 
 # Enable GATT
 CONFIG_BT_NIMBLE_GATT_MAX_PROCS=4
@@ -33,8 +40,24 @@ CONFIG_BT_NIMBLE_DEBUG=n
 # Disable unused Bluedroid stack to save memory
 CONFIG_BT_BLUEDROID_ENABLED=n
 
+# Hardware: M5Stack CoreS3 (ESP32-S3, 16MB flash, 240MHz).
+# PlatformIO's espidf builder does not inject board values into sdkconfig,
+# so they must be stated here explicitly.
+CONFIG_ESPTOOLPY_FLASHSIZE_16MB=y
+CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_240=y
+
+# Custom partition table (must match board_build.partitions in platformio.ini)
+CONFIG_PARTITION_TABLE_CUSTOM=y
+CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="no_ota_16MB.csv"
+
 # Enable PSRAM
 CONFIG_SPIRAM=y
+
+# Run the main task on core 1 (I2C/audio tasks are placed on core 0)
+CONFIG_ESP_MAIN_TASK_AFFINITY_CPU1=y
+
+# Panic (and store a core dump) on Task WDT timeout instead of only warning
+CONFIG_ESP_TASK_WDT_PANIC=y
 
 # FreeRTOS Tick
 CONFIG_FREERTOS_HZ=1000
@@ -66,6 +89,10 @@ CONFIG_ESP_CONSOLE_UART_DEFAULT=y
 # that load timbres (JSON + WAV from LittleFS) synchronously
 CONFIG_ESP_MAIN_TASK_STACK_SIZE=16384
 
+# Keep 16 hex chars of the ELF SHA256 in the app description;
+# firmware_backup/[SHA256 first 16 chars].elf lookup relies on this length
+CONFIG_APP_RETRIEVE_LEN_ELF_SHA=16
+
 # Core dump to flash for on-device crash backtrace diagnostics.
 # The coredump partition (64KB) is defined in no_ota_16MB.csv.
 # ELF format is required by esp_core_dump_get_summary() / esp_core_dump_get_panic_reason().
@@ -73,3 +100,18 @@ CONFIG_ESP_COREDUMP_ENABLE_TO_FLASH=y
 CONFIG_ESP_COREDUMP_DATA_FORMAT_ELF=y
 CONFIG_ESP_COREDUMP_CHECKSUM_CRC32=y
 CONFIG_ESP_COREDUMP_CHECK_BOOT=y
+
+# Boot time optimization (docs/boot-time-optimization-plan.md, phase 1)
+# Skip the PSRAM memory test (about 1.7s for 8MB)
+CONFIG_SPIRAM_MEMTEST=n
+# Skip app image validation only on power-on (validation still runs after a reset)
+CONFIG_BOOTLOADER_SKIP_VALIDATE_ON_POWER_ON=y
+# UART log output blocks, so keep boot logs quiet.
+# The maximum level stays INFO so that debug builds can raise it with esp_log_level_set().
+CONFIG_BOOTLOADER_LOG_LEVEL_WARN=y
+CONFIG_LOG_DEFAULT_LEVEL_WARN=y
+CONFIG_LOG_MAXIMUM_LEVEL_INFO=y
+# CoreS3 PSRAM is rated for Quad 80MHz (requires 80MHz flash, already set)
+CONFIG_SPIRAM_SPEED_80M=y
+# The flash chip supports QIO (PlatformIO's CoreS3 board definition uses qio for Arduino)
+CONFIG_ESPTOOLPY_FLASHMODE_QIO=y

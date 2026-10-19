@@ -50,6 +50,12 @@ pio run
 pio run -t clean
 ```
 
+### sdkconfig の扱い
+
+- ESP-IDF の設定は `sdkconfig.defaults` で管理する。ビルド時に生成される `sdkconfig.<env>`（`sdkconfig.m5stack-cores3` など）は生成物のため `.gitignore` 済み
+- `sdkconfig.defaults` を変更しても、生成済みの `sdkconfig.<env>` に同じキーが存在する場合はそちらが優先される。変更を確実に反映させるには `sdkconfig.<env>` を削除してから再ビルドする
+- `pio run -t menuconfig` で変更した設定は `sdkconfig.<env>` にしか残らない。残したい設定は `sdkconfig.defaults` へ書き写す
+
 ### 実機への書き込み
 
 #### Linux/macOS
