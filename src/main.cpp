@@ -405,9 +405,15 @@ void loop()
   lv_task_handler();
   MainLoopStats.endLvgl();
 
-  // 起動計測: 最初の描画が終わった時点で結果を出す（2回目以降は何もしない）
-  BootProf.mark("first lv_task_handler");
-  BootProf.report();
+#if CAPSULECHORD_ENABLE_BOOT_PROFILE
+  // 起動計測: 最初の描画が終わった時点で一度だけ結果を出す
+  static bool bootProfileReported = false;
+  if (!bootProfileReported) {
+    BootProf.mark("first lv_task_handler");
+    BootProf.report();
+    bootProfileReported = true;
+  }
+#endif
 
   // 設定の遅延保存（dirty flagがtrueのカテゴリのみ保存）
   static unsigned long lastSaveCheck = 0;
