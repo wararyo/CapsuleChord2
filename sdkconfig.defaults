@@ -113,3 +113,5 @@ CONFIG_LOG_DEFAULT_LEVEL_WARN=y
 CONFIG_LOG_MAXIMUM_LEVEL_INFO=y
 # CoreS3 PSRAM is rated for Quad 80MHz (requires 80MHz flash, already set)
 CONFIG_SPIRAM_SPEED_80M=y
+# The flash chip supports QIO (PlatformIO's CoreS3 board definition uses qio for Arduino)
+CONFIG_ESPTOOLPY_FLASHMODE_QIO=y
