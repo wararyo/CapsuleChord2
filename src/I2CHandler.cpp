@@ -1,6 +1,7 @@
 #include "I2CHandler.h"
 #include "Keypad.h"
 #include "InactivityWatcher.h"
+#include "PowerLab.h"
 #include <M5Unified.h>
 #include <esp_log.h>
 #include <esp_timer.h>
@@ -129,6 +130,9 @@ void I2CHandler::i2cLoop() {
             imuReady.store(M5.Imu.isEnabled());
             if (!imuReady.load()) ESP_LOGW(LOG_TAG, "IMU initialization failed");
         }
+
+        // 電池持ち測定用の充電禁止反映・電力ログ
+        PwrLab.updateOnI2CThread(startTime);
 
         unsigned long endTime = esp_millis();
         unsigned long elapsedTime = endTime - startTime;

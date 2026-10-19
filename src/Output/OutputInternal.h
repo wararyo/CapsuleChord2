@@ -7,6 +7,7 @@
 #include <string>
 #include <Sampler.h>
 #include "IMidiOutput.h"
+#include "BuildConfig.h"
 #include "SettingsStore.h"
 #include "TimbreLoader.h"
 
@@ -50,6 +51,17 @@ public:
 
     // メニュー表示用: drum 以外のメイン音色候補を返す（ポインタの寿命は availableTimbres に従う）
     std::vector<const TimbreInfo*> getMainTimbreCandidates() const;
+
+#if CAPSULECHORD_ENABLE_POWER_LAB
+    // 電力ログ用: 前回取得以降のオーディオ処理時間の統計
+    struct AudioLoadStats {
+        uint32_t avgUs;
+        uint32_t maxUs;
+        uint32_t count;
+    };
+    // 統計を取得してリセットする
+    AudioLoadStats takeAudioLoadStats();
+#endif
 
     // IMidiOutput interface implementation
     void begin() override;
@@ -111,6 +123,14 @@ private:
     unsigned long nextAudioLoop = 0;
     uint32_t audioProcessTime = 0; // プロファイリング用 一回のオーディオ処理にかかる時間
     TaskHandle_t audioLoopHandler = nullptr;
+
+#if CAPSULECHORD_ENABLE_POWER_LAB
+    // 電力ログ用: オーディオ処理時間の統計
+    portMUX_TYPE audioStatsMux = portMUX_INITIALIZER_UNLOCKED;
+    uint64_t audioProcessTimeSum = 0;
+    uint32_t audioProcessTimeMax = 0;
+    uint32_t audioProcessCount = 0;
+#endif
 
     void AudioLoop();
     static void StartAudioLoop(void* _this);

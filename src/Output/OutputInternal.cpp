@@ -123,6 +123,13 @@ void OutputInternal::AudioLoop()
 
         unsigned long endTime = capsule::sampler::micros();
         audioProcessTime = endTime - startTime;
+#if CAPSULECHORD_ENABLE_POWER_LAB
+        portENTER_CRITICAL(&audioStatsMux);
+        audioProcessTimeSum += audioProcessTime;
+        if (audioProcessTime > audioProcessTimeMax) audioProcessTimeMax = audioProcessTime;
+        audioProcessCount++;
+        portEXIT_CRITICAL(&audioStatsMux);
+#endif
 
         static size_t bytes_written = 0;
         i2s_write(audioOutput == AudioOutput::headphone ? I2S_NUM_HP : I2S_NUM_SPK, (const unsigned char *)stereo[buf_idx], 4 * SAMPLE_BUFFER_SIZE, &bytes_written, portMAX_DELAY);
@@ -130,6 +137,21 @@ void OutputInternal::AudioLoop()
         buf_idx = (buf_idx + 1) & 3;
     }
 }
+
+#if CAPSULECHORD_ENABLE_POWER_LAB
+OutputInternal::AudioLoadStats OutputInternal::takeAudioLoadStats()
+{
+    portENTER_CRITICAL(&audioStatsMux);
+    uint64_t sum = audioProcessTimeSum;
+    uint32_t max = audioProcessTimeMax;
+    uint32_t count = audioProcessCount;
+    audioProcessTimeSum = 0;
+    audioProcessTimeMax = 0;
+    audioProcessCount = 0;
+    portEXIT_CRITICAL(&audioStatsMux);
+    return {count ? static_cast<uint32_t>(sum / count) : 0, max, count};
+}
+#endif
 
 void OutputInternal::StartAudioLoop(void *_this)
 {

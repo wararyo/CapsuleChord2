@@ -23,6 +23,8 @@ void InactivityWatcher::notify() {
 }
 
 InactivityWatcher::Stage InactivityWatcher::getStage() const {
+    if (isForceDim()) return Stage::Dimmed;
+    if (isTimeoutDisabled()) return Stage::Active;
     unsigned long last = lastActivityMs.load(std::memory_order_relaxed);
     unsigned long idle = esp_millis() - last;
     if (idle > kShutdownMs) return Stage::ShouldShutdown;
