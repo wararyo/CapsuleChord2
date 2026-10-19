@@ -109,8 +109,19 @@ void I2CHandler::i2cLoop() {
     static unsigned long lastKeypadUpdate = 0;
     const unsigned long keypadInterval = 15;
 
+    bool vbusChecked = false;
+    unsigned long lastVbusCheck = 0;
+    const unsigned long vbusCheckInterval = 1000;
+
     while (taskRunning) {
         unsigned long startTime = esp_millis();
+
+        // USB給電の有無を更新（初回はすぐ、以降1秒間隔）
+        if (!vbusChecked || startTime - lastVbusCheck >= vbusCheckInterval) {
+            vbusPresent.store(M5.Power.getVBUSVoltage() > 4000);
+            lastVbusCheck = startTime;
+            vbusChecked = true;
+        }
 
         // M5の状態を更新（バッテリー、IMUなど）
         M5.update();

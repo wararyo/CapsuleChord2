@@ -159,6 +159,9 @@ void OutputInternal::StartAudioLoop(void *_this)
 }
 
 static constexpr uint8_t aw88298_i2c_addr = 0x36;
+// AW9523 (IOエキスパンダ) の P0_2 が AW88298 のリセット線 (AW_RST、Low でリセット)
+static constexpr uint8_t aw9523_i2c_addr = 0x58;
+static constexpr uint8_t aw9523_p0_aw_rst = 0b00000100;
 
 void aw88298_write_reg(uint8_t reg, uint16_t value)
 {
@@ -282,8 +285,13 @@ void OutputInternal::initAudioOutput(AudioOutput output)
     if (output == AudioOutput::headphone) {
         esp_pinMode(PIN_EN_HP, GPIO_MODE_OUTPUT);
         esp_digitalWrite(PIN_EN_HP, 1);
+        // 省電力のため、ヘッドフォン使用中はスピーカーアンプを止める。
+        // M5Unified のスピーカー無効化と同じ手順
+        aw88298_write_reg(0x04, 0x4000); // I2SEN=0 AMPPD=0 PWDN=0
+        M5.In_I2C.bitOff(aw9523_i2c_addr, 0x02, aw9523_p0_aw_rst, 400000);
     } else {
-        M5.In_I2C.bitOn(aw88298_i2c_addr, 0x02, 0b00000100, 400000);
+        // AW88298 のリセットを解除する
+        M5.In_I2C.bitOn(aw9523_i2c_addr, 0x02, aw9523_p0_aw_rst, 400000);
         /// サンプリングレートに応じてAW88298のレジスタの設定値を変える;
         static constexpr uint8_t rate_tbl[] = {4, 5, 6, 8, 10, 11, 15, 20, 22, 44};
         size_t reg0x06_value = 0;

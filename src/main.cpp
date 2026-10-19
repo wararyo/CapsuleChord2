@@ -79,6 +79,11 @@ static bool btnMenuPressedForScaleChange = false;
 // PlayScreen表示状態の管理用
 bool shouldShowPlayScreen = true;
 
+// USB開始の管理用
+static bool usbAllowed = false;
+static bool usbStarted = false;
+void startUsb();
+
 void update_battery() {
   if (playScreen.isShown()) {
     playScreen.updateBattery();
@@ -131,6 +136,13 @@ void setup() {
   m5cfg.internal_spk = false;  // I2S とアンプは OutputInternal が自前で初期化する
   m5cfg.external_display_value = 0;  // Port A はキーパッドが使うので外部ディスプレイを探しに行かない
   M5.begin(m5cfg);
+  if (M5.getBoard() == m5::board_t::board_M5StackCoreS3) {
+    // 省電力のため、未使用の LDO を切る。
+    // AXP2101 REG 0x90 の ALDO3 / ALDO4 / BLDO1 / BLDO2。実測で約7mA減る。
+    // ALDO2 は切ると画面が暗くなり、スピーカーアンプの再設定も効かなくなるので残す
+    constexpr uint8_t unusedLdoBits = (1 << 2) | (1 << 3) | (1 << 4) | (1 << 5);
+    M5.Power.Axp2101.bitOff(0x90, unusedLdoBits);
+  }
   BootProf.mark("M5.begin");
   
   M5.Display.setRotation(M5.Display.getRotation() ^ 1);
@@ -199,17 +211,17 @@ void setup() {
   update_tempo();
   BootProf.mark("playScreen.create");
 
-  // USB開始(HOMEボタンが押されてたら開始しない)
-  if (esp_digitalRead(GPIO_NUM_HOME) == 0) {
-    // 何もしない
-  } else {
-    // Initialize USB CDC/MIDI composite device early for USB CDC logging
-    // MIDI output is still only active when USB MIDI is selected as output
-    UsbComposite::begin();
-    UsbComposite::initConsole();  // Redirect ESP_LOG to USB CDC
-    UsbComposite::startMidiDrainTask();  // Start background task to drain MIDI input
-  }
-  BootProf.mark("UsbComposite");
+  // USBはHOMEボタンを押しながら起動したときは開始しない（ESP USB-JTAG 経由で書き込むため）。
+  // それ以外は USB 給電を検出した時点で loop() から開始する。電池駆動中は開始しない（省電力）
+  usbAllowed = esp_digitalRead(GPIO_NUM_HOME) != 0;
+}
+
+void startUsb() {
+  // Initialize USB CDC/MIDI composite device for USB CDC logging
+  // MIDI output is still only active when USB MIDI is selected as output
+  UsbComposite::begin();
+  UsbComposite::initConsole();  // Redirect ESP_LOG to USB CDC
+  UsbComposite::startMidiDrainTask();  // Start background task to drain MIDI input
 }
 
 void loop()
@@ -305,6 +317,12 @@ void loop()
   if (BtnMenu.wasReleased() && !menuScreen.getShown())
   {
     Output.Internal.NoteOff(60 + Settings.performance.scale.get().key, 0, 0);
+  }
+
+  // USB給電を検出したらUSBを開始する
+  if (usbAllowed && !usbStarted && I2C.isVbusPresent()) {
+    startUsb();
+    usbStarted = true;
   }
 
   // 予約された出力先切替を反映
