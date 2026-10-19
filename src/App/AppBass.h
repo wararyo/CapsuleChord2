@@ -75,10 +75,20 @@ private:
     lv_obj_t *switchButton;
     std::list<uint8_t> input; // 入力に来た発音中のノート
     uint8_t inputProcessed[12] = {60};
-    std::list<uint8_t> output; // 出力した発音中のノート
+    // 出力した発音中のノート
+    // ノートオフの時点ではコードが切り替わっている場合があるため、シーケンス上のノートごとに実際に送ったノート番号を覚えておく
+    struct OutputNote
+    {
+        uint8_t channel;
+        uint8_t sequenceNote; // SequenceItem::data1
+        uint8_t noteNo;       // 実際に送ったノート番号
+    };
+    std::list<OutputNote> output;
     portMUX_TYPE mutex = portMUX_INITIALIZER_UNLOCKED;
 
     void updateUi();
     void updatePlayingNotes();
     void processItem(const SequenceItem &item);
+    void sendOutputNoteOff(uint8_t channel, uint8_t noteNo, uint8_t vel);
+    void stopAllOutputNotes();
 };

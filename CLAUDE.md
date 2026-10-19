@@ -226,7 +226,8 @@ xtensa-esp32s3-elf-addr2line -e firmware_backup/xxxxxxxxxxxxxxxx.elf -fpiaC 0x42
 
 **AppBase** (`App/AppBase.h`)
 - すべてのアプリケーションの基底クラス
-- ライフサイクル：`onCreate()` → `onActivate()` → `onShowGui()` → `onHideGui()` → `onDeactivate()` → `onDestroy()`
+- ライフサイクル：`onCreate()`（AppManagerへの登録時）→ `onShowGui()` ⇄ `onHideGui()`（アプリ画面の表示切り替え時）。`onDestroy()`は現状AppManagerからは呼ばれない
+- `onActivate()`/`onDeactivate()`はライフサイクルではなく、バックグラウンド動作の有効/無効の切り替え。AppManagerからは呼ばれず、ランチャーのアイコン長押しやアプリ内の有効/無効スイッチから呼ばれる。GUI表示とは独立しており、有効/無効の処理はここに集約する（スイッチ側に同じ処理を重複させない）
 - アプリは`runsInBackground()`でバックグラウンド実行可能（非表示時もTempo/Pipelineにフック）
 - `onUpdateGui()`でコールバックからの安全なUI更新（コールバック内でフラグ設定、メインループでUI更新）
 
