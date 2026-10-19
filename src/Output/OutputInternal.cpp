@@ -1,5 +1,6 @@
 #include "OutputInternal.h"
 #include "TimbreLoader.h"
+#include "BootProfile.h"
 #include <esp_log.h>
 #include <driver/gpio.h>
 #include <freertos/FreeRTOS.h>
@@ -302,6 +303,7 @@ void OutputInternal::begin()
 
     // LittleFSをスキャンして利用可能な音色のメタデータを集める
     availableTimbres = Loader.scanTimbres();
+    BootProf.mark("Output: timbre scan");
 
     // bass / drum は常時ロード（別チャンネル用途）
     for (const auto& info : availableTimbres) {
@@ -316,6 +318,7 @@ void OutputInternal::begin()
     if (bass) sampler->SetTimbre(0x1, bass);
     if (drumset) sampler->SetTimbre(0x9, drumset);
     sampler->SetTimbre(0xF, system);
+    BootProf.mark("Output: bass/drum load");
 
     // メイン音色を設定値に従って1つだけロード
     std::string id = Settings.output.timbreId.get();
@@ -330,6 +333,7 @@ void OutputInternal::begin()
             }
         }
     }
+    BootProf.mark("Output: main timbre load");
 
     // 音量設定の変更を購読
     speakerVolumeToken = Settings.output.speakerVolume.subscribe(
@@ -356,6 +360,7 @@ void OutputInternal::begin()
     // 現在のヘッドフォン接続状態を取得してI2S初期化
     isHeadphonePreviously = esp_digitalRead(PIN_HP_DETECT);
     initAudioOutput(isHeadphonePreviously ? AudioOutput::headphone : AudioOutput::speaker);
+    BootProf.mark("Output: initAudioOutput");
     ESP_LOGI(LOG_TAG, "[begin] returning");
 }
 
