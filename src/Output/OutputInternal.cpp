@@ -106,6 +106,8 @@ void OutputInternal::AudioLoop()
     int16_t mono[SAMPLE_BUFFER_SIZE] = {0};
     int16_t stereo[4][SAMPLE_BUFFER_SIZE * 2] = {0};
     uint8_t buf_idx = 0;
+    // I2S・アンプ初期化直後の安定待ち。呼び出し元（setup() 等）を止めないようにこのタスク側で待つ
+    esp_delay(100);
     while (true)
     {
         unsigned long startTime = capsule::sampler::micros();
@@ -280,7 +282,6 @@ void OutputInternal::initAudioOutput(AudioOutput output)
     }
 
     i2s_zero_dma_buffer(output == AudioOutput::headphone ? I2S_NUM_HP : I2S_NUM_SPK);
-    esp_delay(100);
 
     // Core0でタスク起動
     xTaskCreatePinnedToCore(

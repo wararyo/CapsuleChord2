@@ -1,4 +1,5 @@
 #include "LittleFSManager.h"
+#include "BuildConfig.h"
 
 static const char* LOG_TAG = "LittleFSManager";
 static bool g_littlefs_mounted = false;
@@ -30,11 +31,14 @@ bool mountLittleFS()
         return false;
     }
 
+#if CAPSULECHORD_ENABLE_INFO_LOG
+    // esp_littlefs_info() は全ブロックを走査して使用量を数えるため、ログを出すビルドでだけ呼ぶ
     size_t total = 0, used = 0;
     ret = esp_littlefs_info(conf.partition_label, &total, &used);
     if (ret == ESP_OK) {
         ESP_LOGI(LOG_TAG, "LittleFS mounted. Total: %d bytes, Used: %d bytes", total, used);
     }
+#endif
 
     g_littlefs_mounted = true;
     return true;
