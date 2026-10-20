@@ -3,6 +3,9 @@
 
 #include <M5Unified.h>
 #include <driver/i2s.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/semphr.h>
+#include <atomic>
 #include <vector>
 #include <string>
 #include <Sampler.h>
@@ -52,9 +55,14 @@ public:
     // メニュー表示用: drum 以外のメイン音色候補を返す（ポインタの寿命は availableTimbres に従う）
     std::vector<const TimbreInfo*> getMainTimbreCandidates() const;
 
+    // 無音時休止の有効 / 無効（電力測定で休止あり / なしを比べる用。保存しない）
+    void setIdleSuspendEnabled(bool enabled) { idleSuspendEnabled.store(enabled); }
+    bool isIdleSuspendEnabled() const { return idleSuspendEnabled.load(); }
+
 #if CAPSULECHORD_ENABLE_POWER_LAB
     // 電力ログ用: 前回取得以降のオーディオ処理時間の統計
     struct AudioLoadStats {
+        uint32_t sumUs;
         uint32_t avgUs;
         uint32_t maxUs;
         uint32_t count;
@@ -123,6 +131,18 @@ private:
     unsigned long nextAudioLoop = 0;
     uint32_t audioProcessTime = 0; // プロファイリング用 一回のオーディオ処理にかかる時間
     TaskHandle_t audioLoopHandler = nullptr;
+
+    // 無音がこのバッファ数（約0.5秒）続いたら、次の発音までオーディオループを休止する。
+    // リバーブの最長の遅延（約45ms）より十分長くし、残響が消えてから止める
+    static constexpr uint32_t kIdleBufferCount = SAMPLE_RATE / 2 / SAMPLE_BUFFER_SIZE;
+    // 休止中のオーディオループを起こす。オーディオループのタスクは出力先の切り替えで
+    // 作り直されるので、タスク通知ではなく寿命の独立したセマフォを使う
+    SemaphoreHandle_t audioWakeSem = nullptr;
+    std::atomic<bool> idleSuspendEnabled{true};
+    void wakeAudioLoop();
+    // 休止の入口と出口（DFS を入れるときは、ここで PM ロックを手放す / 取る）
+    void onAudioIdle();
+    void onAudioResume();
 
 #if CAPSULECHORD_ENABLE_POWER_LAB
     // 電力ログ用: オーディオ処理時間の統計

@@ -537,6 +537,11 @@ void MenuScreen::buildSystemCategory() {
         []() { return Inactivity.isForceDim(); },
         [](bool v) { Inactivity.setForceDim(v); }
     ));
+    category.items.push_back(std::make_unique<MenuItemToggle>(
+        "[測定] 無音時休止を無効",
+        []() { return !Output.Internal.isIdleSuspendEnabled(); },
+        [](bool v) { Output.Internal.setIdleSuspendEnabled(!v); }
+    ));
 
     // テストクラッシュ（Core Dump 動作確認用、開発ビルドのみ）
     category.items.push_back(std::make_unique<MenuItemNavigation>(

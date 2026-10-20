@@ -30,7 +30,7 @@ void PowerLab::printLog(unsigned long nowMs) {
     // ROM の printf はコンソール UART へ直接出るので、DebugProbe 側で常に拾える。
     if (!headerPrinted) {
         esp_rom_printf("PWRLOG,uptime_s,vbat_mV,level_pct,vbus_mV,charging,charge_disabled,"
-                       "audio_avg_us,audio_max_us,audio_load_pct\n");
+                       "audio_avg_us,audio_max_us,audio_load_pct,audio_active_pct\n");
         headerPrinted = true;
     }
 
@@ -39,16 +39,26 @@ void PowerLab::printLog(unsigned long nowMs) {
     int vbus = M5.Power.getVBUSVoltage();
     int charging = static_cast<int>(M5.Power.isCharging());
 
-    // 出力先が内蔵音源以外のときはオーディオループが動いていないので 0 になる
+    // 出力先が内蔵音源以外のときや、無音時休止中はオーディオループが動いていないので 0 になる。
+    // load は前回ログからの経過時間に対するオーディオ処理時間の割合、
+    // active はオーディオループが動いていた（休止していなかった）時間の割合
     auto audio = Output.Internal.takeAudioLoadStats();
-    constexpr uint32_t periodUs = SAMPLE_BUFFER_SIZE * 1000000UL / SAMPLE_RATE;
-    uint32_t loadPermille = audio.avgUs * 1000UL / periodUs;
+    constexpr uint64_t periodUs = SAMPLE_BUFFER_SIZE * 1000000ULL / SAMPLE_RATE;
+    uint64_t elapsedUs = (uint64_t)(nowMs - lastLogMs) * 1000ULL;
+    uint32_t loadPermille = 0;
+    uint32_t activePermille = 0;
+    if (elapsedUs > 0) {
+        loadPermille = (uint32_t)((uint64_t)audio.sumUs * 1000ULL / elapsedUs);
+        activePermille = (uint32_t)((uint64_t)audio.count * periodUs * 1000ULL / elapsedUs);
+        if (activePermille > 1000) activePermille = 1000;
+    }
 
-    esp_rom_printf("PWRLOG,%u,%d,%d,%d,%d,%d,%u,%u,%u.%u\n",
+    esp_rom_printf("PWRLOG,%u,%d,%d,%d,%d,%d,%u,%u,%u.%u,%u.%u\n",
                    (unsigned)(nowMs / 1000UL), vbat, level, vbus, charging,
                    appliedChargeDisabled ? 1 : 0,
                    (unsigned)audio.avgUs, (unsigned)audio.maxUs,
-                   (unsigned)(loadPermille / 10), (unsigned)(loadPermille % 10));
+                   (unsigned)(loadPermille / 10), (unsigned)(loadPermille % 10),
+                   (unsigned)(activePermille / 10), (unsigned)(activePermille % 10));
 }
 
 #endif // CAPSULECHORD_ENABLE_POWER_LAB

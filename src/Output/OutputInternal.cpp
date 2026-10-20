@@ -89,16 +89,44 @@ void OutputInternal::applyCurrentVolume() {
 void OutputInternal::NoteOn(uint8_t noteNo, uint8_t velocity, uint8_t channel)
 {
     sampler->NoteOn(noteNo, velocity, channel);
+    wakeAudioLoop();
 }
 
 void OutputInternal::NoteOff(uint8_t noteNo, uint8_t velocity, uint8_t channel)
 {
     sampler->NoteOff(noteNo, velocity, channel);
+    wakeAudioLoop();
 }
 
 void OutputInternal::PitchBend(int16_t pitchBend, uint8_t channel)
 {
     sampler->PitchBend(pitchBend, channel);
+    wakeAudioLoop();
+}
+
+void OutputInternal::wakeAudioLoop()
+{
+    // メッセージを Sampler のキューに積んだ後に呼ぶこと
+    if (audioWakeSem != nullptr) xSemaphoreGive(audioWakeSem);
+}
+
+void OutputInternal::onAudioIdle()
+{
+    ESP_LOGD(LOG_TAG, "Audio loop idle");
+}
+
+void OutputInternal::onAudioResume()
+{
+    ESP_LOGD(LOG_TAG, "Audio loop resumed");
+}
+
+// 出力が無音か。Sampler の int16 変換は微小な負の値を -1 にするので、±1 までは無音とみなす
+static bool isSilentBuffer(const int16_t *buf)
+{
+    for (size_t i = 0; i < SAMPLE_BUFFER_SIZE; i++) {
+        if (buf[i] > 1 || buf[i] < -1) return false;
+    }
+    return true;
 }
 
 void OutputInternal::AudioLoop()
@@ -106,10 +134,15 @@ void OutputInternal::AudioLoop()
     int16_t mono[SAMPLE_BUFFER_SIZE] = {0};
     int16_t stereo[4][SAMPLE_BUFFER_SIZE * 2] = {0};
     uint8_t buf_idx = 0;
+    uint32_t silentBufferCount = 0;
     // I2S・アンプ初期化直後の安定待ち。呼び出し元（setup() 等）を止めないようにこのタスク側で待つ
     esp_delay(100);
     while (true)
     {
+        // ここまでに積まれたメッセージは直後の Process() で処理されるので、起床要求を捨てる。
+        // これ以降に積まれたものは要求が残り、休止に入ろうとしてもすぐ起きる
+        xSemaphoreTake(audioWakeSem, 0);
+
         unsigned long startTime = capsule::sampler::micros();
 
         sampler->Process(mono);
@@ -135,6 +168,17 @@ void OutputInternal::AudioLoop()
         i2s_write(audioOutput == AudioOutput::headphone ? I2S_NUM_HP : I2S_NUM_SPK, (const unsigned char *)stereo[buf_idx], 4 * SAMPLE_BUFFER_SIZE, &bytes_written, portMAX_DELAY);
 
         buf_idx = (buf_idx + 1) & 3;
+
+        // 無音が続いたら、次の発音まで休止する。I2S は止めない
+        // （tx_desc_auto_clear により、書き込みが止まると DMA は 0 を送り続ける）
+        if (!isSilentBuffer(mono)) silentBufferCount = 0;
+        else if (silentBufferCount < kIdleBufferCount) silentBufferCount++;
+        if (silentBufferCount >= kIdleBufferCount && idleSuspendEnabled.load()) {
+            onAudioIdle();
+            xSemaphoreTake(audioWakeSem, portMAX_DELAY);
+            onAudioResume();
+            silentBufferCount = 0;
+        }
     }
 }
 
@@ -149,7 +193,7 @@ OutputInternal::AudioLoadStats OutputInternal::takeAudioLoadStats()
     audioProcessTimeMax = 0;
     audioProcessCount = 0;
     portEXIT_CRITICAL(&audioStatsMux);
-    return {count ? static_cast<uint32_t>(sum / count) : 0, max, count};
+    return {static_cast<uint32_t>(sum), count ? static_cast<uint32_t>(sum / count) : 0, max, count};
 }
 #endif
 
@@ -387,6 +431,8 @@ void OutputInternal::begin()
             loadMainTimbre(newVal);
         });
     ESP_LOGI(LOG_TAG, "[begin] subscriptions registered");
+
+    if (audioWakeSem == nullptr) audioWakeSem = xSemaphoreCreateBinary();
 
     // 現在のヘッドフォン接続状態を取得してI2S初期化
     isHeadphonePreviously = esp_digitalRead(PIN_HP_DETECT);

@@ -267,7 +267,7 @@ USB電圧:         5.0x V
 
 1. 開発フラグを追加する: `setBatteryCharge(false)`、`InactivityWatcher` 無効化、減光状態の強制、電池電圧・残量の1分ごとのログ。（実装済み）
    - 開発ビルド（`CAPSULECHORD_ENABLE_POWER_LAB`）のメニュー「システム」に「[測定] 充電禁止」「[測定] 無操作タイマー無効」「[測定] 減光を強制」がある。保存されず、再起動で解除される。
-   - 電力ログは `src/PowerLab.cpp`。起動時と以降1分ごとに `PWRLOG,` で始まるCSV行をUARTへ出す（`esp_rom_printf` なので、通常起動でUSB CDCにログが移っていてもDebugProbe側で読める）。列は `uptime_s,vbat_mV,level_pct,vbus_mV,charging,charge_disabled,audio_avg_us,audio_max_us,audio_load_pct`。`audio_load_pct` は1バッファ周期（128サンプル / 48kHz = 2666µs）に対するオーディオ処理時間の平均割合。
+   - 電力ログは `src/PowerLab.cpp`。起動時と以降1分ごとに `PWRLOG,` で始まるCSV行をUARTへ出す（`esp_rom_printf` なので、通常起動でUSB CDCにログが移っていてもDebugProbe側で読める）。列は `uptime_s,vbat_mV,level_pct,vbus_mV,charging,charge_disabled,audio_avg_us,audio_max_us,audio_load_pct,audio_active_pct`。`audio_avg_us` / `audio_max_us` は処理した1バッファ（128サンプル / 48kHz = 2666µs）あたりの処理時間。`audio_load_pct` は前回ログからの経過時間に対するオーディオ処理時間の割合、`audio_active_pct` はオーディオループが動いていた（無音時休止していなかった）時間の割合。無音時休止を入れる前は `audio_load_pct` を「平均処理時間 ÷ 2666µs」で出していた（`audio_active_pct` 列は無かった）。
 2. 方法AでS1・S3を測る。あわせて、キーパッドを抜く、輝度 255 / 127 / 32 / 0、ホーム押し起動と通常起動、の差分を取る。（S1・S3のベースラインは済み。差分測定は未実施）
 3. 方法CでS3を1回フル放電し、ベースラインの稼働時間と換算係数 `k` を決める。`k` を出すには、方法Cと同じシナリオを方法Aでも測る必要がある。（済み: 63分40秒、`k` ≈ 0.86）
 4. `audioProcessTime` からオーディオタスクのCPU使用率を記録する（無音時休止・DFSの効果見積もりに使う）。（無音時は済み: 約2.7%）
@@ -290,7 +290,11 @@ USB電圧:         5.0x V
 ### フェーズ2: 構造変更
 
 - DFS（min 80 / max 240MHz、オーディオ処理・LVGL描画中は `ESP_PM_CPU_FREQ_MAX` ロック）。160MHz固定は採用しない
-- 無音時のオーディオタスク休止（DFSの効果を引き出す前提条件）
+- 無音時のオーディオタスク休止（DFSの効果を引き出す前提条件）（実装済み。単体の電流差は方法Aで誤差の範囲。DFS / light sleep の前提条件として残す）
+  - `OutputInternal::AudioLoop()` で、出力が ±1 以下のバッファが約0.5秒続いたら、セマフォで待って休止する。`NoteOn/NoteOff/PitchBend` がセマフォを Give して起こす。I2S は止めない（`tx_desc_auto_clear` で DMA が 0 を送り続ける）
+  - 休止の入口と出口は `onAudioIdle()` / `onAudioResume()`。DFS ではここで `ESP_PM_CPU_FREQ_MAX` ロックを手放す / 取る
+  - 開発メニューの「[測定] 無音時休止を無効」で、同じ起動のまま休止あり / なしを切り替えられる
+  - 書き込み直後の PWRLOG（S1）で `audio_active_pct` は 0.0%（起動直後の1分は 0.8%）
 - 無操作時のキーパッドスキャン間引き（最初のキー入力の遅延が許容範囲か確認）
 
 ### フェーズ3: ソフトウェアの発展
