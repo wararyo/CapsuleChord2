@@ -450,14 +450,24 @@ void loop()
     lastSaveCheck = esp_millis();
   }
 
-  // 5ms間隔でループ（vTaskDelayでIDLEタスクに実行機会を与える）
-  // 処理が 5ms 以上かかった場合も最低 1 tick 待つ。待たないと優先度の低い IDLE1 が
+  // 5ms間隔でループ（vTaskDelayでIDLEタスクに実行機会を与える）。
+  // 減光中は周期を伸ばし、その間 light sleep に入れるようにする。
+  // 処理が周期以上かかった場合も最低 1 tick 待つ。待たないと優先度の低い IDLE1 が
   // 実行されず、描画が重い状態が 5 秒続くと Task WDT が発生する。
   unsigned long now = esp_millis();
   unsigned long elapsed = now - lastLoopMillis;
+  bool lowPower = Inactivity.isLowPower();
+  unsigned long interval = lowPower ? InactivityWatcher::kLowPowerLoopIntervalMs : 5;
+  if (lowPower) {
+    // LVGL の flush は startWrite() したまま SPI バスを占有し続ける。占有中は SPI ドライバが
+    // APB の PM ロックを持つので light sleep に入れない。減光中は転送を終えてバスを手放す
+    // （次の flush で startWrite() し直す）
+    M5.Display.waitDisplay();
+    while (M5.Display.getStartCount() > 0) M5.Display.endWrite();
+  }
   MainLoopStats.recordLoop(now, elapsed);
   esp_pm_lock_release(mainLoopPmLock);
-  vTaskDelay(elapsed < 5 ? pdMS_TO_TICKS(5 - elapsed) : 1);
+  vTaskDelay(elapsed < interval ? pdMS_TO_TICKS(interval - elapsed) : 1);
   esp_pm_lock_acquire(mainLoopPmLock);
   lastLoopMillis = esp_millis();
 }

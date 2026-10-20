@@ -5,11 +5,11 @@
 
 static const char* LOG_TAG = "Dfs";
 
-void DfsController::configure(bool enable) {
+void DfsController::configure(bool enable, bool lightSleep) {
     esp_pm_config_t config = {
         .max_freq_mhz = kMaxFreqMhz,
         .min_freq_mhz = enable ? kMinFreqMhz : kMaxFreqMhz,
-        .light_sleep_enable = false,
+        .light_sleep_enable = lightSleep,
     };
     esp_err_t err = esp_pm_configure(&config);
     if (err != ESP_OK) {
@@ -17,16 +17,21 @@ void DfsController::configure(bool enable) {
         return;
     }
     enabled.store(enable);
-    ESP_LOGI(LOG_TAG, "DFS %s (%d-%d MHz)", enable ? "enabled" : "disabled",
-             config.min_freq_mhz, config.max_freq_mhz);
+    lightSleepEnabled.store(lightSleep);
+    ESP_LOGI(LOG_TAG, "DFS %s (%d-%d MHz), light sleep %s", enable ? "enabled" : "disabled",
+             config.min_freq_mhz, config.max_freq_mhz, lightSleep ? "enabled" : "disabled");
 }
 
 void DfsController::begin() {
-    configure(true);
+    configure(true, true);
 }
 
 void DfsController::setEnabled(bool enable) {
-    configure(enable);
+    configure(enable, lightSleepEnabled.load());
+}
+
+void DfsController::setLightSleepEnabled(bool enable) {
+    configure(enabled.load(), enable);
 }
 
 DfsController Dfs;

@@ -548,6 +548,11 @@ void MenuScreen::buildSystemCategory() {
         []() { return !Dfs.isEnabled(); },
         [](bool v) { Dfs.setEnabled(!v); }
     ));
+    category.items.push_back(std::make_unique<MenuItemToggle>(
+        "[測定] light sleep を無効",
+        []() { return !Dfs.isLightSleepEnabled(); },
+        [](bool v) { Dfs.setLightSleepEnabled(!v); }
+    ));
 
     // テストクラッシュ（Core Dump 動作確認用、開発ビルドのみ）
     category.items.push_back(std::make_unique<MenuItemNavigation>(

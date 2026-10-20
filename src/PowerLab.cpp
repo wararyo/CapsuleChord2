@@ -5,9 +5,30 @@
 #include <M5Unified.h>
 #include <esp_log.h>
 #include <esp_rom_sys.h>
+#include <esp_pm.h>
 #include "Output/MidiOutput.h"
 
 static const char* LOG_TAG = "PowerLab";
+
+// light sleep で実際に寝ていた時間の合計。PM の light sleep 終了コールバックで加算する
+static portMUX_TYPE lightSleepMux = portMUX_INITIALIZER_UNLOCKED;
+static DRAM_ATTR uint64_t lightSleepUs = 0;
+
+// light sleep からの復帰時に呼ばれる。クリティカルセクション内なので、加算するだけにする
+static esp_err_t IRAM_ATTR onLightSleepExit(int64_t sleptUs, void*) {
+    portENTER_CRITICAL_SAFE(&lightSleepMux);
+    lightSleepUs += sleptUs;
+    portEXIT_CRITICAL_SAFE(&lightSleepMux);
+    return ESP_OK;
+}
+
+static uint64_t takeLightSleepUs() {
+    portENTER_CRITICAL(&lightSleepMux);
+    uint64_t us = lightSleepUs;
+    lightSleepUs = 0;
+    portEXIT_CRITICAL(&lightSleepMux);
+    return us;
+}
 
 void PowerLab::updateOnI2CThread(unsigned long nowMs) {
     // AXP2101 の充電許可ビットは M5.begin() で初期化されず、ESP32 の再起動をまたいで残る。
@@ -30,8 +51,11 @@ void PowerLab::printLog(unsigned long nowMs) {
     // ROM の printf はコンソール UART へ直接出るので、DebugProbe 側で常に拾える。
     if (!headerPrinted) {
         esp_rom_printf("PWRLOG,uptime_s,vbat_mV,level_pct,vbus_mV,charging,charge_disabled,"
-                       "audio_avg_us,audio_max_us,audio_load_pct,audio_active_pct\n");
+                       "audio_avg_us,audio_max_us,audio_load_pct,audio_active_pct,light_sleep_pct\n");
         headerPrinted = true;
+        esp_pm_sleep_cbs_register_config_t cbs = {};
+        cbs.exit_cb = onLightSleepExit;
+        esp_pm_light_sleep_register_cbs(&cbs);
     }
 
     int vbat = M5.Power.getBatteryVoltage();
@@ -52,13 +76,21 @@ void PowerLab::printLog(unsigned long nowMs) {
         activePermille = (uint32_t)((uint64_t)audio.count * periodUs * 1000ULL / elapsedUs);
         if (activePermille > 1000) activePermille = 1000;
     }
+    // light sleep で寝ていた時間の割合
+    uint64_t sleptUs = takeLightSleepUs();
+    uint32_t sleepPermille = 0;
+    if (elapsedUs > 0) {
+        sleepPermille = (uint32_t)(sleptUs * 1000ULL / elapsedUs);
+        if (sleepPermille > 1000) sleepPermille = 1000;
+    }
 
-    esp_rom_printf("PWRLOG,%u,%d,%d,%d,%d,%d,%u,%u,%u.%u,%u.%u\n",
+    esp_rom_printf("PWRLOG,%u,%d,%d,%d,%d,%d,%u,%u,%u.%u,%u.%u,%u.%u\n",
                    (unsigned)(nowMs / 1000UL), vbat, level, vbus, charging,
                    appliedChargeDisabled ? 1 : 0,
                    (unsigned)audio.avgUs, (unsigned)audio.maxUs,
                    (unsigned)(loadPermille / 10), (unsigned)(loadPermille % 10),
-                   (unsigned)(activePermille / 10), (unsigned)(activePermille % 10));
+                   (unsigned)(activePermille / 10), (unsigned)(activePermille % 10),
+                   (unsigned)(sleepPermille / 10), (unsigned)(sleepPermille % 10));
 }
 
 #endif // CAPSULECHORD_ENABLE_POWER_LAB

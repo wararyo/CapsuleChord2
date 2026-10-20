@@ -9,10 +9,14 @@ public:
 
     static constexpr unsigned long kDimMs      = 5UL * 60UL * 1000UL;
     static constexpr unsigned long kShutdownMs = 10UL * 60UL * 1000UL;
+    // 減光中のメインループと I2C スレッドの周期。周期を伸ばして、その間 light sleep に入れるようにする
+    static constexpr unsigned long kLowPowerLoopIntervalMs = 100;
 
     void begin();
     void notify();
     Stage getStage() const;
+    // 減光以降（省電力のためにループの周期を伸ばす状態）か
+    bool isLowPower() const { return getStage() != Stage::Active; }
 
     // 電池持ち測定用。保存しないので再起動で解除される
     // 無操作による減光・電源OFFを止める

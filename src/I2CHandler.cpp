@@ -103,6 +103,9 @@ void I2CHandler::i2cTaskLoop(void* parameter) {
 
 void I2CHandler::i2cLoop() {
     const TickType_t xDelay = pdMS_TO_TICKS(5);
+    // 減光中は周期を伸ばし、その間 light sleep に入れるようにする。
+    // キーイベントはキーパッド側の FIFO にたまるので取りこぼさない
+    const TickType_t xLowPowerDelay = pdMS_TO_TICKS(InactivityWatcher::kLowPowerLoopIntervalMs);
 
     ESP_LOGI(LOG_TAG, "I2C thread loop started");
 
@@ -164,7 +167,7 @@ void I2CHandler::i2cLoop() {
             M5.Power.powerOff();
         }
 
-        vTaskDelay(xDelay);
+        vTaskDelay(Inactivity.isLowPower() ? xLowPowerDelay : xDelay);
     }
 
     ESP_LOGI(LOG_TAG, "I2C thread loop exiting");

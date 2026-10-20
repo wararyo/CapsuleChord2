@@ -267,7 +267,7 @@ USB電圧:         5.0x V
 
 1. 開発フラグを追加する: `setBatteryCharge(false)`、`InactivityWatcher` 無効化、減光状態の強制、電池電圧・残量の1分ごとのログ。（実装済み）
    - 開発ビルド（`CAPSULECHORD_ENABLE_POWER_LAB`）のメニュー「システム」に「[測定] 充電禁止」「[測定] 無操作タイマー無効」「[測定] 減光を強制」がある。保存されず、再起動で解除される。
-   - 電力ログは `src/PowerLab.cpp`。起動時と以降1分ごとに `PWRLOG,` で始まるCSV行をUARTへ出す（`esp_rom_printf` なので、通常起動でUSB CDCにログが移っていてもDebugProbe側で読める）。列は `uptime_s,vbat_mV,level_pct,vbus_mV,charging,charge_disabled,audio_avg_us,audio_max_us,audio_load_pct,audio_active_pct`。`audio_avg_us` / `audio_max_us` は処理した1バッファ（128サンプル / 48kHz = 2666µs）あたりの処理時間。`audio_load_pct` は前回ログからの経過時間に対するオーディオ処理時間の割合、`audio_active_pct` はオーディオループが動いていた（無音時休止していなかった）時間の割合。無音時休止を入れる前は `audio_load_pct` を「平均処理時間 ÷ 2666µs」で出していた（`audio_active_pct` 列は無かった）。
+   - 電力ログは `src/PowerLab.cpp`。起動時と以降1分ごとに `PWRLOG,` で始まるCSV行をUARTへ出す（`esp_rom_printf` なので、通常起動でUSB CDCにログが移っていてもDebugProbe側で読める）。列は `uptime_s,vbat_mV,level_pct,vbus_mV,charging,charge_disabled,audio_avg_us,audio_max_us,audio_load_pct,audio_active_pct,light_sleep_pct`。`audio_avg_us` / `audio_max_us` は処理した1バッファ（128サンプル / 48kHz = 2666µs）あたりの処理時間。`audio_load_pct` は前回ログからの経過時間に対するオーディオ処理時間の割合、`audio_active_pct` はオーディオループが動いていた（無音時休止していなかった）時間の割合。`light_sleep_pct` は light sleep で寝ていた時間の割合（PM の light sleep 終了コールバックで集計。`CONFIG_PM_LIGHT_SLEEP_CALLBACKS=y`）。無音時休止を入れる前は `audio_load_pct` を「平均処理時間 ÷ 2666µs」で出していた（`audio_active_pct` 列は無かった）。
 2. 方法AでS1・S3を測る。あわせて、キーパッドを抜く、輝度 255 / 127 / 32 / 0、ホーム押し起動と通常起動、の差分を取る。（S1・S3のベースラインは済み。差分測定は未実施）
 3. 方法CでS3を1回フル放電し、ベースラインの稼働時間と換算係数 `k` を決める。`k` を出すには、方法Cと同じシナリオを方法Aでも測る必要がある。（済み: 63分40秒、`k` ≈ 0.86）
 4. `audioProcessTime` からオーディオタスクのCPU使用率を記録する（無音時休止・DFSの効果見積もりに使う）。（無音時は済み: 約2.7%）
@@ -306,7 +306,17 @@ USB電圧:         5.0x V
 
 ### フェーズ3: ソフトウェアの発展
 
-- light sleep の検討
+- light sleep（上限の実験で約−33.5 mA（USB側）。5章）。減光中の自動 light sleep を実装済み。減光中に約−29.5 mA（USB側。5章）
+  - `sdkconfig.defaults` に `CONFIG_FREERTOS_USE_TICKLESS_IDLE=y`。`DfsController` が `light_sleep_enable` を立てる。どのタスクも動いておらず PM ロックも無いときに自動で light sleep に入る
+  - 減光中（`Inactivity.isLowPower()`）は、メインループと I2C スレッドの周期を 5 ms → 100 ms（`InactivityWatcher::kLowPowerLoopIntervalMs`）に伸ばす。キーイベントはキーパッド側の FIFO にたまるので取りこぼさない。本体ボタンやタッチは 100 ms より短い操作を取りこぼすことがある
+  - 減光中はメインループの末尾で `M5.Display.endWrite()` し、SPI バスを手放す。LVGL の flush（`LvglWrapper.cpp`）は `startWrite()` したまま SPI バスを占有し続け、その間 ESP-IDF の SPI マスタードライバが `spi_master`（APB_FREQ_MAX）ロックを持つので、light sleep に一度も入れなかった（一時的に入れた診断出力の PM ロック一覧（`esp_pm_dump_locks()`）で判明）
+  - I2S は止めない。legacy I2S ドライバは `i2s_write()` の間だけ PM ロックを持つので、オーディオループが無音時休止していれば寝られる。上限の実験で、I2S が動いたまま寝てもノイズは出なかった
+  - 寝なくなる条件: 再生中（Tempo の 1 ms タイマー、オーディオループのロック）、BLE 使用中（コントローラが `ESP_PM_NO_LIGHT_SLEEP` を持つ）、USB 動作中（`UsbComposite::begin()` が `ESP_PM_NO_LIGHT_SLEEP` を取る。電池駆動中は USB を起動しない）
+  - GPIO は寝ている間、ESP-IDF の不具合回避（`CONFIG_ESP_SLEEP_GPIO_RESET_WORKAROUND`、既定で有効）により切り離される。上限の実験も同じ条件で、画面やキーパッドに異常は無かった
+  - 開発メニューの「[測定] light sleep を無効」で、同じ起動のまま比較できる。上限の実験用のトグルは削除した
+  - 既知の問題（実害が小さいので、今は直さない）:
+    - 減光中に音を鳴らすと、鳴り終わる頃にスピーカーからプツプツと音が出る。オーディオループが休止して light sleep に入ると、I2S のクロックが寝るたびに途切れ、スピーカーアンプ（AW88298）がノイズを出すと見られる。操作すれば減光は解除されるので、起きるのは減光中に自動演奏が終わったときなどに限られる。対策案: 減光中の休止時にアンプを止める（I2SEN=0）
+    - ホーム押し起動で減光中に USB を挿すと、Windows に「USBデバイスが認識されません」と出る。ホーム押し起動では USB の相手は内蔵の USB Serial/JTAG で、light sleep 中は応答できないため（通常起動なら USB スタックが light sleep を禁止するので認識される）。ホーム押し起動で PC につないだまま放置して減光しても、同じ理由で書き込みポートが切れると見られる。開発ビルドなら「[測定] 無操作タイマー無効」で避けられる。対策案: USB を挿したら減光を解除する、USB Serial/JTAG の SOF を監視して接続中は light sleep を禁止する（ESP-IDF の `CONFIG_USJ_NO_AUTO_LS_ON_CONNECTION` はコンソールが USB Serial/JTAG のときしか使えない）
 - タッチのINT駆動、キーパッド→本体のINT通知（既存の配線で済む範囲）
 - RP2040の dormant / sleep モード
 
@@ -564,6 +574,66 @@ uptime_s  audio_avg_us  audio_max_us  audio_load_pct  audio_active_pct
 
 - 差は約0.5 mA で誤差の範囲。core1 はスキャン中もほとんど WFE で寝ており、ADCの読み取りと列の駆動による消費も小さい。
 - フェーズ2の「無操作時のキーパッドスキャン間引き」は見送る。試験用の変更はコミットしていない。
+
+### 2026-10-20 方法A 画面・キーの明るさ（S1）
+
+DFS 導入後の本体FW、キーパッドFW は通常版。S1・通常起動、瞬時値。
+
+画面明るさ（キー明るさは「普通」固定）:
+
+| 設定 | バックライト輝度 | USB電流 | 「普通」との差 |
+|---|---|---|---|
+| 明るい | 255 | 243.0 mA | +55.0 mA |
+| 普通 | 127 | 188.0 mA | ― |
+| 暗い（減光中と同じ輝度） | 32 | 155.5 mA | −32.5 mA |
+
+キー明るさ（画面明るさは「普通」固定）:
+
+| 設定 | global brightness | USB電流 | 「普通」との差 |
+|---|---|---|---|
+| 明るい | 64 | 196.5 mA | +8.5 mA |
+| 普通 | 32 | 188.0 mA | ― |
+| 暗い（減光中と同じ値） | 16 | 185.0 mA | −3.0 mA |
+
+所見:
+
+- バックライトが最大の消費源。「普通」（127）でも、「暗い」（32）より 32.5 mA 多い。輝度0（DLDO1 OFF）は未測定だが、「普通」のバックライトは少なくとも 30 mA 台を使っている。
+- 経験式では、画面明るさ「明るい」は約57分、「普通」は約74分、「暗い」は約90分。既定値を「普通」から下げる、減光までの時間を短くする（設定項目にする）といった施策の効果が大きい。
+- キーLEDの点灯分は「普通」で数mA。LED基板全体の16 mA の大半は WS2812 の待機電流（5章の LED基板切り離しの項）という見立てと整合する。
+- 減光中（S2）は、画面・キーとも「暗い」と同じ値になるので、S1 から少なくとも約35 mA 減っている。
+
+### 2026-10-20 方法A light sleep の上限（S1）
+
+開発メニューの「[測定] light sleep 実験」を使った。有効な間、メインループは1周ごとに画面転送の完了を待ってから約90 ms の light sleep に入る（時間の約95%を light sleep で過ごす）。寝ている間は音・描画・入力がすべて止まる。ホーム押し起動（USBスタックなし）、S1、画面・キーの明るさは「普通」。瞬時値。
+
+| 状態 | USB電流 |
+|---|---|
+| 実験OFF（DFSのみ） | 186.0 mA |
+| 実験ON（約95%を light sleep） | 152.5 mA |
+| 差 | 約−33.5 mA |
+
+所見:
+
+- light sleep で削れる量の上限は約33.5 mA（USB側）。バックライト「普通」→「暗い」の差（32.5 mA）と同じくらい大きい。DFS で 80MHz に落としても、CPU が起きている間の消費はまだ大きい。
+- 経験式では約75分 → 約91分。ただし上限で、実際の効果は寝ていられる時間の割合で決まる。
+- 動作が極端に遅くなる以外の異常（画面の乱れ、ノイズ、キーパッドの無反応など）は無かった。light sleep 中も GPIO・LCD・I2C・キーパッドの状態は保たれている。
+- 通常の操作中はメインループと I2C スレッドが 5 ms ごとに起きるので、寝ていられる時間は短い。まずは減光中（S2）に周期を伸ばして寝かせるのが現実的。
+
+### 2026-10-20 方法A 減光中の自動 light sleep（S2）
+
+ホーム押し起動（USBスタックなし）、「[測定] 減光を強制」で減光状態にし、「[測定] light sleep を無効」を切り替えて比較した。画面・キーの明るさの設定は「普通」（減光中はどちらも「暗い」と同じ値になる）。瞬時値。
+
+| 状態 | USB電流 | light_sleep_pct |
+|---|---|---|
+| light sleep 無効（減光中の周期 100 ms は有効） | 146.5 mA | 0.0 |
+| light sleep 有効 | 117.0 mA | 96.8 |
+| 差 | 約−29.5 mA | |
+
+所見:
+
+- 減光中の消費は 117 mA まで下がった。上限の実験（−33.5 mA）の約9割を取れている。経験式では、減光中は約1.6時間 → 約2時間。
+- 最初の実装では一度も light sleep に入れなかった。LVGL の flush が SPI バスを占有したままで、SPI ドライバの APB ロックが残っていたため。一時的に PWRLOG の後へ出した診断出力（light sleep に入ろうとした回数と、`esp_pm_dump_locks()` による PM ロックの一覧）で判明した。診断出力は解決後に削除した。減光中は `endWrite()` でバスを手放すようにして解決した。
+- 減光中の周期を 100 ms に伸ばすだけ（light sleep 無効）でも、S1 の画面・キー「暗い」相当（約152 mA）より数mA 少ない。
 
 ## 6. 参考
 
