@@ -112,11 +112,13 @@ void OutputInternal::wakeAudioLoop()
 
 void OutputInternal::onAudioIdle()
 {
+    esp_pm_lock_release(audioPmLock);
     ESP_LOGD(LOG_TAG, "Audio loop idle");
 }
 
 void OutputInternal::onAudioResume()
 {
+    esp_pm_lock_acquire(audioPmLock);
     ESP_LOGD(LOG_TAG, "Audio loop resumed");
 }
 
@@ -137,6 +139,7 @@ void OutputInternal::AudioLoop()
     uint32_t silentBufferCount = 0;
     // I2S・アンプ初期化直後の安定待ち。呼び出し元（setup() 等）を止めないようにこのタスク側で待つ
     esp_delay(100);
+    esp_pm_lock_acquire(audioPmLock);
     while (true)
     {
         // ここまでに積まれたメッセージは直後の Process() で処理されるので、起床要求を捨てる。
@@ -272,6 +275,11 @@ void OutputInternal::stopAudioLoop()
     {
         vTaskDelete(audioLoopHandler);
         audioLoopHandler = nullptr;
+    }
+    // 削除したタスクが持っていた PM ロックを手放す。このロックはオーディオループしか使わないので、
+    // 取得回数が 0 になるまで解放してよい（0 のときの解放はエラーを返すだけ）
+    if (audioPmLock != nullptr) {
+        while (esp_pm_lock_release(audioPmLock) == ESP_OK) {}
     }
 }
 
@@ -433,6 +441,7 @@ void OutputInternal::begin()
     ESP_LOGI(LOG_TAG, "[begin] subscriptions registered");
 
     if (audioWakeSem == nullptr) audioWakeSem = xSemaphoreCreateBinary();
+    if (audioPmLock == nullptr) esp_pm_lock_create(ESP_PM_CPU_FREQ_MAX, 0, "audioLoop", &audioPmLock);
 
     // 現在のヘッドフォン接続状態を取得してI2S初期化
     isHeadphonePreviously = esp_digitalRead(PIN_HP_DETECT);

@@ -5,6 +5,7 @@
 #include "SystemInfo.h"
 #include "InactivityWatcher.h"
 #include "PowerLab.h"
+#include "Dfs.h"
 
 // 定数
 static const int SCREEN_WIDTH = 240;
@@ -541,6 +542,11 @@ void MenuScreen::buildSystemCategory() {
         "[測定] 無音時休止を無効",
         []() { return !Output.Internal.isIdleSuspendEnabled(); },
         [](bool v) { Output.Internal.setIdleSuspendEnabled(!v); }
+    ));
+    category.items.push_back(std::make_unique<MenuItemToggle>(
+        "[測定] DFSを無効",
+        []() { return !Dfs.isEnabled(); },
+        [](bool v) { Dfs.setEnabled(!v); }
     ));
 
     // テストクラッシュ（Core Dump 動作確認用、開発ビルドのみ）

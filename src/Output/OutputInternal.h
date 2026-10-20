@@ -5,6 +5,7 @@
 #include <driver/i2s.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/semphr.h>
+#include <esp_pm.h>
 #include <atomic>
 #include <vector>
 #include <string>
@@ -140,7 +141,10 @@ private:
     SemaphoreHandle_t audioWakeSem = nullptr;
     std::atomic<bool> idleSuspendEnabled{true};
     void wakeAudioLoop();
-    // 休止の入口と出口（DFS を入れるときは、ここで PM ロックを手放す / 取る）
+    // DFS: オーディオループが動いている間（休止していない間）は最大周波数を要求する。
+    // 負荷のスパイクで処理が 1 バッファ周期に収まらなくなるのを防ぐ
+    esp_pm_lock_handle_t audioPmLock = nullptr;
+    // 休止の入口と出口。ここで audioPmLock を手放す / 取る
     void onAudioIdle();
     void onAudioResume();
 

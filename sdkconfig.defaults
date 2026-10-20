@@ -59,6 +59,10 @@ CONFIG_ESP_MAIN_TASK_AFFINITY_CPU1=y
 # Panic (and store a core dump) on Task WDT timeout instead of only warning
 CONFIG_ESP_TASK_WDT_PANIC=y
 
+# Dynamic frequency scaling (docs/battery-life-improvement-plan.md, phase 2).
+# The frequency range is set in DfsController::begin() (src/Dfs.cpp), not at startup by IDF.
+CONFIG_PM_ENABLE=y
+
 # FreeRTOS Tick
 CONFIG_FREERTOS_HZ=1000
 

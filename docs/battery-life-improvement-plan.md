@@ -14,7 +14,7 @@ CapsuleChord2（M5Stack CoreS3 + CapsuleChord2Keypad）の電池持ちを改善�
 
 | 項目 | 現状 | 根拠 |
 |---|---|---|
-| CPUクロック | 240MHz固定。DFS・自動light sleep無効 | `sdkconfig.defaults` に `CONFIG_PM_ENABLE` なし、`CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_240=y` |
+| CPUクロック | 240MHz固定。DFS・自動light sleep無効（フェーズ2でDFSを導入。4章） | `sdkconfig.defaults` に `CONFIG_PM_ENABLE` なし、`CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_240=y` |
 | オーディオタスク | 無音でも常時稼働。48kHz/128サンプルごとに `Process()` とリバーブ、I2S書き込み | `src/Output/OutputInternal.cpp` `AudioLoop()` |
 | メインループ | 5ms周期で `lv_task_handler()` 等を常時実行 | `src/main.cpp` `loop()` |
 | I2Cタスク | 5ms周期で `M5.update()`（タッチ読み出し）、15ms周期でキーパッドをI2Cポーリング | `src/I2CHandler.cpp` |
@@ -289,7 +289,12 @@ USB電圧:         5.0x V
 
 ### フェーズ2: 構造変更
 
-- DFS（min 80 / max 240MHz、オーディオ処理・LVGL描画中は `ESP_PM_CPU_FREQ_MAX` ロック）。160MHz固定は採用しない
+- DFS（min 80 / max 240MHz、オーディオ処理・LVGL描画中は `ESP_PM_CPU_FREQ_MAX` ロック）。160MHz固定は採用しない（実装済み。S1で約−4 mA（USB側）。5章）
+  - `sdkconfig.defaults` に `CONFIG_PM_ENABLE=y`。周波数の範囲は `src/Dfs.cpp` の `DfsController::begin()` で設定する（`CONFIG_PM_DFS_INIT_AUTO` は使わない。最低周波数が XTAL の 40MHz になり、APB クロックが変わるため）
+  - 最低周波数を 80MHz にして、APB クロックを 80MHz のまま保つ。M5GFX / M5Unified の SPI・I2C は起動時の APB クロックで分周比を決めているため
+  - ロックは2つ（`ESP_PM_CPU_FREQ_MAX`）。メインタスクは `setup()` の間と `loop()` の処理中ずっと持ち、末尾の `vTaskDelay` の間だけ手放す。LVGL の描画を含むメインループの処理はすべて 240MHz で動く。オーディオループは、無音時休止していない間ずっと持つ（`onAudioIdle()` / `onAudioResume()`）
+  - 出力先の切り替えでオーディオループのタスクを削除したときは、`stopAudioLoop()` がオーディオのロックを解放し切る
+  - 開発メニューの「[測定] DFSを無効」で、240MHz固定に戻せる（同じ起動のまま比較用）
 - 無音時のオーディオタスク休止（DFSの効果を引き出す前提条件）（実装済み。単体の電流差は方法Aで誤差の範囲。DFS / light sleep の前提条件として残す）
   - `OutputInternal::AudioLoop()` で、出力が ±1 以下のバッファが約0.5秒続いたら、セマフォで待って休止する。`NoteOn/NoteOff/PitchBend` がセマフォを Give して起こす。I2S は止めない（`tx_desc_auto_clear` で DMA が 0 を送り続ける）
   - 休止の入口と出口は `onAudioIdle()` / `onAudioResume()`。DFS ではここで `ESP_PM_CPU_FREQ_MAX` ロックを手放す / 取る
@@ -513,6 +518,36 @@ USB電圧:         5.1163 V（テスター表示）
 | ヘッドフォンを挿して抜いた後のスピーカー | 正常に復帰 |
 
 フェーズ1全体（キーパッドFW 3.2 + 本体の小効果の施策）で、S1・通常起動は約210 mA → 192 mA（約−18 mA）。経験式では約66分 → 約72分（+6分、約9%）。
+
+### 2026-10-20 方法A DFS（S1）
+
+DFS と無音時休止を入れた開発ビルド、S1・通常起動。開発メニューの「[測定] DFSを無効」を切り替えて比較した。瞬時値。
+
+| 状態 | USB電流 |
+|---|---|
+| DFS無効（240MHz固定） | 192.0 mA |
+| DFS有効（80〜240MHz） | 188.0 mA |
+| 差 | 約−4 mA |
+
+PWRLOG（適当に演奏 → 放置 → ドラム BPM110 を再生）:
+
+```
+uptime_s  audio_avg_us  audio_max_us  audio_load_pct  audio_active_pct
+60        87            486           0.1             5.9
+120       93            466           0.1             3.8
+180       0             0             0.0             0.0
+240       111           595           1.0             26.1
+300       118           477           4.4             99.9
+```
+
+所見:
+
+- DFS単体の削減は約4 mA（USB側）。経験式では約72分 → 約74分。
+- メインループは処理中ずっと 240MHz を要求しているので、80MHz で待てるのはメインループの `vTaskDelay` 中で、かつオーディオが休止している間に限られる。削減を増やすには、メインループが 240MHz を要求している時間の割合を調べ、描画が無いときはロックを取らないなどの工夫が要る（画面更新の速さとのトレードオフ）。
+- `audio_avg_us` はドラム再生中に 118 µs で、DFS導入前の方法C（120〜121 µs）と同じ。オーディオ処理は 240MHz で動いている。
+  - 演奏中の 87〜93 µs が、DFS導入前の S1（72〜76 µs）より大きいのは、DFS導入前の S1 が無音（発音なし）の処理時間だったため。発音している分だけ増えている。
+  - 休止明けを含む4分目の最大値 595 µs は、DFS導入前（450〜470 µs 程度）より大きい。休止中にキャッシュから追い出されたサンプルデータの読み込みなどが考えられる。1バッファ周期（2666 µs）には十分収まっている。
+- 起動、描画、音、周辺機器（タッチ・キーパッド・USB MIDI・BLE MIDI・ヘッドフォンの抜き差し）に問題は無かった。
 
 ## 6. 参考
 

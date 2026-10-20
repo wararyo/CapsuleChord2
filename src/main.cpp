@@ -3,6 +3,7 @@
 #include <lvgl.h>
 #include <esp_log.h>
 #include <esp_timer.h>
+#include <esp_pm.h>
 #include <driver/gpio.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
@@ -58,6 +59,7 @@ static inline int esp_digitalRead(gpio_num_t pin) {
 #include "LittleFSManager.h"
 #include "Output/UsbComposite.h"
 #include "Display/DisplayController.h"
+#include "Dfs.h"
 
 #define GPIO_NUM_BACK GPIO_NUM_7
 #define GPIO_NUM_HOME GPIO_NUM_5
@@ -83,6 +85,9 @@ bool shouldShowPlayScreen = true;
 static bool usbAllowed = false;
 static bool usbStarted = false;
 void startUsb();
+
+// DFS: メインタスクは処理中ずっと最大周波数を要求し、loop() の待ち時間だけ手放す（画面更新を遅くしない）
+static esp_pm_lock_handle_t mainLoopPmLock = nullptr;
 
 void update_battery() {
   if (playScreen.isShown()) {
@@ -128,6 +133,11 @@ void setup() {
   App.bindKnockOwnerTask();
 
   BootProf.begin();
+
+  // 起動処理を最大周波数で行うため、DFS を有効にする前にロックを取る
+  esp_pm_lock_create(ESP_PM_CPU_FREQ_MAX, 0, "mainLoop", &mainLoopPmLock);
+  esp_pm_lock_acquire(mainLoopPmLock);
+  Dfs.begin();
 
   auto m5cfg = M5.config();
   m5cfg.internal_imu = false;  // IMU は AppBall だけが使うので、表示時に I2C タスクで初期化する
@@ -446,7 +456,9 @@ void loop()
   unsigned long now = esp_millis();
   unsigned long elapsed = now - lastLoopMillis;
   MainLoopStats.recordLoop(now, elapsed);
+  esp_pm_lock_release(mainLoopPmLock);
   vTaskDelay(elapsed < 5 ? pdMS_TO_TICKS(5 - elapsed) : 1);
+  esp_pm_lock_acquire(mainLoopPmLock);
   lastLoopMillis = esp_millis();
 }
 
