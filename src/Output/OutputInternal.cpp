@@ -89,16 +89,46 @@ void OutputInternal::applyCurrentVolume() {
 void OutputInternal::NoteOn(uint8_t noteNo, uint8_t velocity, uint8_t channel)
 {
     sampler->NoteOn(noteNo, velocity, channel);
+    wakeAudioLoop();
 }
 
 void OutputInternal::NoteOff(uint8_t noteNo, uint8_t velocity, uint8_t channel)
 {
     sampler->NoteOff(noteNo, velocity, channel);
+    wakeAudioLoop();
 }
 
 void OutputInternal::PitchBend(int16_t pitchBend, uint8_t channel)
 {
     sampler->PitchBend(pitchBend, channel);
+    wakeAudioLoop();
+}
+
+void OutputInternal::wakeAudioLoop()
+{
+    // メッセージを Sampler のキューに積んだ後に呼ぶこと
+    if (audioWakeSem != nullptr) xSemaphoreGive(audioWakeSem);
+}
+
+void OutputInternal::onAudioIdle()
+{
+    esp_pm_lock_release(audioPmLock);
+    ESP_LOGD(LOG_TAG, "Audio loop idle");
+}
+
+void OutputInternal::onAudioResume()
+{
+    esp_pm_lock_acquire(audioPmLock);
+    ESP_LOGD(LOG_TAG, "Audio loop resumed");
+}
+
+// 出力が無音か。Sampler の int16 変換は微小な負の値を -1 にするので、±1 までは無音とみなす
+static bool isSilentBuffer(const int16_t *buf)
+{
+    for (size_t i = 0; i < SAMPLE_BUFFER_SIZE; i++) {
+        if (buf[i] > 1 || buf[i] < -1) return false;
+    }
+    return true;
 }
 
 void OutputInternal::AudioLoop()
@@ -106,10 +136,16 @@ void OutputInternal::AudioLoop()
     int16_t mono[SAMPLE_BUFFER_SIZE] = {0};
     int16_t stereo[4][SAMPLE_BUFFER_SIZE * 2] = {0};
     uint8_t buf_idx = 0;
+    uint32_t silentBufferCount = 0;
     // I2S・アンプ初期化直後の安定待ち。呼び出し元（setup() 等）を止めないようにこのタスク側で待つ
     esp_delay(100);
+    esp_pm_lock_acquire(audioPmLock);
     while (true)
     {
+        // ここまでに積まれたメッセージは直後の Process() で処理されるので、起床要求を捨てる。
+        // これ以降に積まれたものは要求が残り、休止に入ろうとしてもすぐ起きる
+        xSemaphoreTake(audioWakeSem, 0);
+
         unsigned long startTime = capsule::sampler::micros();
 
         sampler->Process(mono);
@@ -123,13 +159,46 @@ void OutputInternal::AudioLoop()
 
         unsigned long endTime = capsule::sampler::micros();
         audioProcessTime = endTime - startTime;
+#if CAPSULECHORD_ENABLE_POWER_LAB
+        portENTER_CRITICAL(&audioStatsMux);
+        audioProcessTimeSum += audioProcessTime;
+        if (audioProcessTime > audioProcessTimeMax) audioProcessTimeMax = audioProcessTime;
+        audioProcessCount++;
+        portEXIT_CRITICAL(&audioStatsMux);
+#endif
 
         static size_t bytes_written = 0;
         i2s_write(audioOutput == AudioOutput::headphone ? I2S_NUM_HP : I2S_NUM_SPK, (const unsigned char *)stereo[buf_idx], 4 * SAMPLE_BUFFER_SIZE, &bytes_written, portMAX_DELAY);
 
         buf_idx = (buf_idx + 1) & 3;
+
+        // 無音が続いたら、次の発音まで休止する。I2S は止めない
+        // （tx_desc_auto_clear により、書き込みが止まると DMA は 0 を送り続ける）
+        if (!isSilentBuffer(mono)) silentBufferCount = 0;
+        else if (silentBufferCount < kIdleBufferCount) silentBufferCount++;
+        if (silentBufferCount >= kIdleBufferCount && idleSuspendEnabled.load()) {
+            onAudioIdle();
+            xSemaphoreTake(audioWakeSem, portMAX_DELAY);
+            onAudioResume();
+            silentBufferCount = 0;
+        }
     }
 }
+
+#if CAPSULECHORD_ENABLE_POWER_LAB
+OutputInternal::AudioLoadStats OutputInternal::takeAudioLoadStats()
+{
+    portENTER_CRITICAL(&audioStatsMux);
+    uint64_t sum = audioProcessTimeSum;
+    uint32_t max = audioProcessTimeMax;
+    uint32_t count = audioProcessCount;
+    audioProcessTimeSum = 0;
+    audioProcessTimeMax = 0;
+    audioProcessCount = 0;
+    portEXIT_CRITICAL(&audioStatsMux);
+    return {static_cast<uint32_t>(sum), count ? static_cast<uint32_t>(sum / count) : 0, max, count};
+}
+#endif
 
 void OutputInternal::StartAudioLoop(void *_this)
 {
@@ -137,6 +206,9 @@ void OutputInternal::StartAudioLoop(void *_this)
 }
 
 static constexpr uint8_t aw88298_i2c_addr = 0x36;
+// AW9523 (IOエキスパンダ) の P0_2 が AW88298 のリセット線 (AW_RST、Low でリセット)
+static constexpr uint8_t aw9523_i2c_addr = 0x58;
+static constexpr uint8_t aw9523_p0_aw_rst = 0b00000100;
 
 void aw88298_write_reg(uint8_t reg, uint16_t value)
 {
@@ -204,6 +276,11 @@ void OutputInternal::stopAudioLoop()
         vTaskDelete(audioLoopHandler);
         audioLoopHandler = nullptr;
     }
+    // 削除したタスクが持っていた PM ロックを手放す。このロックはオーディオループしか使わないので、
+    // 取得回数が 0 になるまで解放してよい（0 のときの解放はエラーを返すだけ）
+    if (audioPmLock != nullptr) {
+        while (esp_pm_lock_release(audioPmLock) == ESP_OK) {}
+    }
 }
 
 void OutputInternal::initAudioOutput(AudioOutput output)
@@ -260,8 +337,13 @@ void OutputInternal::initAudioOutput(AudioOutput output)
     if (output == AudioOutput::headphone) {
         esp_pinMode(PIN_EN_HP, GPIO_MODE_OUTPUT);
         esp_digitalWrite(PIN_EN_HP, 1);
+        // 省電力のため、ヘッドフォン使用中はスピーカーアンプを止める。
+        // M5Unified のスピーカー無効化と同じ手順
+        aw88298_write_reg(0x04, 0x4000); // I2SEN=0 AMPPD=0 PWDN=0
+        M5.In_I2C.bitOff(aw9523_i2c_addr, 0x02, aw9523_p0_aw_rst, 400000);
     } else {
-        M5.In_I2C.bitOn(aw88298_i2c_addr, 0x02, 0b00000100, 400000);
+        // AW88298 のリセットを解除する
+        M5.In_I2C.bitOn(aw9523_i2c_addr, 0x02, aw9523_p0_aw_rst, 400000);
         /// サンプリングレートに応じてAW88298のレジスタの設定値を変える;
         static constexpr uint8_t rate_tbl[] = {4, 5, 6, 8, 10, 11, 15, 20, 22, 44};
         size_t reg0x06_value = 0;
@@ -357,6 +439,9 @@ void OutputInternal::begin()
             loadMainTimbre(newVal);
         });
     ESP_LOGI(LOG_TAG, "[begin] subscriptions registered");
+
+    if (audioWakeSem == nullptr) audioWakeSem = xSemaphoreCreateBinary();
+    if (audioPmLock == nullptr) esp_pm_lock_create(ESP_PM_CPU_FREQ_MAX, 0, "audioLoop", &audioPmLock);
 
     // 現在のヘッドフォン接続状態を取得してI2S初期化
     isHeadphonePreviously = esp_digitalRead(PIN_HP_DETECT);

@@ -1,6 +1,8 @@
 #include "I2CHandler.h"
 #include "Keypad.h"
 #include "InactivityWatcher.h"
+#include "PowerLab.h"
+#include "Battery/BatteryMonitor.h"
 #include <M5Unified.h>
 #include <esp_log.h>
 #include <esp_timer.h>
@@ -102,14 +104,28 @@ void I2CHandler::i2cTaskLoop(void* parameter) {
 
 void I2CHandler::i2cLoop() {
     const TickType_t xDelay = pdMS_TO_TICKS(5);
+    // 減光中は周期を伸ばし、その間 light sleep に入れるようにする。
+    // キーイベントはキーパッド側の FIFO にたまるので取りこぼさない
+    const TickType_t xLowPowerDelay = pdMS_TO_TICKS(InactivityWatcher::kLowPowerLoopIntervalMs);
 
     ESP_LOGI(LOG_TAG, "I2C thread loop started");
 
     static unsigned long lastKeypadUpdate = 0;
     const unsigned long keypadInterval = 15;
 
+    bool vbusChecked = false;
+    unsigned long lastVbusCheck = 0;
+    const unsigned long vbusCheckInterval = 1000;
+
     while (taskRunning) {
         unsigned long startTime = esp_millis();
+
+        // USB給電の有無を更新（初回はすぐ、以降1秒間隔）
+        if (!vbusChecked || startTime - lastVbusCheck >= vbusCheckInterval) {
+            vbusPresent.store(M5.Power.getVBUSVoltage() > 4000);
+            lastVbusCheck = startTime;
+            vbusChecked = true;
+        }
 
         // M5の状態を更新（バッテリー、IMUなど）
         M5.update();
@@ -130,6 +146,12 @@ void I2CHandler::i2cLoop() {
             if (!imuReady.load()) ESP_LOGW(LOG_TAG, "IMU initialization failed");
         }
 
+        // 電池残量の推定（10秒ごと）
+        Battery.updateOnI2CThread(startTime, vbusPresent.load());
+
+        // 電池持ち測定用の充電禁止反映・電力ログ
+        PwrLab.updateOnI2CThread(startTime);
+
         unsigned long endTime = esp_millis();
         unsigned long elapsedTime = endTime - startTime;
 
@@ -149,7 +171,7 @@ void I2CHandler::i2cLoop() {
             M5.Power.powerOff();
         }
 
-        vTaskDelay(xDelay);
+        vTaskDelay(Inactivity.isLowPower() ? xLowPowerDelay : xDelay);
     }
 
     ESP_LOGI(LOG_TAG, "I2C thread loop exiting");

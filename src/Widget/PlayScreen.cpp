@@ -4,6 +4,7 @@
 #include "SettingsStore.h"
 #include "Widget/lv_chordlabel.h"
 #include "Widget/lv_battery.h"
+#include "Battery/BatteryMonitor.h"
 #include "Widget/lv_tickframe.h"
 
 // ChordFilter実装
@@ -170,11 +171,10 @@ void PlayScreen::updateBattery()
 {
     if (!isCreated || !battery) return;
     
-    // バッテリー残量を取得
-    int32_t level = M5.Power.getBatteryLevel();
-    bool isCharging = M5.Power.isCharging();
-    lv_battery_set_level(battery, level);
-    lv_battery_set_charging(battery, isCharging);
+    // 電池残量は I2C スレッドが推定した値を使う（ここでは I2C に触らない）
+    int level = Battery.getLevel();
+    if (level >= 0) lv_battery_set_level(battery, level);
+    lv_battery_set_charging(battery, Battery.isCharging());
 }
 
 void PlayScreen::updateScale()

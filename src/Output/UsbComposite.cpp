@@ -5,6 +5,7 @@
 #include "tusb_console.h"
 #include "class/midi/midi_device.h"
 #include <esp_log.h>
+#include <esp_pm.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 
@@ -55,6 +56,13 @@ bool UsbComposite::begin() {
     cdcInitialized = (ret == ESP_OK);
     if (!cdcInitialized) {
         ESP_LOGW(TAG, "Failed to initialize CDC ACM: %s (MIDI will still work, console redirect unavailable)", esp_err_to_name(ret));
+    }
+
+    // USB は light sleep 中に通信できず切断されてしまうので、USB を始めたら light sleep を禁止する。
+    // USB は一度始めたら止めないので、ロックは手放さない（電池駆動中は USB を始めないので影響しない）
+    static esp_pm_lock_handle_t noLightSleepLock = nullptr;
+    if (esp_pm_lock_create(ESP_PM_NO_LIGHT_SLEEP, 0, "usb", &noLightSleepLock) == ESP_OK) {
+        esp_pm_lock_acquire(noLightSleepLock);
     }
 
     initialized = true;

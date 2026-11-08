@@ -53,6 +53,12 @@ public:
      */
     bool isImuReady() const { return imuReady.load(); }
 
+    /**
+     * USB給電（VBUS）があるか。I2C スレッドが1秒ごとに更新する。
+     * スレッド開始後の最初の更新までは false を返す。
+     */
+    bool isVbusPresent() const { return vbusPresent.load(); }
+
 private:
     static void i2cTaskLoop(void* parameter);
     void i2cLoop();
@@ -66,6 +72,7 @@ private:
     std::atomic<bool> shutdownRequested{false};
     std::atomic<bool> imuBeginRequested{false};
     std::atomic<bool> imuReady{false};
+    std::atomic<bool> vbusPresent{false};
 };
 
 extern I2CHandler I2C;

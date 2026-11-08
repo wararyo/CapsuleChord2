@@ -3,6 +3,7 @@
 #include <lvgl.h>
 #include <esp_log.h>
 #include <esp_timer.h>
+#include <esp_pm.h>
 #include <driver/gpio.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
@@ -58,6 +59,8 @@ static inline int esp_digitalRead(gpio_num_t pin) {
 #include "LittleFSManager.h"
 #include "Output/UsbComposite.h"
 #include "Display/DisplayController.h"
+#include "Dfs.h"
+#include "Battery/BatteryMonitor.h"
 
 #define GPIO_NUM_BACK GPIO_NUM_7
 #define GPIO_NUM_HOME GPIO_NUM_5
@@ -78,6 +81,14 @@ static bool btnMenuPressedForScaleChange = false;
 
 // PlayScreen表示状態の管理用
 bool shouldShowPlayScreen = true;
+
+// USB開始の管理用
+static bool usbAllowed = false;
+static bool usbStarted = false;
+void startUsb();
+
+// DFS: メインタスクは処理中ずっと最大周波数を要求し、loop() の待ち時間だけ手放す（画面更新を遅くしない）
+static esp_pm_lock_handle_t mainLoopPmLock = nullptr;
 
 void update_battery() {
   if (playScreen.isShown()) {
@@ -124,6 +135,11 @@ void setup() {
 
   BootProf.begin();
 
+  // 起動処理を最大周波数で行うため、DFS を有効にする前にロックを取る
+  esp_pm_lock_create(ESP_PM_CPU_FREQ_MAX, 0, "mainLoop", &mainLoopPmLock);
+  esp_pm_lock_acquire(mainLoopPmLock);
+  Dfs.begin();
+
   auto m5cfg = M5.config();
   m5cfg.internal_imu = false;  // IMU は AppBall だけが使うので、表示時に I2C タスクで初期化する
   m5cfg.internal_rtc = false;  // 時刻は使わない
@@ -131,6 +147,13 @@ void setup() {
   m5cfg.internal_spk = false;  // I2S とアンプは OutputInternal が自前で初期化する
   m5cfg.external_display_value = 0;  // Port A はキーパッドが使うので外部ディスプレイを探しに行かない
   M5.begin(m5cfg);
+  if (M5.getBoard() == m5::board_t::board_M5StackCoreS3) {
+    // 省電力のため、未使用の LDO を切る。
+    // AXP2101 REG 0x90 の ALDO3 / ALDO4 / BLDO1 / BLDO2。実測で約7mA減る。
+    // ALDO2 は切ると画面が暗くなり、スピーカーアンプの再設定も効かなくなるので残す
+    constexpr uint8_t unusedLdoBits = (1 << 2) | (1 << 3) | (1 << 4) | (1 << 5);
+    M5.Power.Axp2101.bitOff(0x90, unusedLdoBits);
+  }
   BootProf.mark("M5.begin");
   
   M5.Display.setRotation(M5.Display.getRotation() ^ 1);
@@ -199,17 +222,17 @@ void setup() {
   update_tempo();
   BootProf.mark("playScreen.create");
 
-  // USB開始(HOMEボタンが押されてたら開始しない)
-  if (esp_digitalRead(GPIO_NUM_HOME) == 0) {
-    // 何もしない
-  } else {
-    // Initialize USB CDC/MIDI composite device early for USB CDC logging
-    // MIDI output is still only active when USB MIDI is selected as output
-    UsbComposite::begin();
-    UsbComposite::initConsole();  // Redirect ESP_LOG to USB CDC
-    UsbComposite::startMidiDrainTask();  // Start background task to drain MIDI input
-  }
-  BootProf.mark("UsbComposite");
+  // USBはHOMEボタンを押しながら起動したときは開始しない（ESP USB-JTAG 経由で書き込むため）。
+  // それ以外は USB 給電を検出した時点で loop() から開始する。電池駆動中は開始しない（省電力）
+  usbAllowed = esp_digitalRead(GPIO_NUM_HOME) != 0;
+}
+
+void startUsb() {
+  // Initialize USB CDC/MIDI composite device for USB CDC logging
+  // MIDI output is still only active when USB MIDI is selected as output
+  UsbComposite::begin();
+  UsbComposite::initConsole();  // Redirect ESP_LOG to USB CDC
+  UsbComposite::startMidiDrainTask();  // Start background task to drain MIDI input
 }
 
 void loop()
@@ -307,14 +330,28 @@ void loop()
     Output.Internal.NoteOff(60 + Settings.performance.scale.get().key, 0, 0);
   }
 
+  // USB給電を検出したらUSBを開始する
+  if (usbAllowed && !usbStarted && I2C.isVbusPresent()) {
+    startUsb();
+    usbStarted = true;
+  }
+
   // 予約された出力先切替を反映
   Output.applyPendingChange();
 
   // 出力デバイスの更新（ヘッドフォン検出など）
   Output.getCurrentOutput()->update();
 
-  // 仮でホームボタンを押したらバッテリー残量が更新されるようにする
-  if (BtnHome.wasPressed()) update_battery();
+  // 電池残量の表示を、I2C スレッドの推定値が変わったときに更新する
+  static int shownBatteryLevel = -1;
+  static bool shownBatteryCharging = false;
+  int batteryLevel = Battery.getLevel();
+  bool batteryCharging = Battery.isCharging();
+  if (batteryLevel != shownBatteryLevel || batteryCharging != shownBatteryCharging) {
+    update_battery();
+    shownBatteryLevel = batteryLevel;
+    shownBatteryCharging = batteryCharging;
+  }
 #if CAPSULECHORD_INCLUDE_DEV_APPS
   // ホームボタン長押しでシーケンサー&ベース有効化 + 自動演奏開始 (展示用機能)
   if (BtnHome.wasHold()) {
@@ -422,13 +459,25 @@ void loop()
     lastSaveCheck = esp_millis();
   }
 
-  // 5ms間隔でループ（vTaskDelayでIDLEタスクに実行機会を与える）
-  // 処理が 5ms 以上かかった場合も最低 1 tick 待つ。待たないと優先度の低い IDLE1 が
+  // 5ms間隔でループ（vTaskDelayでIDLEタスクに実行機会を与える）。
+  // 減光中は周期を伸ばし、その間 light sleep に入れるようにする。
+  // 処理が周期以上かかった場合も最低 1 tick 待つ。待たないと優先度の低い IDLE1 が
   // 実行されず、描画が重い状態が 5 秒続くと Task WDT が発生する。
   unsigned long now = esp_millis();
   unsigned long elapsed = now - lastLoopMillis;
+  bool lowPower = Inactivity.isLowPower();
+  unsigned long interval = lowPower ? InactivityWatcher::kLowPowerLoopIntervalMs : 5;
+  if (lowPower) {
+    // LVGL の flush は startWrite() したまま SPI バスを占有し続ける。占有中は SPI ドライバが
+    // APB の PM ロックを持つので light sleep に入れない。減光中は転送を終えてバスを手放す
+    // （次の flush で startWrite() し直す）
+    M5.Display.waitDisplay();
+    while (M5.Display.getStartCount() > 0) M5.Display.endWrite();
+  }
   MainLoopStats.recordLoop(now, elapsed);
-  vTaskDelay(elapsed < 5 ? pdMS_TO_TICKS(5 - elapsed) : 1);
+  esp_pm_lock_release(mainLoopPmLock);
+  vTaskDelay(elapsed < interval ? pdMS_TO_TICKS(interval - elapsed) : 1);
+  esp_pm_lock_acquire(mainLoopPmLock);
   lastLoopMillis = esp_millis();
 }
 

@@ -3,6 +3,9 @@
 #include "SettingsStore.h"
 #include "Output/MidiOutput.h"
 #include "SystemInfo.h"
+#include "InactivityWatcher.h"
+#include "PowerLab.h"
+#include "Dfs.h"
 
 // 定数
 static const int SCREEN_WIDTH = 240;
@@ -519,6 +522,38 @@ void MenuScreen::buildSystemCategory() {
     ));
 
 #if CAPSULECHORD_SHOW_DEV_SETTINGS
+    // 電池持ち測定用（docs/battery-life-improvement-plan.md）。保存せず再起動で解除される
+    category.items.push_back(std::make_unique<MenuItemToggle>(
+        "[測定] 充電禁止",
+        []() { return PwrLab.isChargeDisabled(); },
+        [](bool v) { PwrLab.setChargeDisabled(v); }
+    ));
+    category.items.push_back(std::make_unique<MenuItemToggle>(
+        "[測定] 無操作タイマー無効",
+        []() { return Inactivity.isTimeoutDisabled(); },
+        [](bool v) { Inactivity.setTimeoutDisabled(v); }
+    ));
+    category.items.push_back(std::make_unique<MenuItemToggle>(
+        "[測定] 減光を強制",
+        []() { return Inactivity.isForceDim(); },
+        [](bool v) { Inactivity.setForceDim(v); }
+    ));
+    category.items.push_back(std::make_unique<MenuItemToggle>(
+        "[測定] 無音時休止を無効",
+        []() { return !Output.Internal.isIdleSuspendEnabled(); },
+        [](bool v) { Output.Internal.setIdleSuspendEnabled(!v); }
+    ));
+    category.items.push_back(std::make_unique<MenuItemToggle>(
+        "[測定] DFSを無効",
+        []() { return !Dfs.isEnabled(); },
+        [](bool v) { Dfs.setEnabled(!v); }
+    ));
+    category.items.push_back(std::make_unique<MenuItemToggle>(
+        "[測定] light sleep を無効",
+        []() { return !Dfs.isLightSleepEnabled(); },
+        [](bool v) { Dfs.setLightSleepEnabled(!v); }
+    ));
+
     // テストクラッシュ（Core Dump 動作確認用、開発ビルドのみ）
     category.items.push_back(std::make_unique<MenuItemNavigation>(
         "テストクラッシュを実行",
