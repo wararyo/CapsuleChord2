@@ -60,6 +60,7 @@ static inline int esp_digitalRead(gpio_num_t pin) {
 #include "Output/UsbComposite.h"
 #include "Display/DisplayController.h"
 #include "Dfs.h"
+#include "Battery/BatteryMonitor.h"
 
 #define GPIO_NUM_BACK GPIO_NUM_7
 #define GPIO_NUM_HOME GPIO_NUM_5
@@ -341,8 +342,16 @@ void loop()
   // 出力デバイスの更新（ヘッドフォン検出など）
   Output.getCurrentOutput()->update();
 
-  // 仮でホームボタンを押したらバッテリー残量が更新されるようにする
-  if (BtnHome.wasPressed()) update_battery();
+  // 電池残量の表示を、I2C スレッドの推定値が変わったときに更新する
+  static int shownBatteryLevel = -1;
+  static bool shownBatteryCharging = false;
+  int batteryLevel = Battery.getLevel();
+  bool batteryCharging = Battery.isCharging();
+  if (batteryLevel != shownBatteryLevel || batteryCharging != shownBatteryCharging) {
+    update_battery();
+    shownBatteryLevel = batteryLevel;
+    shownBatteryCharging = batteryCharging;
+  }
 #if CAPSULECHORD_INCLUDE_DEV_APPS
   // ホームボタン長押しでシーケンサー&ベース有効化 + 自動演奏開始 (展示用機能)
   if (BtnHome.wasHold()) {

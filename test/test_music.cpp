@@ -895,6 +895,8 @@ void test_degreeChord_deserialize_missingBass_staysDefault(void) {
 // テスト実行の共通化
 // ====================
 
+void runBatteryTests();  // test_battery.cpp
+
 void runAllTests() {
     // ===== Chord テスト =====
 
@@ -1039,6 +1041,9 @@ void runAllTests() {
     // DegreeChord: bassのシリアライズテスト
     RUN_TEST(test_degreeChord_serialize_bass_roundtrip);
     RUN_TEST(test_degreeChord_deserialize_missingBass_staysDefault);
+
+    // ===== 電池残量の推定（test_battery.cpp）=====
+    runBatteryTests();
 }
 
 // ====================

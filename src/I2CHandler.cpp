@@ -2,6 +2,7 @@
 #include "Keypad.h"
 #include "InactivityWatcher.h"
 #include "PowerLab.h"
+#include "Battery/BatteryMonitor.h"
 #include <M5Unified.h>
 #include <esp_log.h>
 #include <esp_timer.h>
@@ -144,6 +145,9 @@ void I2CHandler::i2cLoop() {
             imuReady.store(M5.Imu.isEnabled());
             if (!imuReady.load()) ESP_LOGW(LOG_TAG, "IMU initialization failed");
         }
+
+        // 電池残量の推定（10秒ごと）
+        Battery.updateOnI2CThread(startTime, vbusPresent.load());
 
         // 電池持ち測定用の充電禁止反映・電力ログ
         PwrLab.updateOnI2CThread(startTime);

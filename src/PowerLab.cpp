@@ -7,6 +7,7 @@
 #include <esp_rom_sys.h>
 #include <esp_pm.h>
 #include "Output/MidiOutput.h"
+#include "Battery/BatteryMonitor.h"
 
 static const char* LOG_TAG = "PowerLab";
 
@@ -51,7 +52,8 @@ void PowerLab::printLog(unsigned long nowMs) {
     // ROM の printf はコンソール UART へ直接出るので、DebugProbe 側で常に拾える。
     if (!headerPrinted) {
         esp_rom_printf("PWRLOG,uptime_s,vbat_mV,level_pct,vbus_mV,charging,charge_disabled,"
-                       "audio_avg_us,audio_max_us,audio_load_pct,audio_active_pct,light_sleep_pct\n");
+                       "audio_avg_us,audio_max_us,audio_load_pct,audio_active_pct,light_sleep_pct,"
+                       "est_pct,est_load_ma\n");
         headerPrinted = true;
         esp_pm_sleep_cbs_register_config_t cbs = {};
         cbs.exit_cb = onLightSleepExit;
@@ -84,13 +86,15 @@ void PowerLab::printLog(unsigned long nowMs) {
         if (sleepPermille > 1000) sleepPermille = 1000;
     }
 
-    esp_rom_printf("PWRLOG,%u,%d,%d,%d,%d,%d,%u,%u,%u.%u,%u.%u,%u.%u\n",
+    // est_pct は表示している残量の推定値、est_load_ma は推定に使った電池電流（給電中は 0）
+    esp_rom_printf("PWRLOG,%u,%d,%d,%d,%d,%d,%u,%u,%u.%u,%u.%u,%u.%u,%d,%d\n",
                    (unsigned)(nowMs / 1000UL), vbat, level, vbus, charging,
                    appliedChargeDisabled ? 1 : 0,
                    (unsigned)audio.avgUs, (unsigned)audio.maxUs,
                    (unsigned)(loadPermille / 10), (unsigned)(loadPermille % 10),
                    (unsigned)(activePermille / 10), (unsigned)(activePermille % 10),
-                   (unsigned)(sleepPermille / 10), (unsigned)(sleepPermille % 10));
+                   (unsigned)(sleepPermille / 10), (unsigned)(sleepPermille % 10),
+                   Battery.getLevel(), Battery.getEstimatedLoadMa());
 }
 
 #endif // CAPSULECHORD_ENABLE_POWER_LAB
